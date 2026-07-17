@@ -1,0 +1,147 @@
+{
+  "name": "Melanoma",
+  "code": "mel",
+  "is_malignant": true,
+
+  "overview": "Melanoma is an aggressive form of skin cancer that develops from melanocytes, the pigment-producing cells of the skin. Although it accounts for a smaller proportion of skin cancer cases than basal cell carcinoma or squamous cell carcinoma, melanoma is responsible for the majority of skin cancer-related deaths because of its ability to spread (metastasize) to distant organs. Early recognition and treatment greatly improve outcomes.",
+
+  "description": "Melanoma may arise within an existing mole or develop as a completely new pigmented lesion. It commonly appears on the back in men and on the legs in women but can occur anywhere on the body, including areas not regularly exposed to sunlight. Lesions often change over time in size, color, or shape. Early diagnosis followed by prompt surgical treatment offers the best chance of cure.",
+
+  "clinical_presentation": [
+    "Asymmetric pigmented lesion",
+    "Irregular or poorly defined borders",
+    "Multiple colors within the same lesion",
+    "Progressive enlargement",
+    "Dark brown, black, blue, red, pink, or white pigmentation",
+    "Elevated or nodular appearance in some subtypes",
+    "Possible ulceration or bleeding in advanced lesions"
+  ],
+
+  "typical_features": [
+    "Marked asymmetry",
+    "Irregular borders",
+    "Color variation",
+    "Diameter commonly greater than 6 mm",
+    "Evolution over weeks or months",
+    "May develop itching, tenderness, or bleeding"
+  ],
+
+  "symptoms": [
+    "Changing mole",
+    "New pigmented lesion",
+    "Itching",
+    "Bleeding",
+    "Pain or tenderness",
+    "Ulceration",
+    "Persistent irritation"
+  ],
+
+  "ABCDE": {
+    "Asymmetry": "One half does not resemble the other half.",
+    "Border": "Irregular, ragged, blurred, or poorly defined.",
+    "Color": "Multiple shades including brown, black, blue, red, white, or pink.",
+    "Diameter": "Often greater than 6 mm, although smaller melanomas can occur.",
+    "Evolution": "Any change in size, shape, color, elevation, or symptoms should prompt immediate medical evaluation."
+  },
+
+  "risk_factors": [
+    "Fair skin (Fitzpatrick Type I-II)",
+    "History of severe sunburns",
+    "Excessive ultraviolet exposure",
+    "Family history of melanoma",
+    "Previous melanoma",
+    "Large number of melanocytic nevi",
+    "Presence of atypical (dysplastic) nevi",
+    "Immunosuppression",
+    "Increasing age",
+    "Use of tanning beds",
+    "Genetic predisposition"
+  ],
+
+  "diagnostic_workup": [
+    "Comprehensive dermatological examination",
+    "Dermoscopy",
+    "Clinical photography",
+    "Excisional biopsy with histopathological examination",
+    "Breslow thickness measurement",
+    "Ulceration assessment",
+    "Sentinel lymph node biopsy when clinically indicated",
+    "Imaging studies for staging in selected patients"
+  ],
+
+  "differential_diagnosis": [
+    "Melanocytic Nevus",
+    "Seborrheic Keratosis",
+    "Pigmented Basal Cell Carcinoma",
+    "Dermatofibroma",
+    "Actinic Keratosis",
+    "Blue Nevus",
+    "Pigmented Squamous Cell Carcinoma"
+  ],
+
+  "treatment_options": [
+    "Wide local surgical excision",
+    "Sentinel lymph node biopsy when indicated",
+    "Mohs surgery in selected situations",
+    "Immunotherapy",
+    "Targeted therapy for eligible patients",
+    "Radiation therapy in selected cases",
+    "Systemic therapy for advanced disease",
+    "Regular surveillance following treatment"
+  ],
+
+  "prognosis": "The prognosis depends primarily on the stage at diagnosis. Thin melanomas detected early are often curable with surgery alone. More advanced disease carries a higher risk of recurrence and metastasis, although modern immunotherapy and targeted treatments have substantially improved outcomes for many patients.",
+
+  "prevention": [
+    "Use broad-spectrum SPF 30+ sunscreen daily",
+    "Wear sun-protective clothing and hats",
+    "Avoid tanning beds",
+    "Limit excessive ultraviolet exposure",
+    "Perform monthly skin self-examinations",
+    "Follow the ABCDE rule when monitoring moles",
+    "Attend routine dermatology examinations if at increased risk"
+  ],
+
+  "next_steps": [
+    "Arrange urgent evaluation by a dermatologist.",
+    "An excisional biopsy is generally recommended to establish a definitive diagnosis.",
+    "Avoid attempting to remove or treat the lesion yourself.",
+    "Take dated clinical photographs to monitor changes while awaiting specialist assessment.",
+    "Follow all recommendations provided by your treating dermatologist."
+  ],
+
+  "red_flags": [
+    "Rapid increase in size",
+    "Marked color variation",
+    "Irregular or expanding borders",
+    "Persistent bleeding",
+    "Ulceration",
+    "New pain or tenderness",
+    "Satellite lesions near the primary lesion",
+    "Persistent itching with progressive change"
+  ],
+
+  "follow_up": {
+    "routine": "Follow-up frequency depends on the stage of disease and should be determined by the treating dermatologist or oncology team.",
+    "high_risk": "Patients with confirmed melanoma generally require long-term dermatology surveillance and individualized follow-up planning."
+  },
+
+  "patient_advice": [
+    "Do not ignore a mole that is changing in appearance.",
+    "Monitor your skin using the ABCDE rule.",
+    "Seek prompt medical evaluation for any suspicious lesion.",
+    "Avoid excessive ultraviolet exposure and tanning beds.",
+    "Continue regular skin examinations even after treatment because new melanomas can develop."
+  ],
+
+  "references": [
+    "American Academy of Dermatology (AAD)",
+    "National Comprehensive Cancer Network (NCCN)",
+    "National Cancer Institute (NCI)",
+    "World Health Organization (WHO)",
+    "American Cancer Society (ACS)",
+    "British Association of Dermatologists (BAD)"
+  ],
+
+  "medical_disclaimer": "This information is intended for educational purposes only and does not replace evaluation, diagnosis, or treatment by a qualified healthcare professional. The AI prediction generated by DERMAXAI is a decision-support tool and must not be considered a definitive medical diagnosis."
+}

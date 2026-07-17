@@ -1,0 +1,132 @@
+{
+  "name": "Actinic Keratoses",
+  "code": "akiec",
+  "is_malignant": true,
+
+  "overview": "Actinic Keratoses (AK) are precancerous skin lesions caused by long-term ultraviolet (UV) radiation exposure. They represent abnormal growth of keratinocytes within the epidermis. Although many lesions remain stable for years, some can progress into invasive squamous cell carcinoma if left untreated. Early recognition and treatment significantly reduce the risk of malignant transformation.",
+
+  "description": "Actinic Keratoses usually develop on chronically sun-exposed skin such as the face, scalp, ears, forearms, and hands. They often appear as rough, dry, or scaly patches that may be easier to feel than to see. Individual lesions are generally small but multiple lesions commonly occur in the same patient due to cumulative sun damage.",
+
+  "clinical_presentation": [
+    "Persistent rough or scaly skin lesion",
+    "Flat or slightly elevated plaque",
+    "Pink, red, brown, or skin-colored appearance",
+    "Dry, sandpaper-like texture",
+    "Usually develops on sun-exposed skin",
+    "May become tender when touched"
+  ],
+
+  "typical_features": [
+    "Well-defined rough plaque",
+    "Surface scaling",
+    "Mild erythema",
+    "Chronic sun damage surrounding the lesion",
+    "Usually slow-growing"
+  ],
+
+  "symptoms": [
+    "Rough skin texture",
+    "Mild itching",
+    "Occasional burning sensation",
+    "Tenderness",
+    "Dryness",
+    "Usually painless"
+  ],
+
+  "ABCDE": {
+    "Asymmetry": "Usually minimal",
+    "Border": "May become irregular over time",
+    "Color": "Pink, red, brown, or skin-colored",
+    "Diameter": "Typically 2–10 mm",
+    "Evolution": "Slow enlargement or increasing roughness should be evaluated"
+  },
+
+  "risk_factors": [
+    "Chronic ultraviolet (UV) exposure",
+    "Fair skin (Fitzpatrick I-II)",
+    "Age above 40 years",
+    "Outdoor occupations",
+    "History of severe sunburns",
+    "Immunosuppression",
+    "Male gender",
+    "Previous actinic keratoses",
+    "Previous skin cancer"
+  ],
+
+  "diagnostic_workup": [
+    "Complete dermatological examination",
+    "Clinical inspection",
+    "Dermoscopy",
+    "Photographic documentation",
+    "Skin biopsy if malignancy is suspected"
+  ],
+
+  "differential_diagnosis": [
+    "Seborrheic Keratosis",
+    "Bowen Disease",
+    "Squamous Cell Carcinoma",
+    "Basal Cell Carcinoma",
+    "Psoriasis",
+    "Chronic Eczema"
+  ],
+
+  "treatment_options": [
+    "Cryotherapy",
+    "Topical 5-Fluorouracil",
+    "Imiquimod cream",
+    "Diclofenac gel",
+    "Photodynamic therapy",
+    "Curettage",
+    "Laser therapy",
+    "Surgical excision when clinically indicated"
+  ],
+
+  "prognosis": "The prognosis is generally excellent when lesions are detected and treated early. Untreated lesions have a small but clinically significant risk of progressing to invasive squamous cell carcinoma. Long-term follow-up is recommended because new lesions commonly develop in sun-damaged skin.",
+
+  "prevention": [
+    "Use broad-spectrum SPF 30+ sunscreen daily",
+    "Wear protective clothing and hats",
+    "Avoid prolonged midday sun exposure",
+    "Perform monthly skin self-examinations",
+    "Attend regular dermatology follow-up appointments",
+    "Avoid tanning beds"
+  ],
+
+  "next_steps": [
+    "Arrange evaluation by a dermatologist.",
+    "Discuss appropriate treatment options.",
+    "Document lesion size and appearance for future comparison.",
+    "Continue regular skin examinations.",
+    "Protect the affected area from further UV exposure."
+  ],
+
+  "red_flags": [
+    "Rapid increase in size",
+    "Persistent bleeding",
+    "Ulceration",
+    "Severe pain",
+    "Marked color change",
+    "Development of a firm nodule",
+    "Failure to heal after treatment"
+  ],
+
+  "follow_up": {
+    "routine": "Dermatology review every 6–12 months depending on individual risk.",
+    "high_risk": "Earlier review may be appropriate for high-risk individuals or if concerning changes occur."
+  },
+
+  "patient_advice": [
+    "Take photographs of the lesion to monitor changes over time.",
+    "Do not ignore persistent rough patches.",
+    "Use sunscreen every day, even during cloudy weather.",
+    "Seek medical evaluation if the lesion changes rapidly or develops bleeding or ulceration.",
+    "Continue routine skin examinations even after successful treatment."
+  ],
+
+  "references": [
+    "American Academy of Dermatology (AAD)",
+    "National Cancer Institute (NCI)",
+    "World Health Organization (WHO)",
+    "British Association of Dermatologists (BAD)"
+  ]
+}

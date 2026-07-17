@@ -1,0 +1,124 @@
+{
+  "name": "Dermatofibroma",
+  "code": "df",
+  "is_malignant": false,
+
+  "overview": "Dermatofibroma is a common benign skin lesion composed of fibrous tissue within the dermis. These lesions often develop after minor skin trauma such as insect bites, small cuts, or folliculitis. They are non-cancerous, usually remain stable for many years, and rarely require treatment unless they become symptomatic or cosmetically bothersome.",
+
+  "description": "Dermatofibromas typically present as firm, well-defined nodules that are fixed within the skin but movable over deeper tissues. They most commonly occur on the legs, especially in young and middle-aged adults, and are slightly more common in women. These lesions usually grow slowly before stabilizing and have an excellent long-term prognosis.",
+
+  "clinical_presentation": [
+    "Firm dermal nodule",
+    "Well-circumscribed lesion",
+    "Brown, tan, pink, or reddish coloration",
+    "Usually solitary lesion",
+    "Most commonly located on the lower legs",
+    "Slow growth followed by long-term stability",
+    "Positive dimple sign when pinched"
+  ],
+
+  "typical_features": [
+    "Firm texture",
+    "Diameter usually between 3 mm and 10 mm",
+    "Smooth or slightly rough surface",
+    "Round or oval shape",
+    "Clearly defined borders",
+    "Fixed within the skin",
+    "Central dimpling when compressed from the sides"
+  ],
+
+  "symptoms": [
+    "Usually painless",
+    "Occasional itching",
+    "Mild tenderness when pressed",
+    "Rare irritation from shaving or friction",
+    "Cosmetic concern"
+  ],
+
+  "ABCDE": {
+    "Asymmetry": "Usually symmetrical",
+    "Border": "Well-defined and regular",
+    "Color": "Uniform brown, tan, pink, or reddish",
+    "Diameter": "Usually less than 10 mm",
+    "Evolution": "Typically stable after initial development"
+  },
+
+  "risk_factors": [
+    "Minor skin trauma",
+    "Insect bites",
+    "Previous folliculitis",
+    "Young to middle adulthood",
+    "Female sex",
+    "Local inflammatory skin injury"
+  ],
+
+  "diagnostic_workup": [
+    "Clinical dermatological examination",
+    "Dermoscopy",
+    "Digital lesion photography if monitoring is required",
+    "Skin biopsy if diagnosis is uncertain or atypical features are present"
+  ],
+
+  "differential_diagnosis": [
+    "Melanocytic Nevus",
+    "Melanoma",
+    "Basal Cell Carcinoma",
+    "Seborrheic Keratosis",
+    "Epidermoid Cyst",
+    "Dermatofibrosarcoma Protuberans"
+  ],
+
+  "treatment_options": [
+    "No treatment required in most cases",
+    "Observation",
+    "Surgical excision if symptomatic",
+    "Excision for cosmetic reasons after discussion with a dermatologist"
+  ],
+
+  "prognosis": "The prognosis is excellent. Dermatofibromas are benign lesions that do not metastasize. Most remain unchanged for many years, although slight enlargement may occasionally occur. Recurrence after complete surgical excision is uncommon.",
+
+  "prevention": [
+    "There is no specific prevention strategy.",
+    "Prompt treatment of minor skin injuries may reduce local inflammation.",
+    "Routine skin self-examinations help identify new or changing lesions.",
+    "Protect skin from unnecessary trauma."
+  ],
+
+  "next_steps": [
+    "Routine observation is appropriate for typical lesions.",
+    "Dermatology consultation is recommended if the diagnosis is uncertain.",
+    "Discuss surgical removal if the lesion becomes painful, repeatedly irritated, or cosmetically bothersome.",
+    "Seek medical evaluation if the lesion changes significantly in size, color, or shape."
+  ],
+
+  "red_flags": [
+    "Rapid enlargement",
+    "Persistent bleeding",
+    "Ulceration",
+    "Marked color variation",
+    "Irregular borders",
+    "Persistent pain",
+    "Loss of the typical dimple sign",
+    "Development of new suspicious pigmentation"
+  ],
+
+  "follow_up": {
+    "routine": "Routine follow-up is generally unnecessary unless changes occur or recommended by your dermatologist.",
+    "high_risk": "Earlier dermatological evaluation is appropriate if rapid changes or atypical features develop."
+  },
+
+  "patient_advice": [
+    "Dermatofibromas are common benign skin lesions.",
+    "Avoid repeatedly scratching or traumatizing the lesion.",
+    "Monitor the lesion with occasional photographs.",
+    "Seek medical advice if rapid changes occur.",
+    "Continue routine skin self-examinations for other new lesions."
+  ],
+
+  "references": [
+    "American Academy of Dermatology (AAD)",
+    "British Association of Dermatologists (BAD)",
+    "National Cancer Institute (NCI)",
+    "World Health Organization (WHO)"
+  ]
+}

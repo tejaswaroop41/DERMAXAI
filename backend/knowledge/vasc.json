@@ -1,0 +1,131 @@
+{
+  "name": "Vascular Lesions",
+  "code": "vasc",
+  "is_malignant": false,
+
+  "overview": "Vascular lesions are benign abnormalities involving blood vessels within the skin. In the HAM10000 dataset, this category primarily includes cherry angiomas, hemangiomas, angiokeratomas, and pyogenic granulomas. Most vascular lesions are harmless, non-cancerous, and do not require treatment unless they bleed, become symptomatic, or cause cosmetic concerns.",
+
+  "description": "Vascular lesions develop due to changes in the skin's blood vessels and commonly appear as red, purple, blue, or dark red spots or nodules. Their appearance varies depending on the subtype, but they are usually well-defined and slow growing. Many vascular lesions become more common with age, while others may develop after minor trauma or hormonal changes.",
+
+  "clinical_presentation": [
+    "Bright red, dark red, purple, or blue lesion",
+    "Flat or slightly raised appearance",
+    "Smooth or lobulated surface",
+    "Well-circumscribed borders",
+    "Usually slow growing",
+    "May bleed easily after minor trauma",
+    "Commonly found on the trunk, arms, face, or extremities"
+  ],
+
+  "typical_features": [
+    "Round or oval lesion",
+    "Uniform red or purple coloration",
+    "Compressible in some subtypes",
+    "Blanching with pressure may occur",
+    "Usually painless",
+    "Well-defined margins"
+  ],
+
+  "symptoms": [
+    "Usually asymptomatic",
+    "Occasional bleeding after trauma",
+    "Mild tenderness",
+    "Rare itching",
+    "Cosmetic concern"
+  ],
+
+  "ABCDE": {
+    "Asymmetry": "Usually symmetrical.",
+    "Border": "Smooth and well-defined.",
+    "Color": "Uniform bright red, purple, blue, or dark red.",
+    "Diameter": "Variable depending on subtype.",
+    "Evolution": "Typically stable. Rapid enlargement or persistent bleeding should be evaluated."
+  },
+
+  "risk_factors": [
+    "Increasing age",
+    "Genetic predisposition",
+    "Hormonal changes",
+    "Pregnancy (for some vascular lesions)",
+    "Minor skin trauma",
+    "Certain medications",
+    "Previous vascular malformations"
+  ],
+
+  "diagnostic_workup": [
+    "Clinical dermatological examination",
+    "Dermoscopy",
+    "Digital lesion photography",
+    "Skin biopsy if diagnosis is uncertain",
+    "Ultrasound or vascular imaging in selected complex lesions"
+  ],
+
+  "differential_diagnosis": [
+    "Pyogenic Granuloma",
+    "Cherry Angioma",
+    "Hemangioma",
+    "Melanoma",
+    "Pigmented Basal Cell Carcinoma",
+    "Kaposi Sarcoma",
+    "Angiokeratoma"
+  ],
+
+  "treatment_options": [
+    "No treatment required for most benign lesions",
+    "Clinical observation",
+    "Laser therapy",
+    "Cryotherapy",
+    "Electrocautery",
+    "Surgical excision when clinically indicated",
+    "Treatment of recurrent bleeding lesions"
+  ],
+
+  "prognosis": "The prognosis is excellent. Most vascular lesions remain benign throughout life and do not spread to other organs. Treatment is generally performed only for recurrent bleeding, discomfort, or cosmetic reasons.",
+
+  "prevention": [
+    "Protect the skin from unnecessary trauma.",
+    "Monitor existing lesions for unexpected changes.",
+    "Seek medical advice for recurrent bleeding.",
+    "Attend routine dermatology examinations when recommended."
+  ],
+
+  "next_steps": [
+    "Routine observation is appropriate for typical benign vascular lesions.",
+    "Consult a dermatologist if the diagnosis is uncertain.",
+    "Treatment may be considered if the lesion bleeds repeatedly, becomes painful, or causes cosmetic concerns.",
+    "Seek medical evaluation if rapid enlargement or persistent bleeding occurs."
+  ],
+
+  "red_flags": [
+    "Rapid enlargement",
+    "Persistent spontaneous bleeding",
+    "Ulceration",
+    "Severe pain",
+    "Irregular pigmentation",
+    "Repeated recurrence after treatment",
+    "Development of multiple new vascular lesions over a short period"
+  ],
+
+  "follow_up": {
+    "routine": "Routine follow-up is generally unnecessary unless symptoms develop or recommended by a dermatologist.",
+    "high_risk": "Earlier evaluation is recommended if rapid growth, repeated bleeding, or diagnostic uncertainty occurs."
+  },
+
+  "patient_advice": [
+    "Most vascular lesions are completely benign.",
+    "Avoid picking or scratching lesions that bleed easily.",
+    "Take photographs to monitor any noticeable changes.",
+    "Seek medical advice if a lesion changes rapidly or begins bleeding repeatedly.",
+    "Continue routine skin self-examinations."
+  ],
+
+  "references": [
+    "American Academy of Dermatology (AAD)",
+    "British Association of Dermatologists (BAD)",
+    "National Cancer Institute (NCI)",
+    "World Health Organization (WHO)",
+    "American Cancer Society (ACS)"
+  ],
+
+  "medical_disclaimer": "This information is intended for educational purposes only and should not replace professional medical evaluation. Although most vascular lesions are benign, any rapidly changing or persistently bleeding skin lesion should be assessed by a qualified healthcare professional."
+}

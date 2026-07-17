@@ -1,0 +1,129 @@
+{
+  "name": "Melanocytic Nevi",
+  "code": "nv",
+  "is_malignant": false,
+
+  "overview": "Melanocytic Nevi, commonly known as moles, are benign collections of melanocytes (pigment-producing cells) within the skin. They are among the most common skin lesions, with most adults having multiple nevi. The majority remain stable throughout life and never become cancerous. However, because melanoma may occasionally develop within or resemble a mole, regular skin monitoring is recommended.",
+
+  "description": "Melanocytic nevi usually appear as well-defined brown, tan, or skin-colored spots or raised lesions. They may be present from birth or develop during childhood and early adulthood. Most remain unchanged for many years, although slight changes in size or pigmentation can occur with aging. Clinical evaluation is recommended if a mole develops suspicious features or changes over time.",
+
+  "clinical_presentation": [
+    "Symmetric pigmented lesion",
+    "Round or oval shape",
+    "Uniform coloration",
+    "Smooth, well-defined borders",
+    "Flat or slightly raised appearance",
+    "Usually stable over many years",
+    "May occur anywhere on the body"
+  ],
+
+  "typical_features": [
+    "Brown, tan, black, or skin-colored",
+    "Uniform pigmentation",
+    "Regular borders",
+    "Diameter commonly less than 6 mm",
+    "Smooth surface",
+    "Stable appearance over time"
+  ],
+
+  "symptoms": [
+    "Usually asymptomatic",
+    "Occasional mild itching",
+    "Rare irritation from friction",
+    "Cosmetic concern",
+    "Typically painless"
+  ],
+
+  "ABCDE": {
+    "Asymmetry": "Usually symmetrical.",
+    "Border": "Smooth, regular, and well-defined.",
+    "Color": "Uniform brown, tan, black, or skin-colored.",
+    "Diameter": "Usually less than 6 mm, although benign larger nevi can occur.",
+    "Evolution": "Stable over time. Any noticeable change should be evaluated."
+  },
+
+  "risk_factors": [
+    "Genetic predisposition",
+    "Fair skin",
+    "Childhood ultraviolet exposure",
+    "Family history of numerous moles",
+    "Congenital melanocytic nevi",
+    "Large number of nevi on the body"
+  ],
+
+  "diagnostic_workup": [
+    "Clinical dermatological examination",
+    "Dermoscopy",
+    "Digital mole mapping when indicated",
+    "Serial photographic monitoring",
+    "Skin biopsy if suspicious changes are present"
+  ],
+
+  "differential_diagnosis": [
+    "Melanoma",
+    "Seborrheic Keratosis",
+    "Blue Nevus",
+    "Dermatofibroma",
+    "Pigmented Basal Cell Carcinoma",
+    "Spitz Nevus"
+  ],
+
+  "treatment_options": [
+    "No treatment required for typical benign nevi",
+    "Clinical observation",
+    "Photographic monitoring",
+    "Surgical excision if suspicious changes develop",
+    "Removal for cosmetic reasons after medical consultation"
+  ],
+
+  "prognosis": "The prognosis is excellent. Most melanocytic nevi remain benign throughout life. Regular skin monitoring helps detect uncommon but important changes that may require medical evaluation.",
+
+  "prevention": [
+    "Apply broad-spectrum SPF 30+ sunscreen",
+    "Limit excessive ultraviolet exposure",
+    "Avoid tanning beds",
+    "Perform monthly skin self-examinations",
+    "Attend regular dermatology check-ups if you have numerous or atypical moles"
+  ],
+
+  "next_steps": [
+    "Continue routine skin self-examinations using the ABCDE rule.",
+    "Schedule annual dermatology examinations if recommended.",
+    "Take photographs to monitor larger or atypical moles over time.",
+    "Seek medical evaluation if any mole develops significant changes."
+  ],
+
+  "red_flags": [
+    "Rapid increase in size",
+    "New asymmetry",
+    "Irregular borders",
+    "Multiple colors developing within the lesion",
+    "Persistent itching",
+    "Bleeding",
+    "Ulceration",
+    "Formation of a new dark lesion in adulthood"
+  ],
+
+  "follow_up": {
+    "routine": "Annual skin examination or as recommended by your dermatologist.",
+    "high_risk": "Individuals with numerous atypical nevi or a strong family history of melanoma may require more frequent surveillance."
+  },
+
+  "patient_advice": [
+    "Most moles are completely harmless.",
+    "Learn and regularly apply the ABCDE rule when examining your skin.",
+    "Take dated photographs of larger or unusual moles to monitor changes.",
+    "Avoid excessive sun exposure and tanning beds.",
+    "Consult a dermatologist promptly if a mole changes in size, shape, color, or symptoms."
+  ],
+
+  "references": [
+    "American Academy of Dermatology (AAD)",
+    "National Cancer Institute (NCI)",
+    "British Association of Dermatologists (BAD)",
+    "World Health Organization (WHO)",
+    "American Cancer Society (ACS)"
+  ],
+
+  "medical_disclaimer": "This information is intended for educational purposes only and does not replace professional medical evaluation. Most melanocytic nevi are benign; however, any changing skin lesion should be assessed by a qualified healthcare professional."
+}

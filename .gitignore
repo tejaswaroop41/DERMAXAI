@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+*.pth
+*.db
+*.log
+backend/uploads/
+backend/heatmaps/
+backend/generated_reports/
+backend/logs/
+.env
+node_modules/
+dist/
+.DS_Store
+venv/
+.venv/
+*.egg-info/

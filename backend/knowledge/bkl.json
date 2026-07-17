@@ -1,0 +1,123 @@
+{
+  "name": "Benign Keratosis",
+  "code": "bkl",
+  "is_malignant": false,
+
+  "overview": "Benign Keratosis-like Lesions (BKL), most commonly Seborrheic Keratoses, are among the most common benign skin growths. They are non-cancerous proliferations of epidermal cells and typically develop with increasing age. Although they do not become skin cancer, they may resemble malignant lesions such as melanoma or basal cell carcinoma, making clinical evaluation important when the diagnosis is uncertain.",
+
+  "description": "Benign keratoses usually appear as well-defined lesions with a characteristic waxy or 'stuck-on' appearance. They may range in color from light tan to dark brown or black and often develop on the trunk, face, scalp, neck, or extremities. Lesions generally grow slowly over many years and are frequently discovered incidentally during routine skin examinations.",
+
+  "clinical_presentation": [
+    "Well-defined skin lesion",
+    "Waxy or stuck-on appearance",
+    "Flat, slightly raised, or elevated plaque",
+    "Rough or verrucous surface",
+    "Round or oval shape",
+    "Usually multiple lesions in older adults",
+    "Slow progressive growth"
+  ],
+
+  "typical_features": [
+    "Brown, black, or tan coloration",
+    "Clearly demarcated borders",
+    "Dry or waxy surface",
+    "May appear cracked or rough",
+    "Common on the chest, back, face, scalp, and shoulders",
+    "Usually painless"
+  ],
+
+  "symptoms": [
+    "Usually asymptomatic",
+    "Occasional itching",
+    "Mild irritation from clothing",
+    "Rare bleeding after accidental trauma",
+    "Cosmetic concern"
+  ],
+
+  "ABCDE": {
+    "Asymmetry": "Usually symmetrical",
+    "Border": "Well-defined and regular",
+    "Color": "Uniform tan, brown, or black",
+    "Diameter": "Variable; often larger than 5 mm",
+    "Evolution": "Typically slow enlargement over years"
+  },
+
+  "risk_factors": [
+    "Increasing age",
+    "Family history",
+    "Genetic predisposition",
+    "Long-term sun exposure (for some variants)",
+    "Multiple existing seborrheic keratoses"
+  ],
+
+  "diagnostic_workup": [
+    "Clinical dermatological examination",
+    "Dermoscopy",
+    "Digital photography for monitoring",
+    "Skin biopsy if diagnosis is uncertain or malignant features are suspected"
+  ],
+
+  "differential_diagnosis": [
+    "Melanoma",
+    "Basal Cell Carcinoma",
+    "Actinic Keratosis",
+    "Melanocytic Nevus",
+    "Dermatofibroma",
+    "Pigmented Squamous Cell Carcinoma"
+  ],
+
+  "treatment_options": [
+    "No treatment required in most cases",
+    "Cryotherapy",
+    "Curettage",
+    "Electrocautery",
+    "Laser removal",
+    "Shave excision for symptomatic or cosmetically concerning lesions"
+  ],
+
+  "prognosis": "The prognosis is excellent. Benign keratoses are non-cancerous and do not metastasize. Most lesions remain stable or enlarge slowly over time. Treatment is generally performed only for cosmetic reasons, recurrent irritation, or diagnostic uncertainty.",
+
+  "prevention": [
+    "Routine skin self-examinations",
+    "Protect skin from excessive ultraviolet exposure",
+    "Use sunscreen regularly",
+    "Attend routine dermatology examinations if numerous lesions are present"
+  ],
+
+  "next_steps": [
+    "Routine dermatological follow-up if recommended by your clinician.",
+    "No treatment is necessary unless the lesion becomes symptomatic or cosmetically bothersome.",
+    "Discuss removal options if irritation, recurrent trauma, or cosmetic concerns develop.",
+    "Seek medical evaluation if the lesion changes rapidly, develops irregular pigmentation, persistent bleeding, or ulceration."
+  ],
+
+  "red_flags": [
+    "Rapid enlargement",
+    "Persistent bleeding without trauma",
+    "Ulceration",
+    "Marked color variation",
+    "Irregular borders",
+    "Persistent pain",
+    "Development of features concerning for melanoma"
+  ],
+
+  "follow_up": {
+    "routine": "Routine skin examinations as recommended by your healthcare provider.",
+    "high_risk": "Earlier review is appropriate if rapid changes or suspicious features develop."
+  },
+
+  "patient_advice": [
+    "Benign keratoses are common and usually harmless.",
+    "Avoid picking or scratching lesions to reduce irritation or bleeding.",
+    "Take periodic photographs to monitor for changes.",
+    "Seek medical evaluation if a lesion changes significantly in color, size, or shape.",
+    "Continue routine skin examinations, particularly if you have many pigmented lesions."
+  ],
+
+  "references": [
+    "American Academy of Dermatology (AAD)",
+    "National Cancer Institute (NCI)",
+    "World Health Organization (WHO)",
+    "British Association of Dermatologists (BAD)"
+  ]
+}

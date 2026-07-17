@@ -1,0 +1,139 @@
+{
+  "name": "Basal Cell Carcinoma",
+  "code": "bcc",
+  "is_malignant": true,
+
+  "overview": "Basal Cell Carcinoma (BCC) is the most common form of skin cancer. It originates from the basal cells of the epidermis and usually develops after years of cumulative ultraviolet (UV) exposure. Although BCC rarely spreads to distant organs, it can progressively invade surrounding skin, cartilage, muscle, and bone if left untreated. Early diagnosis and treatment provide an excellent prognosis.",
+
+  "description": "Basal Cell Carcinoma typically develops on chronically sun-exposed areas including the face, nose, ears, scalp, neck, and shoulders. The lesion often grows slowly over months or years and may repeatedly bleed, crust, or ulcerate. Because of its slow progression, patients sometimes mistake it for a non-healing wound. Prompt evaluation is recommended since untreated tumors may cause significant local tissue destruction.",
+
+  "clinical_presentation": [
+    "Pearly or translucent papule",
+    "Waxy or shiny skin-colored bump",
+    "Visible surface blood vessels (telangiectasia)",
+    "Rolled or raised borders",
+    "Central ulceration in advanced lesions",
+    "Slow progressive enlargement",
+    "Non-healing sore",
+    "Recurrent bleeding or crusting"
+  ],
+
+  "typical_features": [
+    "Smooth pearly appearance",
+    "Shiny surface",
+    "Rolled edge around the lesion",
+    "Visible fine blood vessels",
+    "Central depression or ulcer in larger lesions",
+    "Usually painless during early stages"
+  ],
+
+  "symptoms": [
+    "Persistent non-healing lesion",
+    "Occasional itching",
+    "Intermittent bleeding",
+    "Crusting",
+    "Ulceration",
+    "Tenderness in advanced disease"
+  ],
+
+  "ABCDE": {
+    "Asymmetry": "Usually mild or absent",
+    "Border": "Rolled, raised, or irregular border",
+    "Color": "Skin-colored, pink, pearly, brown, or black (pigmented variants)",
+    "Diameter": "Variable; commonly greater than 5 mm",
+    "Evolution": "Gradual enlargement, repeated bleeding, or failure to heal should prompt evaluation"
+  },
+
+  "risk_factors": [
+    "Chronic ultraviolet (UV) exposure",
+    "Fair skin (Fitzpatrick I-II)",
+    "Increasing age",
+    "Male sex",
+    "History of severe sunburn",
+    "Outdoor occupations",
+    "Previous Basal Cell Carcinoma",
+    "Previous skin cancer",
+    "Immunosuppression",
+    "Radiation exposure",
+    "Genetic syndromes such as Gorlin syndrome"
+  ],
+
+  "diagnostic_workup": [
+    "Complete dermatological examination",
+    "Clinical assessment",
+    "Dermoscopy",
+    "Digital lesion photography",
+    "Skin biopsy for histopathological confirmation",
+    "Additional imaging only if deep tissue invasion is suspected"
+  ],
+
+  "differential_diagnosis": [
+    "Actinic Keratosis",
+    "Squamous Cell Carcinoma",
+    "Melanoma",
+    "Seborrheic Keratosis",
+    "Benign Intradermal Nevus",
+    "Dermatofibroma"
+  ],
+
+  "treatment_options": [
+    "Standard surgical excision",
+    "Mohs micrographic surgery for cosmetically sensitive or high-risk areas",
+    "Cryotherapy in selected superficial lesions",
+    "Topical Imiquimod",
+    "Topical 5-Fluorouracil",
+    "Curettage and electrodessication",
+    "Radiotherapy when surgery is unsuitable",
+    "Targeted therapy for selected advanced cases"
+  ],
+
+  "prognosis": "The prognosis is excellent when Basal Cell Carcinoma is diagnosed and treated early. Metastasis is uncommon, but untreated tumors may progressively destroy nearby tissues and require more extensive surgery. Long-term surveillance is recommended because patients who develop one BCC have an increased likelihood of developing additional skin cancers.",
+
+  "prevention": [
+    "Apply broad-spectrum SPF 30+ sunscreen daily",
+    "Wear protective clothing, hats, and sunglasses",
+    "Avoid excessive midday sun exposure",
+    "Avoid tanning beds",
+    "Perform monthly skin self-examinations",
+    "Attend regular dermatology follow-up appointments"
+  ],
+
+  "next_steps": [
+    "Arrange prompt consultation with a dermatologist.",
+    "Histopathological confirmation by biopsy is generally recommended before definitive treatment.",
+    "Discuss appropriate treatment options based on lesion size, location, and subtype.",
+    "Continue long-term skin surveillance because future skin cancers are more common after one diagnosis.",
+    "Protect the affected skin from additional ultraviolet exposure."
+  ],
+
+  "red_flags": [
+    "Rapid enlargement",
+    "Persistent ulceration",
+    "Repeated bleeding",
+    "Increasing pain",
+    "Invasion into nearby structures",
+    "Loss of sensation around the lesion",
+    "Failure to respond after treatment"
+  ],
+
+  "follow_up": {
+    "routine": "Dermatology follow-up every 6–12 months depending on recurrence risk and clinician assessment.",
+    "high_risk": "More frequent follow-up may be recommended for recurrent, large, aggressive, or multiple lesions."
+  },
+
+  "patient_advice": [
+    "Do not ignore lesions that repeatedly bleed or fail to heal.",
+    "Take photographs to monitor changes over time.",
+    "Follow your dermatologist's treatment recommendations.",
+    "Protect your skin from future ultraviolet exposure.",
+    "Continue regular skin examinations because new lesions may develop even after successful treatment."
+  ],
+
+  "references": [
+    "American Academy of Dermatology (AAD)",
+    "National Cancer Institute (NCI)",
+    "World Health Organization (WHO)",
+    "British Association of Dermatologists (BAD)",
+    "National Comprehensive Cancer Network (NCCN)"
+  ]
+}
