@@ -295,15 +295,6 @@ async def diagnose(
     }
 
 
-@app.get("/api/diagnose/{diagnosis_id}/gradcam")
-def get_gradcam(diagnosis_id: int, db: Session = Depends(get_db),
-                current_user: User = Depends(get_current_user)):
-    diag = db.query(Diagnosis).filter(Diagnosis.id == diagnosis_id).first()
-    if not diag or not diag.gradcam_path or not os.path.exists(diag.gradcam_path):
-        raise HTTPException(status_code=404, detail="Grad-CAM not found")
-    return FileResponse(diag.gradcam_path, media_type="image/jpeg")
-
-
 @app.get("/api/diagnose/history")
 def get_history(db: Session = Depends(get_db),
                 current_user: User = Depends(get_current_user)):
@@ -321,6 +312,18 @@ def get_history(db: Session = Depends(get_db),
         "created_at": d.created_at,
         "report_url": f"/api/reports/{d.id}" if d.report_path else None,
     } for d in diags]
+
+
+@app.get("/api/diagnose/{diagnosis_id}/gradcam")
+def get_gradcam(diagnosis_id: int, db: Session = Depends(get_db),
+                current_user: User = Depends(get_current_user)):
+    diag = db.query(Diagnosis).filter(
+        Diagnosis.id == diagnosis_id,
+        Diagnosis.user_id == current_user.id,
+    ).first()
+    if not diag or not diag.gradcam_path or not os.path.exists(diag.gradcam_path):
+        raise HTTPException(status_code=404, detail="Grad-CAM not found")
+    return FileResponse(diag.gradcam_path, media_type="image/jpeg")
 
 
 # ════════════════════════════════════════════════════════════

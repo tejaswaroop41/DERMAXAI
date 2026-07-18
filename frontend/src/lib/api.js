@@ -1,9 +1,28 @@
 import axios from 'axios'
 
-const API_URL = import.meta.env.VITE_API_URL || '/api'
+export const API_URL = import.meta.env.VITE_API_URL || '/api'
 const api = axios.create({ baseURL: API_URL })
 
 const getToken = () => localStorage.getItem('token')
+
+export const apiUrl = (path = '') => {
+  if (!path) return API_URL
+  if (/^https?:\/\//i.test(path)) return path
+  const base = API_URL.endsWith('/') ? API_URL.slice(0, -1) : API_URL
+  const suffix = path.startsWith('/api/') ? path.slice(4) : path.startsWith('/') ? path : `/${path}`
+  return `${base}${suffix}`
+}
+
+export const getAuthenticatedBlobUrl = async (path) => {
+  const response = await api.get(apiUrl(path), { responseType: 'blob' })
+  return URL.createObjectURL(response.data)
+}
+
+export const openAuthenticatedFile = async (path) => {
+  const blobUrl = await getAuthenticatedBlobUrl(path)
+  window.open(blobUrl, '_blank', 'noopener,noreferrer')
+  setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000)
+}
 
 api.interceptors.request.use(cfg => {
   const token = getToken()
@@ -55,6 +74,11 @@ export const diagnoseApi = {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
   history: () => api.get('/diagnose/history'),
+  gradcam: path => getAuthenticatedBlobUrl(path),
+}
+
+export const reportApi = {
+  open: path => openAuthenticatedFile(path),
 }
 
 export const patientApi = {
