@@ -1,9 +1,37 @@
 import axios from 'axios'
 
-const API_URL = import.meta.env.VITE_API_URL || '/api'
+export const API_URL = import.meta.env.VITE_API_URL || '/api'
 const api = axios.create({ baseURL: API_URL })
 
 const getToken = () => localStorage.getItem('token')
+
+export const apiPath = (path = '') => {
+  if (!path) return '/'
+  if (/^https?:\/\//i.test(path)) {
+    const url = new URL(path)
+    return apiPath(url.pathname)
+  }
+  const withoutApiPrefix = path.startsWith('/api/') ? path.slice(4) : path
+  return withoutApiPrefix.startsWith('/') ? withoutApiPrefix : `/${withoutApiPrefix}`
+}
+
+export const getAuthenticatedBlobUrl = async (path) => {
+  const response = await api.get(apiPath(path), { responseType: 'blob' })
+  return URL.createObjectURL(response.data)
+}
+
+export const downloadAuthenticatedFile = async (path, filename = '') => {
+  const blobUrl = await getAuthenticatedBlobUrl(path)
+  const link = document.createElement('a')
+  link.href = blobUrl
+  link.target = '_blank'
+  link.rel = 'noopener noreferrer'
+  if (filename) link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000)
+}
 
 api.interceptors.request.use(cfg => {
   const token = getToken()
@@ -55,6 +83,11 @@ export const diagnoseApi = {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
   history: () => api.get('/diagnose/history'),
+  gradcam: path => getAuthenticatedBlobUrl(path),
+}
+
+export const reportApi = {
+  download: (path, filename) => downloadAuthenticatedFile(path, filename),
 }
 
 export const patientApi = {

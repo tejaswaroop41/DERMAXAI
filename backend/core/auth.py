@@ -27,6 +27,8 @@ def verify_password(plain: str, hashed: str) -> bool:
 def create_token(data: dict) -> str:
     to_encode = data.copy()
     to_encode["exp"] = datetime.utcnow() + timedelta(minutes=settings.TOKEN_EXPIRE_MINUTES)
+    if "sub" in to_encode:
+        to_encode["sub"] = str(to_encode["sub"])
     return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
 
@@ -42,7 +44,11 @@ def get_current_user(
     db: Session = Depends(get_db)
 ) -> User:
     payload = decode_token(credentials.credentials)
-    user = db.query(User).filter(User.id == payload.get("sub")).first()
+    try:
+        user_id = int(payload.get("sub"))
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+    user = db.query(User).filter(User.id == user_id).first()
     if not user or not user.is_active:
         raise HTTPException(status_code=401, detail="User not found or inactive")
     return user
