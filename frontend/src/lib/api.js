@@ -5,22 +5,31 @@ const api = axios.create({ baseURL: API_URL })
 
 const getToken = () => localStorage.getItem('token')
 
-export const apiUrl = (path = '') => {
-  if (!path) return API_URL
-  if (/^https?:\/\//i.test(path)) return path
-  const base = API_URL.endsWith('/') ? API_URL.slice(0, -1) : API_URL
-  const suffix = path.startsWith('/api/') ? path.slice(4) : path.startsWith('/') ? path : `/${path}`
-  return `${base}${suffix}`
+export const apiPath = (path = '') => {
+  if (!path) return '/'
+  if (/^https?:\/\//i.test(path)) {
+    const url = new URL(path)
+    return apiPath(url.pathname)
+  }
+  const withoutApiPrefix = path.startsWith('/api/') ? path.slice(4) : path
+  return withoutApiPrefix.startsWith('/') ? withoutApiPrefix : `/${withoutApiPrefix}`
 }
 
 export const getAuthenticatedBlobUrl = async (path) => {
-  const response = await api.get(apiUrl(path), { responseType: 'blob' })
+  const response = await api.get(apiPath(path), { responseType: 'blob' })
   return URL.createObjectURL(response.data)
 }
 
-export const openAuthenticatedFile = async (path) => {
+export const downloadAuthenticatedFile = async (path, filename = '') => {
   const blobUrl = await getAuthenticatedBlobUrl(path)
-  window.open(blobUrl, '_blank', 'noopener,noreferrer')
+  const link = document.createElement('a')
+  link.href = blobUrl
+  link.target = '_blank'
+  link.rel = 'noopener noreferrer'
+  if (filename) link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
   setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000)
 }
 
@@ -78,7 +87,7 @@ export const diagnoseApi = {
 }
 
 export const reportApi = {
-  open: path => openAuthenticatedFile(path),
+  download: (path, filename) => downloadAuthenticatedFile(path, filename),
 }
 
 export const patientApi = {

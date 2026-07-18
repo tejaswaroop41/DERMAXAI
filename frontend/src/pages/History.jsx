@@ -67,7 +67,7 @@ export default function History() {
                 <div>{d.is_malignant ? <span className="badge-malignant">Malignant</span> : <span className="badge-benign">Benign</span>}</div>
                 <div className="text-xs text-slate-500">{new Date(d.created_at).toLocaleDateString()}</div>
                 <div>
-                  {d.report_url && <button type="button" onClick={() => reportApi.open(d.report_url)} className="text-xs text-sky-400 hover:text-sky-300 flex items-center gap-1"><Download size={11} /> PDF</button>}
+                  {d.report_url && <button type="button" onClick={() => reportApi.download(d.report_url)} className="text-xs text-sky-400 hover:text-sky-300 flex items-center gap-1"><Download size={11} /> PDF</button>}
                 </div>
               </div>
             ))

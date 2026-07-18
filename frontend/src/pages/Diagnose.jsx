@@ -255,7 +255,7 @@ export default function Diagnose() {
 
                 <div className="flex gap-3">
                   {result.report_url && (
-                    <button type="button" onClick={() => reportApi.open(result.report_url)} className="btn-primary flex-1 py-2.5 text-sm flex items-center justify-center gap-2">
+                    <button type="button" onClick={() => reportApi.download(result.report_url)} className="btn-primary flex-1 py-2.5 text-sm flex items-center justify-center gap-2">
                       <Download size={14} /> Download PDF
                     </button>
                   )}

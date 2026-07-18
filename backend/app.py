@@ -314,7 +314,7 @@ def get_history(db: Session = Depends(get_db),
     } for d in diags]
 
 
-@app.get("/api/diagnose/{diagnosis_id}/gradcam")
+@app.get("/api/diagnose/{diagnosis_id:int}/gradcam")
 def get_gradcam(diagnosis_id: int, db: Session = Depends(get_db),
                 current_user: User = Depends(get_current_user)):
     diag = db.query(Diagnosis).filter(
