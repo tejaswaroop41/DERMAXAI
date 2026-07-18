@@ -103,12 +103,15 @@ DERMAXAI/
 │   ├── requirements.txt
 │   └── Dockerfile
 ├── frontend/
+│   ├── Dockerfile               ← Production static frontend image
+│   ├── nginx.conf               ← SPA + /api reverse proxy config
 │   └── src/
 │       ├── pages/                ← Landing, Login, Register, Dashboard,
 │       │                            Diagnose, History, Profile, Admin
 │       ├── components/layout/    ← Glassmorphism sidebar
 │       └── lib/api.js            ← Axios API client
-├── docker-compose.yml
+├── docker-compose.yml           ← Docker Compose stack
+├── .env.example                 ← Docker/local environment template
 ├── railway.toml
 └── README.md
 ```
@@ -123,13 +126,41 @@ cd dermaxai
 # 2. Copy trained model weights from Colab
 cp /path/to/best.pth backend/models/best.pth
 
-# 3. Run with Docker Compose
-docker-compose up --build
+# 3. Create local environment file
+cp .env.example .env
+# edit SECRET_KEY if this is not just a local demo
+
+# 4. Keep the trained weights at backend/models/best.pth
+# Docker Compose mounts backend/models read-only at /data/models.
+
+# 5. Run the production-style Docker stack
+docker compose up --build
 
 # App  → http://localhost:5173
 # API  → http://localhost:8000
 # Docs → http://localhost:8000/docs
 ```
+
+## Docker Notes
+
+The default Docker Compose stack is production-style:
+
+- `backend` runs FastAPI/Uvicorn on port `8000`.
+- `frontend` builds the Vite app into static files and serves them from Nginx on port `5173`.
+- Nginx proxies `/api/*` requests to the backend service, so the frontend can use `VITE_API_URL=/api`.
+- Persistent backend runtime data is stored in the `backend_data` Docker volume under `/data`.
+- Local model weights are mounted read-only from `backend/models` to `/data/models`.
+
+Important runtime paths can be configured from `.env`:
+
+| Variable | Default in Docker | Purpose |
+|----------|-------------------|---------|
+| `MODEL_PATH` | `/data/models/best.pth` | Trained PyTorch checkpoint mounted from `backend/models/best.pth` |
+| `DATABASE_URL` | `sqlite:////data/dermaxai.db` | Database connection string |
+| `UPLOADS_DIR` | `/data/uploads` | Uploaded diagnosis images |
+| `HEATMAPS_DIR` | `/data/heatmaps` | Generated Grad-CAM images |
+| `REPORTS_DIR` | `/data/generated_reports` | Generated PDFs |
+| `CORS_ORIGINS` | `http://localhost:5173,http://localhost:8000` | Allowed browser origins |
 
 ## Manual Setup (without Docker)
 
@@ -138,7 +169,7 @@ docker-compose up --build
 cd backend
 python -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env          # edit SECRET_KEY
+# Optional: use variables from ../.env or export them in your shell
 uvicorn app:app --reload --port 8000
 ```
 

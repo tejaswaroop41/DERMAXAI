@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   backend:
     build:
@@ -7,38 +5,38 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8000:8000"
-    volumes:
-      - ./backend:/app
-      - uploads_data:/app/uploads
-      - heatmaps_data:/app/heatmaps
-      - reports_data:/app/generated_reports
     environment:
-      - SECRET_KEY=${SECRET_KEY:-dermaxai-change-in-production}
-      - MODEL_PATH=/app/models/best.pth
-      - DATABASE_URL=sqlite:///./dermaxai.db
-      - DEBUG=false
+      SECRET_KEY: ${SECRET_KEY:-dermaxai-change-in-production}
+      DEBUG: ${DEBUG:-false}
+      MODEL_PATH: ${MODEL_PATH:-/data/models/best.pth}
+      DATABASE_URL: ${DATABASE_URL:-sqlite:////data/dermaxai.db}
+      UPLOADS_DIR: ${UPLOADS_DIR:-/data/uploads}
+      HEATMAPS_DIR: ${HEATMAPS_DIR:-/data/heatmaps}
+      REPORTS_DIR: ${REPORTS_DIR:-/data/generated_reports}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://localhost:8000}
+    volumes:
+      - backend_data:/data
+      - ./backend/models:/data/models:ro
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 60s
 
   frontend:
-    image: node:20-alpine
-    working_dir: /app
-    volumes:
-      - ./frontend:/app
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: /api
     ports:
-      - "5173:5173"
-    environment:
-      - VITE_API_URL=http://localhost:8000/api
-    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+      - "5173:80"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     restart: unless-stopped
 
 volumes:
-  uploads_data:
-  heatmaps_data:
-  reports_data:
+  backend_data:

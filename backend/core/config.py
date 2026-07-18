@@ -5,6 +5,13 @@ Centralized settings for the entire backend.
 import os
 from pathlib import Path
 
+
+def _csv_env(name: str, default: list[str]) -> list[str]:
+    raw = os.getenv(name)
+    if not raw:
+        return default
+    return [item.strip() for item in raw.split(",") if item.strip()]
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 class Settings:
@@ -15,13 +22,13 @@ class Settings:
 
     # ── Paths ────────────────────────────────────────────
     MODEL_PATH = os.getenv(
-    "MODEL_PATH",
-    str(BASE_DIR / "models" / "dermaxai_v5_best.pth")
-)
-    UPLOADS_DIR     = str(BASE_DIR / "uploads")
-    HEATMAPS_DIR    = str(BASE_DIR / "heatmaps")
-    REPORTS_DIR     = str(BASE_DIR / "generated_reports")
-    KNOWLEDGE_DIR   = str(BASE_DIR / "knowledge")
+        "MODEL_PATH",
+        str(BASE_DIR / "models" / "dermaxai_v5_best.pth")
+    )
+    UPLOADS_DIR     = os.getenv("UPLOADS_DIR", str(BASE_DIR / "uploads"))
+    HEATMAPS_DIR    = os.getenv("HEATMAPS_DIR", str(BASE_DIR / "heatmaps"))
+    REPORTS_DIR     = os.getenv("REPORTS_DIR", str(BASE_DIR / "generated_reports"))
+    KNOWLEDGE_DIR   = os.getenv("KNOWLEDGE_DIR", str(BASE_DIR / "knowledge"))
 
     # ── Database ─────────────────────────────────────────
     DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{BASE_DIR}/dermaxai.db")
@@ -64,7 +71,12 @@ class Settings:
     NORM_STD  = [0.229, 0.224, 0.225]
 
     # ── CORS ─────────────────────────────────────────────
-    CORS_ORIGINS = ["*"]
+    # Keep credentials-compatible defaults for local development.
+    # Use CORS_ORIGINS as a comma-separated env var in deployment.
+    CORS_ORIGINS = _csv_env(
+        "CORS_ORIGINS",
+        ["http://localhost:5173", "http://localhost:8000"]
+    )
 
 settings = Settings()
 
