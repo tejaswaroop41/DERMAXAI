@@ -1,7 +1,7 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import Layout from '../components/layout/Layout'
 import { useDropzone } from 'react-dropzone'
-import { diagnoseApi } from '../lib/api'
+import { diagnoseApi, reportApi } from '../lib/api'
 import toast from 'react-hot-toast'
 import { Upload, Microscope, AlertTriangle, CheckCircle, Download, RotateCcw, Info } from 'lucide-react'
 
@@ -41,26 +41,28 @@ export default function Diagnose() {
       if (skinType) fd.append('skin_type', skinType)
 
       const { data } = await diagnoseApi.diagnose(fd)
+      setResult(data)
 
-setResult(data)
+      if (data.gradcam_url) {
+        const gradcamUrl = await diagnoseApi.gradcam(data.gradcam_url)
+        setGradcam(gradcamUrl)
+      }
 
-// Build Grad-CAM URL that works in both development and production
-const API_BASE = import.meta.env.VITE_API_URL
-  ? import.meta.env.VITE_API_URL.replace('/api', '')
-  : ''
-
-if (data.gradcam_url) {
-  setGradcam(`${API_BASE}${data.gradcam_url}`)
-}
-
-toast.success('Diagnosis complete!')
+      toast.success('Diagnosis complete!')
       if (data.decision.is_malignant) toast.error('⚠ Malignant lesion detected — clinical review advised', { duration: 6000 })
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Diagnosis failed. Please try again.')
     } finally { setLoading(false); setScanning(false) }
   }
 
+  useEffect(() => () => {
+    if (preview) URL.revokeObjectURL(preview)
+    if (gradcam) URL.revokeObjectURL(gradcam)
+  }, [preview, gradcam])
+
   const reset = () => {
+    if (preview) URL.revokeObjectURL(preview)
+    if (gradcam) URL.revokeObjectURL(gradcam)
     setFile(null); setPreview(null); setResult(null); setGradcam(null)
     setSymptoms(''); setAge(''); setGender(''); setSkinType('')
   }
@@ -253,9 +255,9 @@ toast.success('Diagnosis complete!')
 
                 <div className="flex gap-3">
                   {result.report_url && (
-                    <a href={result.report_url} target="_blank" rel="noreferrer" className="btn-primary flex-1 py-2.5 text-sm flex items-center justify-center gap-2">
+                    <button type="button" onClick={() => reportApi.download(result.report_url)} className="btn-primary flex-1 py-2.5 text-sm flex items-center justify-center gap-2">
                       <Download size={14} /> Download PDF
-                    </a>
+                    </button>
                   )}
                   <button onClick={reset} className="btn-ghost flex-1 py-2.5 text-sm">New Diagnosis</button>
                 </div>
