@@ -214,11 +214,11 @@ async def diagnose(
 
 
     # ── 4. MCUE — uncertainty estimation ──────────────────
-# Runs calibrated MC-Dropout uncertainty using the checkpoint's
-# saved entropy threshold (mcue_threshold).
+    # Runs calibrated MC-Dropout uncertainty using the checkpoint's
+    # saved entropy threshold (mcue_threshold).
     uncertainty = uncertainty_engine.composite_uncertainty(
-    image_path=img_path
-)
+        image_path=img_path
+    )
 
     # ── 5. CMCA — cross-modal fusion decision ─────────────
     decision = decision_engine.fuse(
