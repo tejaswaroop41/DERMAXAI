@@ -3,7 +3,7 @@ DERMAXAI — Model Architecture
 Rewritten to exactly match the architecture actually trained in
 dermaxai_v5 notebook: EfficientNet-B3 backbone (timm) + plain
 LayerNorm MLP head. No SE block, no CBAM — the real checkpoint
-(dermaxai_v5_best.pth) has no weights for those modules.
+(best.pth, originally produced by the v5 training notebook) has no weights for those modules.
 
 If you retrain with SE/CBAM added, update this file AND retrain;
 until then this must mirror Cell 7 of the notebook exactly so the
@@ -58,8 +58,8 @@ DERMAXAIv6 = DERMAXAIClassifier
 
 def load_model(model_path: str, device: torch.device) -> DERMAXAIClassifier:
     """
-    Loads DERMAXAI weights from a training checkpoint (dermaxai_v5_best.pth
-    or renamed best.pth). Checkpoint is a dict with 'model_state_dict' plus
+    Loads DERMAXAI weights from a training checkpoint (best.pth).
+    Checkpoint is a dict with 'model_state_dict' plus
     metadata (epoch, val_acc, class_names, mcue_threshold, ...).
     """
     model = DERMAXAIClassifier(

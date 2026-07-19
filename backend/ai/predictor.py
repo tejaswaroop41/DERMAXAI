@@ -1,5 +1,5 @@
 """
-DERMAXAI v7 — Predictor Engine
+DERMAXAI v6 — Predictor Engine
 
 Runs Test-Time Augmentation (TTA) inference using the trained
 EfficientNet-B3 classifier and returns calibrated class
