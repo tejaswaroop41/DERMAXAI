@@ -11,7 +11,9 @@ MIN_AGE = 0
 MAX_AGE = 120
 
 
-def validate_image_extension(filename: str) -> bool:
+def validate_image_extension(filename: Optional[str]) -> bool:
+    if not filename:
+        return False
     ext = os.path.splitext(filename)[1].lower()
     return ext in ALLOWED_IMAGE_EXTENSIONS
 

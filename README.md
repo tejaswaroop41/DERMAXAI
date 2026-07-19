@@ -13,9 +13,8 @@ Dermoscopic Image
        │
        ▼
 ┌─────────────────────────────────────┐
-│  EfficientNetV2-S Backbone          │
-│  + SE (Squeeze-Excitation)          │
-│  + CBAM (Channel + Spatial Attn)    │
+│  EfficientNet-B3 Backbone           │
+│  + LayerNorm MLP Head               │
 │  + ACWF-FL Loss (Training)          │
 │  + SAM Optimizer (Phase 2)          │
 │  + SWA (Phase 3)                    │
@@ -58,12 +57,12 @@ Dermoscopic Image
 
 | Layer | Technology |
 |-------|-----------|
-| ML Model | EfficientNetV2-S + SE + CBAM |
+| ML Model | EfficientNet-B3 + LayerNorm MLP Head |
 | Loss | ACWF-FL (β=0.9999, γ=2.0) |
 | Optimizer | SAM + AdamW + SWA |
 | Dataset | ISIC 2018 (10,015 images, 7 classes) |
 | Backend | FastAPI + SQLAlchemy + JWT |
-| XAI | Grad-CAM (CBAM hook) |
+| XAI | Grad-CAM (EfficientNet-B3 feature hook) |
 | Reports | ReportLab PDF |
 | Frontend | React 18 + Vite + TailwindCSS |
 | Deployment | Railway.app / Docker |
@@ -77,7 +76,7 @@ DERMAXAI/
 │   ├── core/
 │   │   ├── config.py             ← Centralized settings
 │   │   ├── preprocessing.py      ← TTA transforms + image validation
-│   │   ├── model.py              ← DERMAXAIv6 architecture (SE+CBAM)
+│   │   ├── model.py              ← DERMAXAI classifier architecture
 │   │   ├── database.py           ← SQLAlchemy models
 │   │   └── auth.py               ← JWT auth + bcrypt
 │   ├── ai/
@@ -148,6 +147,7 @@ The default Docker Compose stack is production-style:
 - `backend` runs FastAPI/Uvicorn on port `8000`.
 - `frontend` builds the Vite app into static files and serves them from Nginx on port `5173`.
 - Nginx proxies `/api/*` requests to the backend service, so the frontend can use `VITE_API_URL=/api`.
+- The frontend Nginx upload limit is set above the backend 10 MB image limit to allow multipart form overhead through the proxy.
 - Persistent backend runtime data is stored in the `backend_data` Docker volume under `/data`.
 - Local model weights are mounted read-only from `backend/models` to `/data/models`.
 

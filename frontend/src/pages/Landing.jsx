@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import { Zap, Shield, Brain, ChevronRight, Microscope, Activity, FileText } from 'lucide-react'
 
 const features = [
-  { icon: Brain,      title: 'EfficientNetV2-S + SE + CBAM', desc: 'Squeeze-excitation and dual attention for lesion-focused analysis' },
+  { icon: Brain,      title: 'EfficientNet-B3 + LayerNorm MLP', desc: 'Checkpoint-compatible classifier head for lesion-focused analysis' },
   { icon: Shield,     title: 'ACWF-FL Loss',                 desc: 'Adaptive class weighting + focal loss for class-imbalanced dermoscopy' },
   { icon: Activity,   title: 'MCUE Uncertainty',             desc: 'Aleatory + epistemic + fusion uncertainty for clinical review flagging' },
   { icon: Microscope, title: 'CMCA Multimodal Fusion',       desc: 'Confidence-weighted fusion of image, symptom, and demographic data' },
@@ -42,7 +42,7 @@ export default function Landing() {
         <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full mb-8 text-xs font-mono text-sky-400"
           style={{ background: 'rgba(14,165,233,0.08)', border: '1px solid rgba(14,165,233,0.2)' }}>
           <span className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse" />
-          DERMAXAI v6 — EfficientNetV2-S + SE + CBAM + ACWF-FL + MCUE + CMCA
+          DERMAXAI v6 — EfficientNet-B3 + LayerNorm MLP + ACWF-FL + MCUE + CMCA
         </div>
         <h1 className="text-6xl font-bold text-white leading-tight mb-6">
           AI-Powered{' '}

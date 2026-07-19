@@ -23,7 +23,7 @@ class Settings:
     # ── Paths ────────────────────────────────────────────
     MODEL_PATH = os.getenv(
         "MODEL_PATH",
-        str(BASE_DIR / "models" / "dermaxai_v5_best.pth")
+        str(BASE_DIR / "models" / "best.pth")
     )
     UPLOADS_DIR     = os.getenv("UPLOADS_DIR", str(BASE_DIR / "uploads"))
     HEATMAPS_DIR    = os.getenv("HEATMAPS_DIR", str(BASE_DIR / "heatmaps"))

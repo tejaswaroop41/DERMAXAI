@@ -26,7 +26,7 @@ export default function Diagnose() {
   }, [])
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop, accept: { 'image/*': ['.jpg','.jpeg','.png'] }, maxFiles: 1, maxSize: 10*1024*1024
+    onDrop, accept: { 'image/*': ['.jpg','.jpeg','.png','.bmp'] }, maxFiles: 1, maxSize: 10*1024*1024
   })
 
   const submit = async () => {
@@ -102,7 +102,7 @@ export default function Diagnose() {
                     </div>
                     <div className="text-center">
                       <p className="text-sm font-medium text-slate-300">Drop dermoscopic image here</p>
-                      <p className="text-xs text-slate-600 mt-1">JPG, PNG · Max 10MB</p>
+                      <p className="text-xs text-slate-600 mt-1">JPG, PNG, BMP · Max 10MB</p>
                     </div>
                   </div>
                 )}
@@ -142,7 +142,7 @@ export default function Diagnose() {
             </div>
             <button onClick={submit} disabled={loading || !file} className="btn-primary w-full py-3.5 flex items-center justify-center gap-2 text-sm">
               {loading ? (
-                <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Analysing with DERMAXAI v6...</>
+                <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Analyzing with DERMAXAI v6...</>
               ) : (
                 <><Microscope size={16} /> Run Diagnosis</>
               )}
