@@ -147,6 +147,7 @@ The default Docker Compose stack is production-style:
 - `backend` runs FastAPI/Uvicorn on port `8000`.
 - `frontend` builds the Vite app into static files and serves them from Nginx on port `5173`.
 - Nginx proxies `/api/*` requests to the backend service, so the frontend can use `VITE_API_URL=/api`.
+- The frontend Nginx upload limit is set above the backend 10 MB image limit to allow multipart form overhead through the proxy.
 - Persistent backend runtime data is stored in the `backend_data` Docker volume under `/data`.
 - Local model weights are mounted read-only from `backend/models` to `/data/models`.
 
