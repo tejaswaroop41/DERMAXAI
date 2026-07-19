@@ -205,7 +205,7 @@ async def diagnose(
     # ── 3. Demographic modality — Risk engine ─────────────
     patient = db.query(Patient).filter(Patient.user_id == current_user.id).first()
     demographic_risk = risk_engine.assess(
-        age=age or (patient.age if patient else None),
+        age=age if age is not None else (patient.age if patient else None),
         gender=gender or (patient.gender if patient else None),
         skin_type=skin_type or (patient.skin_type if patient else None),
         medical_history=patient.medical_history if patient else None,
@@ -270,7 +270,7 @@ async def diagnose(
     try:
         patient_data = {
             "name": current_user.name,
-            "age": age or (patient.age if patient else "N/A"),
+            "age": age if age is not None else (patient.age if patient else "N/A"),
             "gender": gender or (patient.gender if patient else "N/A"),
             "skin_type": skin_type or (patient.skin_type if patient else "N/A"),
             "diagnosis_id": diag.id,
