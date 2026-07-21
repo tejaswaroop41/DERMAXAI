@@ -11,7 +11,6 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import Optional
 
-import torch
 from fastapi import FastAPI, Depends, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
@@ -23,8 +22,6 @@ from core.config import settings
 from core.database import create_tables, get_db, User, Patient, Diagnosis
 from core.auth import (hash_password, verify_password, create_token,
                         get_current_user, require_admin)
-from core.model import load_model
-
 from ai.predictor import predictor
 from ai.uncertainty import UncertaintyEngine
 from ai.gradcam import GradCAMEngine
@@ -87,6 +84,9 @@ class RegisterRequest(BaseModel):
     skin_type: Optional[str] = None
 
 
+PUBLIC_REGISTRATION_ROLES = {"patient", "doctor"}
+
+
 class LoginRequest(BaseModel):
     email: str
     password: str
@@ -133,10 +133,13 @@ async def health():
 # ════════════════════════════════════════════════════════════
 @app.post("/api/auth/register")
 def register(req: RegisterRequest, db: Session = Depends(get_db)):
+    role = req.role.lower().strip()
+    if role not in PUBLIC_REGISTRATION_ROLES:
+        raise HTTPException(status_code=400, detail="Invalid registration role")
     if db.query(User).filter(User.email == req.email).first():
         raise HTTPException(status_code=400, detail="Email already registered")
     user = User(email=req.email, name=req.name,
-                hashed_password=hash_password(req.password), role=req.role)
+                hashed_password=hash_password(req.password), role=role)
     db.add(user); db.commit(); db.refresh(user)
 
     patient = Patient(user_id=user.id, age=req.age,
@@ -212,13 +215,10 @@ async def diagnose(
         sun_exposure=sun_exposure or (patient.sun_exposure if patient else None),
     )
 
-
     # ── 4. MCUE — uncertainty estimation ──────────────────
     # Runs calibrated MC-Dropout uncertainty using the checkpoint's
     # saved entropy threshold (mcue_threshold).
-    uncertainty = uncertainty_engine.composite_uncertainty(
-        image_path=img_path
-    )
+    uncertainty = uncertainty_engine.composite_uncertainty(image_path=img_path)
 
     # ── 5. CMCA — cross-modal fusion decision ─────────────
     decision = decision_engine.fuse(
@@ -387,17 +387,17 @@ def admin_stats(db: Session = Depends(get_db), current_user=Depends(require_admi
         "review_required": review_count,
         "class_distribution": {c: n for c, n in class_dist},
         "model_info": {
-    "backbone": settings.MODEL_NAME,
-    "dataset": "HAM10000 / ISIC 2018",
-    "algorithms": [
-        "ACWF-FL",
-        "MixUp",
-        "Test-Time Augmentation",
-        "MCUE",
-        "CMCA",
-        "Grad-CAM"
-    ],
-}
+            "backbone": settings.MODEL_NAME,
+            "dataset": "HAM10000 / ISIC 2018",
+            "algorithms": [
+                "ACWF-FL",
+                "MixUp",
+                "Test-Time Augmentation",
+                "MCUE",
+                "CMCA",
+                "Grad-CAM"
+            ],
+        }
     }
 
 

@@ -14,6 +14,17 @@ def _csv_env(name: str, default: list[str]) -> list[str]:
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+
+def _default_model_path(base_dir: Path = BASE_DIR) -> str:
+    """Return the preferred checkpoint path, with a legacy local fallback."""
+    model_dir = Path(base_dir) / "models"
+    preferred = model_dir / "best.pth"
+    legacy = model_dir / "dermaxai_v5_best.pth"
+    if preferred.exists() or not legacy.exists():
+        return str(preferred)
+    return str(legacy)
+
+
 class Settings:
     # ── App ──────────────────────────────────────────────
     APP_NAME    = "DERMAXAI v6"
@@ -21,10 +32,7 @@ class Settings:
     DEBUG       = os.getenv("DEBUG", "false").lower() == "true"
 
     # ── Paths ────────────────────────────────────────────
-    MODEL_PATH = os.getenv(
-        "MODEL_PATH",
-        str(BASE_DIR / "models" / "best.pth")
-    )
+    MODEL_PATH = os.getenv("MODEL_PATH", _default_model_path())
     UPLOADS_DIR     = os.getenv("UPLOADS_DIR", str(BASE_DIR / "uploads"))
     HEATMAPS_DIR    = os.getenv("HEATMAPS_DIR", str(BASE_DIR / "heatmaps"))
     REPORTS_DIR     = os.getenv("REPORTS_DIR", str(BASE_DIR / "generated_reports"))
@@ -71,7 +79,12 @@ class Settings:
     NORM_STD  = [0.229, 0.224, 0.225]
 
     # ── CORS ─────────────────────────────────────────────
-    CORS_ORIGINS = _csv_env("CORS_ORIGINS", ["*"])
+    # Keep credentials-compatible defaults for local development.
+    # Use CORS_ORIGINS as a comma-separated env var in deployment.
+    CORS_ORIGINS = _csv_env(
+        "CORS_ORIGINS",
+        ["http://localhost:5173", "http://localhost:8000"]
+    )
 
 settings = Settings()
 
