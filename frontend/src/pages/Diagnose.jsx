@@ -57,8 +57,11 @@ export default function Diagnose() {
 
   useEffect(() => () => {
     if (preview) URL.revokeObjectURL(preview)
+  }, [preview])
+
+  useEffect(() => () => {
     if (gradcam) URL.revokeObjectURL(gradcam)
-  }, [preview, gradcam])
+  }, [gradcam])
 
   const reset = () => {
     if (preview) URL.revokeObjectURL(preview)

@@ -79,7 +79,12 @@ class Settings:
     NORM_STD  = [0.229, 0.224, 0.225]
 
     # ── CORS ─────────────────────────────────────────────
-    CORS_ORIGINS = _csv_env("CORS_ORIGINS", ["*"])
+    # Keep credentials-compatible defaults for local development.
+    # Use CORS_ORIGINS as a comma-separated env var in deployment.
+    CORS_ORIGINS = _csv_env(
+        "CORS_ORIGINS",
+        ["http://localhost:5173", "http://localhost:8000"]
+    )
 
 settings = Settings()
 
