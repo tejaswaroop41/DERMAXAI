@@ -19,9 +19,9 @@ from sqlalchemy import func
 from pydantic import BaseModel
 
 from core.config import settings
-from core.database import create_tables, get_db, User, Patient, Diagnosis
+from core.database import create_tables, get_db, User, Patient, Diagnosis, DoctorReview
 from core.auth import (hash_password, verify_password, create_token,
-                        get_current_user, require_admin)
+                        get_current_user, require_admin, require_doctor)
 from ai.predictor import predictor
 from ai.uncertainty import UncertaintyEngine
 from ai.gradcam import GradCAMEngine
@@ -29,6 +29,7 @@ from ai.biobert_engine import biobert_engine
 from ai.risk_engine import risk_engine
 from ai.decision_engine import decision_engine
 from ai.recommendation_engine import recommendation_engine
+from ai.abcd_engine import extract_abcd_features
 
 from reports.report_generator import generate_report
 from utils.logger import get_logger
@@ -98,6 +99,41 @@ class PatientUpdate(BaseModel):
     skin_type: Optional[str] = None
     medical_history: Optional[str] = None
     sun_exposure: Optional[str] = None
+
+
+class DoctorReviewRequest(BaseModel):
+    verdict: str   # "confirmed" | "revised" | "dismissed"
+    notes: Optional[str] = None
+
+
+VALID_VERDICTS = {"confirmed", "revised", "dismissed"}
+
+
+def _can_view_diagnosis(diag: Diagnosis, current_user: User) -> bool:
+    """
+    Diagnosis owner can always view their own case. Any doctor can view
+    any patient's case -- all diagnoses go to the shared doctor queue now,
+    not just AI-flagged ones.
+    """
+    if diag.user_id == current_user.id:
+        return True
+    if current_user.role == "doctor":
+        return True
+    return False
+
+
+def _review_payload(diag: Diagnosis) -> Optional[dict]:
+    """Serializes a diagnosis's DoctorReview (if any) for API responses."""
+    if not diag.review:
+        return None
+    return {
+        "status":       diag.review.status,
+        "verdict":      diag.review.verdict,
+        "notes":        diag.review.notes,
+        "doctor_name":  diag.review.doctor.name if diag.review.doctor else None,
+        "claimed_at":   diag.review.claimed_at,
+        "reviewed_at":  diag.review.reviewed_at,
+    }
 
 
 # ════════════════════════════════════════════════════════════
@@ -241,6 +277,18 @@ async def diagnose(
     recommendation = recommendation_engine.generate(
         decision=decision, uncertainty=uncertainty, symptom_risk=symptom_risk)
 
+    # ── 7b. ABCD explainability features (NOT fed into the model) ────
+    # Otsu segmentation -> asymmetry, border irregularity, color
+    # variation, diameter. Purely descriptive, matches ABCD criteria a
+    # clinician already uses -- computed here for display only.
+    try:
+        abcd_features = extract_abcd_features(img_path)
+    except Exception as e:
+        logger.warning(f"ABCD feature extraction failed: {e}")
+        abcd_features = {"asymmetry": None, "border_irregularity": None,
+                         "color_variation": None, "diameter_px": None,
+                         "segmentation_ok": False}
+
     # ── 8. Persist to database ─────────────────────────────
     diag = Diagnosis(
         user_id=current_user.id,
@@ -262,6 +310,7 @@ async def diagnose(
         gradcam_path=gradcam_path,
         class_probs=json.dumps(decision["class_probabilities"]),
         modality_weights=json.dumps(decision["modality_weights"]),
+        abcd_features=json.dumps(abcd_features),
     )
     db.add(diag); db.commit(); db.refresh(diag)
 
@@ -290,9 +339,42 @@ async def diagnose(
         "demographic_risk": demographic_risk,
         "recommendation": recommendation,
         "image_quality": image_result["image_quality"],
+        "abcd_features": abcd_features,
         "gradcam_url": f"/api/diagnose/{diag.id}/gradcam" if gradcam_path else None,
         "report_url": f"/api/reports/{diag.id}" if diag.report_path else None,
     }
+
+
+@app.get("/api/diagnose/notifications")
+def get_review_notifications(db: Session = Depends(get_db),
+                             current_user: User = Depends(get_current_user)):
+    """Count of this patient's completed doctor reviews not yet viewed --
+    drives the 'new review' badge on the dashboard and sidebar.
+    NOTE: uses isnot(True), not ==False -- rows created before the
+    patient_viewed column existed got NULL via ALTER TABLE, and SQL's
+    `col == False` does NOT match NULL (three-valued logic). isnot(True)
+    correctly treats both NULL and False as "not yet viewed"."""
+    count = db.query(DoctorReview).join(Diagnosis).filter(
+        Diagnosis.user_id == current_user.id,
+        DoctorReview.status == "completed",
+        DoctorReview.patient_viewed.isnot(True),
+    ).count()
+    return {"unread_reviews": count}
+
+
+@app.post("/api/diagnose/notifications/mark-seen")
+def mark_reviews_seen(db: Session = Depends(get_db),
+                      current_user: User = Depends(get_current_user)):
+    """Called when the patient opens History -- clears the notification badge."""
+    reviews = db.query(DoctorReview).join(Diagnosis).filter(
+        Diagnosis.user_id == current_user.id,
+        DoctorReview.status == "completed",
+        DoctorReview.patient_viewed.isnot(True),
+    ).all()
+    for r in reviews:
+        r.patient_viewed = True
+    db.commit()
+    return {"marked_seen": len(reviews)}
 
 
 @app.get("/api/diagnose/history")
@@ -311,17 +393,18 @@ def get_history(db: Session = Depends(get_db),
         "requires_review": d.requires_review,
         "created_at": d.created_at,
         "report_url": f"/api/reports/{d.id}" if d.report_path else None,
+        "doctor_review": _review_payload(d),
+        "abcd_features": json.loads(d.abcd_features) if d.abcd_features else None,
     } for d in diags]
 
 
 @app.get("/api/diagnose/{diagnosis_id:int}/gradcam")
 def get_gradcam(diagnosis_id: int, db: Session = Depends(get_db),
                 current_user: User = Depends(get_current_user)):
-    diag = db.query(Diagnosis).filter(
-        Diagnosis.id == diagnosis_id,
-        Diagnosis.user_id == current_user.id,
-    ).first()
-    if not diag or not diag.gradcam_path or not os.path.exists(diag.gradcam_path):
+    diag = db.query(Diagnosis).filter(Diagnosis.id == diagnosis_id).first()
+    if not diag or not _can_view_diagnosis(diag, current_user):
+        raise HTTPException(status_code=404, detail="Grad-CAM not found")
+    if not diag.gradcam_path or not os.path.exists(diag.gradcam_path):
         raise HTTPException(status_code=404, detail="Grad-CAM not found")
     return FileResponse(diag.gradcam_path, media_type="image/jpeg")
 
@@ -332,9 +415,10 @@ def get_gradcam(diagnosis_id: int, db: Session = Depends(get_db),
 @app.get("/api/reports/{diagnosis_id}")
 def download_report(diagnosis_id: int, db: Session = Depends(get_db),
                     current_user: User = Depends(get_current_user)):
-    diag = db.query(Diagnosis).filter(Diagnosis.id == diagnosis_id,
-                                       Diagnosis.user_id == current_user.id).first()
-    if not diag or not diag.report_path or not os.path.exists(diag.report_path):
+    diag = db.query(Diagnosis).filter(Diagnosis.id == diagnosis_id).first()
+    if not diag or not _can_view_diagnosis(diag, current_user):
+        raise HTTPException(status_code=404, detail="Report not found")
+    if not diag.report_path or not os.path.exists(diag.report_path):
         raise HTTPException(status_code=404, detail="Report not found")
     return FileResponse(diag.report_path, media_type="application/pdf",
                         filename=f"DERMAXAI_Report_{diagnosis_id}.pdf")
@@ -367,6 +451,98 @@ def update_profile(data: PatientUpdate, db: Session = Depends(get_db),
         setattr(patient, field, value)
     db.commit()
     return {"message": "Profile updated successfully"}
+
+
+# ════════════════════════════════════════════════════════════
+# Doctor review queue
+# Connects doctor accounts to ALL patient diagnoses (not just AI-flagged
+# ones -- a doctor may want to spot-check a routine case too). Sorted so
+# AI-flagged/urgent cases surface first, since those need attention most.
+# Any doctor can claim any unclaimed case (shared queue, not a fixed
+# patient assignment) -- once claimed, only that doctor can submit the
+# verdict, preventing two doctors from reviewing the same case.
+# ════════════════════════════════════════════════════════════
+@app.get("/api/doctor/queue")
+def doctor_queue(db: Session = Depends(get_db),
+                 current_user: User = Depends(require_doctor)):
+    all_cases = db.query(Diagnosis).order_by(
+        Diagnosis.requires_review.desc(),
+        Diagnosis.urgency_escalated.desc(),
+        Diagnosis.created_at.desc(),
+    ).limit(200).all()
+
+    unclaimed, mine, others = [], [], []
+    for d in all_cases:
+        entry = {
+            "id": d.id,
+            "patient_name": d.user.name if d.user else "Unknown",
+            "predicted_class": d.predicted_class,
+            "class_name": settings.CLASS_FULL_NAMES.get(d.predicted_class, d.predicted_class),
+            "fused_confidence": d.fused_confidence,
+            "composite_uncertainty": d.composite_uncertainty,
+            "is_malignant": d.is_malignant,
+            "requires_review": d.requires_review,
+            "urgency_escalated": d.urgency_escalated,
+            "symptoms": d.symptoms,
+            "created_at": d.created_at,
+            "gradcam_url": f"/api/diagnose/{d.id}/gradcam" if d.gradcam_path else None,
+            "report_url": f"/api/reports/{d.id}" if d.report_path else None,
+            "review": _review_payload(d),
+        }
+        if not d.review:
+            unclaimed.append(entry)
+        elif d.review.doctor_id == current_user.id:
+            mine.append(entry)
+        else:
+            others.append(entry)
+
+    return {"unclaimed": unclaimed, "claimed_by_me": mine, "claimed_by_others": others}
+
+
+@app.post("/api/doctor/diagnoses/{diagnosis_id:int}/claim")
+def claim_diagnosis(diagnosis_id: int, db: Session = Depends(get_db),
+                    current_user: User = Depends(require_doctor)):
+    diag = db.query(Diagnosis).filter(Diagnosis.id == diagnosis_id).first()
+    if not diag:
+        raise HTTPException(status_code=404, detail="Diagnosis not found")
+
+    if diag.review:
+        if diag.review.doctor_id == current_user.id:
+            return {"message": "Already claimed by you", "review": _review_payload(diag)}
+        raise HTTPException(status_code=409,
+                            detail=f"Already claimed by {diag.review.doctor.name}")
+
+    review = DoctorReview(diagnosis_id=diag.id, doctor_id=current_user.id, status="claimed")
+    db.add(review); db.commit(); db.refresh(diag)
+    return {"message": "Claimed successfully", "review": _review_payload(diag)}
+
+
+@app.post("/api/doctor/diagnoses/{diagnosis_id:int}/review")
+def submit_review(diagnosis_id: int, req: DoctorReviewRequest,
+                  db: Session = Depends(get_db),
+                  current_user: User = Depends(require_doctor)):
+    verdict = req.verdict.lower().strip()
+    if verdict not in VALID_VERDICTS:
+        raise HTTPException(status_code=400,
+                            detail=f"verdict must be one of {sorted(VALID_VERDICTS)}")
+
+    diag = db.query(Diagnosis).filter(Diagnosis.id == diagnosis_id).first()
+    if not diag:
+        raise HTTPException(status_code=404, detail="Diagnosis not found")
+
+    if not diag.review:
+        diag.review = DoctorReview(diagnosis_id=diag.id, doctor_id=current_user.id, status="claimed")
+        db.add(diag.review); db.flush()
+    elif diag.review.doctor_id != current_user.id:
+        raise HTTPException(status_code=403,
+                            detail=f"This case is claimed by {diag.review.doctor.name}, not you")
+
+    diag.review.verdict     = verdict
+    diag.review.notes       = req.notes
+    diag.review.status      = "completed"
+    diag.review.reviewed_at = datetime.utcnow()
+    db.commit(); db.refresh(diag)
+    return {"message": "Review submitted", "review": _review_payload(diag)}
 
 
 # ════════════════════════════════════════════════════════════

@@ -25,6 +25,14 @@ class Predictor:
         self.tta_tfms = get_tta_transforms(settings.TTA_CROPS)
         self.classes  = settings.CLASSES
 
+        # Surgical, mel-only logit adjustment (see notebook Cells B/G/H).
+        # Built once at init as a (num_classes,) vector that's all zeros
+        # except at the mel index, so it never touches any other class's logits.
+        self._adj_vec = torch.zeros(len(self.classes), device=self.device)
+        if settings.LOGIT_ADJUSTMENT_ENABLED and settings.LOGIT_ADJUSTMENT_CLASS in self.classes:
+            mel_idx = self.classes.index(settings.LOGIT_ADJUSTMENT_CLASS)
+            self._adj_vec[mel_idx] = settings.LOGIT_ADJUSTMENT_TAU * settings.MEL_LOG_PRIOR
+
     def load(self):
         if self.loaded:
             return
@@ -51,7 +59,8 @@ class Predictor:
         self.model.eval()
         for tfm in self.tta_tfms:
             t = tfm(image=img_np)["image"].unsqueeze(0).to(self.device)
-            preds += torch.softmax(self.model(t), dim=1)
+            logits = self.model(t) + self._adj_vec  # surgical mel-only adjustment, pre-softmax
+            preds += torch.softmax(logits, dim=1)
         preds /= len(self.tta_tfms)
 
         probs      = preds[0].cpu().numpy()

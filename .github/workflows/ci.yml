@@ -1,0 +1,104 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend:
+    name: Backend — install, syntax check, smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install CPU-only torch first
+        working-directory: backend
+        run: |
+          grep -E "^torch(vision)?==" requirements.txt | \
+            xargs pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu
+
+      - name: Install remaining backend dependencies
+        working-directory: backend
+        run: pip install --no-cache-dir -r requirements.txt
+
+      - name: Syntax check every backend file
+        working-directory: backend
+        run: |
+          python -m py_compile app.py
+          find core ai reports -name "*.py" -exec python -m py_compile {} +
+
+      - name: Run smoke test (register -> diagnose -> doctor review, random-init model)
+        working-directory: backend
+        run: python tests/smoke_test.py
+
+  frontend:
+    name: Frontend — install, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Production build
+        working-directory: frontend
+        run: npm run build
+
+  docker:
+    name: Docker — build both images (no push)
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build backend image
+        run: docker build -t dermaxai-backend:ci ./backend
+
+      - name: Build frontend image
+        run: docker build -t dermaxai-frontend:ci ./frontend
+
+  # ────────────────────────────────────────────────────────────
+  # Optional: deploy to Railway on push to main, only after every
+  # check above passes. Requires a RAILWAY_TOKEN repo secret --
+  # Settings -> Secrets and variables -> Actions -> New repository
+  # secret. Get the token from Railway's dashboard (Account
+  # Settings -> Tokens). If you don't add this secret, this job
+  # is simply skipped -- everything else still runs.
+  #
+  # NOTE: if you connect this GitHub repo directly in Railway's
+  # own dashboard instead, Railway auto-deploys on push without
+  # needing this job at all -- pick ONE of the two approaches,
+  # not both, or you'll get duplicate/competing deploys.
+  # ────────────────────────────────────────────────────────────
+  deploy:
+    name: Deploy to Railway
+    runs-on: ubuntu-latest
+    needs: [backend, frontend, docker]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          if [ -z "$RAILWAY_TOKEN" ]; then
+            echo "RAILWAY_TOKEN secret not set -- skipping deploy. See comment above this job."
+            exit 0
+          fi
+          npm install -g @railway/cli
+          railway up --service backend

@@ -9,40 +9,45 @@ export default {
     extend: {
 
       fontFamily: {
-        sans: ["Syne", "system-ui", "sans-serif"],
-        mono: ["JetBrains Mono", "monospace"],
+        serif: ["'Source Serif 4'", "Georgia", "serif"],
+        sans:  ["'IBM Plex Sans'", "system-ui", "sans-serif"],
+        mono:  ["'JetBrains Mono'", "monospace"],
       },
 
       colors: {
+        // Clinical Light palette -- named, deliberate, not a generic default.
+        paper:   "#FAFBFA",   // page background -- soft paper, not stark white
+        ink:     "#1C2321",   // primary text -- deep slate, not pure black
+        muted:   "#5B6764",   // secondary text
+        line:    "#E4E7E4",   // hairline borders
 
-        dx: {
-          50: "#f0f9ff",
-          100: "#e0f2fe",
-          200: "#bae6fd",
-          300: "#7dd3fc",
-          400: "#38bdf8",
-          500: "#0ea5e9",
-          600: "#0284c7",
-          700: "#0369a1",
-          800: "#075985",
-          900: "#0c4a6e",
+        teal: {
+          50:  "#EEF4F3",
+          100: "#DCE9E7",
+          400: "#5C938B",
+          500: "#3D7068",   // primary accent
+          600: "#2F5852",
+          700: "#254742",
         },
 
-        success: "#22c55e",
-        warning: "#f59e0b",
-        danger: "#ef4444",
-        background: "#0f172a",
-        surface: "#1e293b",
+        clinical: {
+          red:      "#B4413A",
+          "red-bg": "#FBEAE8",
+          green:      "#4F7A52",
+          "green-bg": "#EDF3ED",
+          amber:      "#B08135",
+          "amber-bg": "#FBF3E4",
+        },
       },
 
       borderRadius: {
-        xl: "1rem",
-        "2xl": "1.5rem",
+        xl: "0.75rem",
+        "2xl": "1rem",
       },
 
       boxShadow: {
-        glass: "0 8px 32px rgba(0,0,0,0.15)",
-        card: "0 12px 30px rgba(0,0,0,0.10)",
+        card: "0 1px 2px rgba(28,35,33,0.04), 0 1px 12px rgba(28,35,33,0.03)",
+        raised: "0 4px 16px rgba(28,35,33,0.06)",
       },
 
       transitionDuration: {
@@ -51,6 +56,5 @@ export default {
 
     },
   },
-
   plugins: [],
 }

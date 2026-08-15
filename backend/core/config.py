@@ -4,6 +4,11 @@ Centralized settings for the entire backend.
 """
 import os
 from pathlib import Path
+from dotenv import load_dotenv
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+load_dotenv(BASE_DIR / ".env")
 
 
 def _csv_env(name: str, default: list[str]) -> list[str]:
@@ -11,8 +16,6 @@ def _csv_env(name: str, default: list[str]) -> list[str]:
     if not raw:
         return default
     return [item.strip() for item in raw.split(",") if item.strip()]
-
-BASE_DIR = Path(__file__).resolve().parent.parent
 
 
 def _default_model_path(base_dir: Path = BASE_DIR) -> str:
@@ -27,7 +30,7 @@ def _default_model_path(base_dir: Path = BASE_DIR) -> str:
 
 class Settings:
     # ── App ──────────────────────────────────────────────
-    APP_NAME    = "DERMAXAI v6"
+    APP_NAME    = "DERMAXAI"
     APP_VERSION = "6.0.0"
     DEBUG       = os.getenv("DEBUG", "false").lower() == "true"
 
@@ -48,14 +51,11 @@ class Settings:
 
     # ── Model architecture (must match training) ──────────
     MODEL_NAME  = "efficientnet_b3"
-    IMG_SIZE    = 224
+    IMG_SIZE    = 300
     DROPOUT     = 0.3
     NUM_CLASSES = 7
 
-    # CRITICAL: this order must exactly match CLASS_NAMES in the training
-    # notebook (Cell 4), since it defines what each output index means.
-    # Do NOT alphabetize this list.
-    CLASSES = ['mel', 'nv', 'bcc', 'akiec', 'bkl', 'df', 'vasc']
+    CLASSES = ['akiec', 'bcc', 'bkl', 'df', 'mel', 'nv', 'vasc']
     MALIGNANT_CLASSES = ['akiec', 'bcc', 'mel']
     MINORITY_CLASSES  = ['df', 'vasc', 'akiec']
 
@@ -72,15 +72,19 @@ class Settings:
     # ── Inference ────────────────────────────────────────
     TTA_CROPS         = 8
     MC_DROPOUT_PASSES = 20
-    UNCERTAINTY_THETA = 0.40   # MCUE deferral threshold (entropy-normalized)
+
+    UNCERTAINTY_THETA = 0.8054
+
+    LOGIT_ADJUSTMENT_ENABLED = True
+    LOGIT_ADJUSTMENT_CLASS   = "mel"
+    LOGIT_ADJUSTMENT_TAU     = 0.3
+    MEL_LOG_PRIOR            = -2.1970
 
     # ── Normalization (must match training) ───────────────
     NORM_MEAN = [0.485, 0.456, 0.406]
     NORM_STD  = [0.229, 0.224, 0.225]
 
     # ── CORS ─────────────────────────────────────────────
-    # Keep credentials-compatible defaults for local development.
-    # Use CORS_ORIGINS as a comma-separated env var in deployment.
     CORS_ORIGINS = _csv_env(
         "CORS_ORIGINS",
         ["http://localhost:5173", "http://localhost:8000"]
@@ -88,7 +92,6 @@ class Settings:
 
 settings = Settings()
 
-# Ensure runtime directories exist
 for d in [settings.UPLOADS_DIR, settings.HEATMAPS_DIR,
           settings.REPORTS_DIR, settings.KNOWLEDGE_DIR]:
     os.makedirs(d, exist_ok=True)

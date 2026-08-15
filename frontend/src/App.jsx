@@ -10,6 +10,7 @@ import Diagnose   from './pages/Diagnose'
 import History    from './pages/History'
 import Profile    from './pages/Profile'
 import Admin      from './pages/Admin'
+import Doctor     from './pages/Doctor'
 import Landing    from './pages/Landing'
 
 export const AuthCtx = createContext(null)
@@ -32,10 +33,11 @@ function AuthProvider({ children }) {
   return <AuthCtx.Provider value={{ user, login, logout }}>{children}</AuthCtx.Provider>
 }
 
-function Protected({ children, adminOnly = false }) {
+function Protected({ children, adminOnly = false, doctorOnly = false }) {
   const { user } = useAuth()
   if (!user) return <Navigate to="/login" replace />
   if (adminOnly && user.role !== 'admin') return <Navigate to="/dashboard" replace />
+  if (doctorOnly && user.role !== 'doctor') return <Navigate to="/dashboard" replace />
   return children
 }
 
@@ -56,6 +58,7 @@ export default function App() {
           <Route path="/history"   element={<Protected><History /></Protected>} />
           <Route path="/profile"   element={<Protected><Profile /></Protected>} />
           <Route path="/admin"     element={<Protected adminOnly><Admin /></Protected>} />
+          <Route path="/doctor"    element={<Protected doctorOnly><Doctor /></Protected>} />
           <Route path="*"          element={<Navigate to="/" replace />} />
         </Routes>
     </AuthProvider>

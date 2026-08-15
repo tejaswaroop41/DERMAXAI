@@ -1,0 +1,88 @@
+"""
+CI smoke test -- runs the full register -> diagnose -> doctor review flow
+against a randomly-initialized checkpoint (never a real trained model;
+real weights are never committed to git). This proves the application
+wires together correctly -- routes, DB schema, auth, the AI pipeline --
+without needing the actual 40MB+ trained checkpoint in CI.
+
+Run manually with: python tests/smoke_test.py
+Run in CI with the workflow in .github/workflows/ci.yml
+"""
+import sys
+import os
+import io
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+
+def main():
+    import torch
+    from core.model import DERMAXAIClassifier
+
+    os.makedirs("/tmp/ci_models", exist_ok=True)
+    ckpt_path = "/tmp/ci_models/ci_test_checkpoint.pth"
+    if not os.path.exists(ckpt_path):
+        model = DERMAXAIClassifier(num_classes=7, dropout_rate=0.3,
+                                    model_name="efficientnet_b3", pretrained=False)
+        torch.save({"epoch": 0, "model_state": model.state_dict(), "combined_score": 0.0}, ckpt_path)
+
+    os.environ["MODEL_PATH"] = ckpt_path
+    os.environ["SECRET_KEY"] = "ci-test-secret"
+    os.environ["DATABASE_URL"] = "sqlite:////tmp/ci_test.db"
+    os.environ["DEBUG"] = "true"
+    if os.path.exists("/tmp/ci_test.db"):
+        os.remove("/tmp/ci_test.db")
+
+    from fastapi.testclient import TestClient
+    from app import app
+    from PIL import Image
+    import numpy as np
+
+    with TestClient(app) as client:
+        r = client.post("/api/auth/register", json={
+            "email": "ci_patient@test.com", "name": "CI Patient",
+            "password": "cipass123", "role": "patient"})
+        assert r.status_code == 200, f"Patient registration failed: {r.text}"
+        patient_headers = {"Authorization": f"Bearer {r.json()['access_token']}"}
+
+        r = client.post("/api/auth/register", json={
+            "email": "ci_doctor@test.com", "name": "CI Doctor",
+            "password": "cipass123", "role": "doctor"})
+        assert r.status_code == 200, f"Doctor registration failed: {r.text}"
+        doctor_headers = {"Authorization": f"Bearer {r.json()['access_token']}"}
+
+        img = Image.fromarray((np.random.rand(450, 600, 3) * 255).astype("uint8"))
+        buf = io.BytesIO()
+        img.save(buf, format="JPEG")
+        buf.seek(0)
+        r = client.post("/api/diagnose", headers=patient_headers,
+                         files={"image": ("test.jpg", buf, "image/jpeg")},
+                         data={"symptoms": "ci smoke test", "age": "30"})
+        assert r.status_code == 200, f"Diagnose failed: {r.text}"
+        diag_id = r.json()["diagnosis_id"]
+        assert "abcd_features" in r.json(), "ABCD features missing from response"
+
+        r = client.get("/api/diagnose/history", headers=patient_headers)
+        assert r.status_code == 200 and len(r.json()) == 1, f"History failed: {r.text}"
+
+        r = client.get("/api/doctor/queue", headers=doctor_headers)
+        assert r.status_code == 200, f"Doctor queue failed: {r.text}"
+
+        r = client.post(f"/api/doctor/diagnoses/{diag_id}/claim", headers=doctor_headers)
+        assert r.status_code == 200, f"Claim failed: {r.text}"
+
+        r = client.post(f"/api/doctor/diagnoses/{diag_id}/review", headers=doctor_headers,
+                         json={"verdict": "confirmed", "notes": "CI smoke test review"})
+        assert r.status_code == 200, f"Review submit failed: {r.text}"
+
+        r = client.get("/api/diagnose/notifications", headers=patient_headers)
+        assert r.json()["unread_reviews"] == 1, f"Notification count wrong: {r.json()}"
+
+        r = client.post("/api/diagnose/notifications/mark-seen", headers=patient_headers)
+        assert r.json()["marked_seen"] == 1, f"Mark-seen wrong: {r.json()}"
+
+    print("SMOKE TEST PASSED: register, diagnose, ABCD, history, doctor queue, claim, review, notifications")
+
+
+if __name__ == "__main__":
+    main()

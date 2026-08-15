@@ -1,6 +1,8 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../App'
-import { LayoutDashboard, Microscope, History, User, Shield, LogOut, Zap, ChevronRight } from 'lucide-react'
+import { diagnoseApi } from '../../lib/api'
+import { useEffect, useState } from 'react'
+import { LayoutDashboard, Microscope, History, User, Shield, LogOut, ClipboardCheck } from 'lucide-react'
 
 const nav = [
   { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -14,63 +16,87 @@ export default function Layout({ children }) {
   const location = useLocation()
   const navigate = useNavigate()
   const handleLogout = () => { logout(); navigate('/') }
+  const [unread, setUnread] = useState(0)
+
+  useEffect(() => {
+    if (user?.role === 'patient') {
+      diagnoseApi.unreadReviews().then(r => setUnread(r.data.unread_reviews)).catch(() => {})
+    }
+  }, [user, location.pathname])
 
   return (
-    <div className="flex min-h-screen relative z-10">
-      <aside className="w-64 flex flex-col fixed left-0 top-0 bottom-0 z-20"
-        style={{ background: 'rgba(8, 12, 28, 0.95)', borderRight: '1px solid rgba(14,165,233,0.12)', backdropFilter: 'blur(20px)' }}>
-        <div className="p-6 border-b border-white/5">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center"
-              style={{ background: 'linear-gradient(135deg, #0ea5e9, #0284c7)', boxShadow: '0 0 20px rgba(14,165,233,0.4)' }}>
-              <Zap size={18} className="text-white" />
-            </div>
-            <div>
-              <div className="font-bold text-white text-sm tracking-wider">DERMAXAI</div>
-              <div className="text-xs text-sky-400/60 font-mono">v6.0</div>
-            </div>
-          </div>
+    <div className="flex min-h-screen">
+      <aside className="w-60 flex flex-col fixed left-0 top-0 bottom-0 bg-white border-r border-line">
+        <div className="px-6 py-5 border-b border-line">
+          <div className="font-serif font-semibold text-ink text-lg">DERMAXAI</div>
         </div>
-        <nav className="flex-1 p-4 space-y-1">
+
+        <nav className="flex-1 px-3 py-4 space-y-0.5">
           {nav.map(({ path, icon: Icon, label }) => {
             const active = location.pathname === path
             return (
               <Link key={path} to={path}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200"
-                style={{ background: active ? 'rgba(14,165,233,0.12)' : 'transparent',
-                         border: active ? '1px solid rgba(14,165,233,0.25)' : '1px solid transparent',
-                         color: active ? '#38bdf8' : '#64748b' }}>
-                <Icon size={17} /><span className="text-sm font-medium">{label}</span>
-                {active && <ChevronRight size={14} className="ml-auto" />}
+                className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors"
+                style={{
+                  background: active ? '#EEF4F3' : 'transparent',
+                  color: active ? '#254742' : '#5B6764',
+                  fontWeight: active ? 600 : 500,
+                }}>
+                <Icon size={16} strokeWidth={active ? 2.25 : 1.75} />
+                <span className="flex-1">{label}</span>
+                {path === '/history' && unread > 0 && (
+                  <span className="text-xs px-1.5 py-0.5 rounded-full font-semibold" style={{ background: '#B4413A', color: '#FFFFFF' }}>
+                    {unread}
+                  </span>
+                )}
               </Link>
             )
           })}
+
+          {user?.role === 'doctor' && (
+            <Link to="/doctor"
+              className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors"
+              style={{
+                background: location.pathname === '/doctor' ? '#EEF4F3' : 'transparent',
+                color: location.pathname === '/doctor' ? '#254742' : '#5B6764',
+                fontWeight: location.pathname === '/doctor' ? 600 : 500,
+              }}>
+              <ClipboardCheck size={16} strokeWidth={location.pathname === '/doctor' ? 2.25 : 1.75} />
+              Review Queue
+            </Link>
+          )}
+
           {user?.role === 'admin' && (
-            <Link to="/admin" className="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200"
-              style={{ background: location.pathname === '/admin' ? 'rgba(139,92,246,0.12)' : 'transparent',
-                       color: location.pathname === '/admin' ? '#a78bfa' : '#64748b' }}>
-              <Shield size={17} /><span className="text-sm font-medium">Admin</span>
+            <Link to="/admin"
+              className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors"
+              style={{
+                background: location.pathname === '/admin' ? '#EEF4F3' : 'transparent',
+                color: location.pathname === '/admin' ? '#254742' : '#5B6764',
+                fontWeight: location.pathname === '/admin' ? 600 : 500,
+              }}>
+              <Shield size={16} strokeWidth={location.pathname === '/admin' ? 2.25 : 1.75} />
+              Admin
             </Link>
           )}
         </nav>
-        <div className="p-4 border-t border-white/5">
+
+        <div className="px-4 py-4 border-t border-line">
           <div className="flex items-center gap-3 mb-3">
-            <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white"
-              style={{ background: 'linear-gradient(135deg, #0ea5e9, #7c3aed)' }}>
+            <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold text-white bg-teal-500">
               {user?.name?.[0]?.toUpperCase() || 'U'}
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-sm font-medium text-white truncate">{user?.name}</div>
-              <div className="text-xs text-slate-500 capitalize">{user?.role}</div>
+              <div className="text-sm font-medium text-ink truncate">{user?.name}</div>
+              <div className="text-xs text-muted capitalize">{user?.role}</div>
             </div>
           </div>
           <button onClick={handleLogout}
-            className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm text-slate-500 hover:text-red-400 hover:bg-red-400/5 transition-all">
+            className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm text-muted hover:text-clinical-red hover:bg-clinical-red-bg transition-colors">
             <LogOut size={15} />Sign out
           </button>
         </div>
       </aside>
-      <main className="flex-1 ml-64 min-h-screen">{children}</main>
+      <main className="flex-1 ml-60 min-h-screen">{children}</main>
     </div>
   )
 }

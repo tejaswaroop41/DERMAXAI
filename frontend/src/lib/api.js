@@ -84,6 +84,14 @@ export const diagnoseApi = {
   }),
   history: () => api.get('/diagnose/history'),
   gradcam: path => getAuthenticatedBlobUrl(path),
+  unreadReviews: () => api.get('/diagnose/notifications'),
+  markReviewsSeen: () => api.post('/diagnose/notifications/mark-seen'),
+}
+
+export const doctorApi = {
+  queue:  () => api.get('/doctor/queue'),
+  claim:  id => api.post(`/doctor/diagnoses/${id}/claim`),
+  review: (id, data) => api.post(`/doctor/diagnoses/${id}/review`, data),
 }
 
 export const reportApi = {
