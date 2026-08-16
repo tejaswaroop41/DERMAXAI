@@ -16,22 +16,30 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 def main():
-    import torch
-    from core.model import DERMAXAIClassifier
-
+    # CRITICAL: every os.environ assignment below MUST happen before any
+    # import of torch/core.*/app -- importing core.config triggers
+    # load_dotenv() + instantiates the `settings` singleton immediately at
+    # import time, and Python caches modules, so anything imported before
+    # these assignments permanently bakes in stale values (e.g. from a
+    # leftover local backend/.env) for the rest of the process, no matter
+    # what os.environ is set to afterward. This bit us once already --
+    # keep this ordering exactly as-is.
     os.makedirs("/tmp/ci_models", exist_ok=True)
     ckpt_path = "/tmp/ci_models/ci_test_checkpoint.pth"
-    if not os.path.exists(ckpt_path):
-        model = DERMAXAIClassifier(num_classes=7, dropout_rate=0.3,
-                                    model_name="efficientnet_b3", pretrained=False)
-        torch.save({"epoch": 0, "model_state": model.state_dict(), "combined_score": 0.0}, ckpt_path)
-
     os.environ["MODEL_PATH"] = ckpt_path
     os.environ["SECRET_KEY"] = "ci-test-secret"
     os.environ["DATABASE_URL"] = "sqlite:////tmp/ci_test.db"
     os.environ["DEBUG"] = "true"
     if os.path.exists("/tmp/ci_test.db"):
         os.remove("/tmp/ci_test.db")
+
+    import torch
+    from core.model import DERMAXAIClassifier
+
+    if not os.path.exists(ckpt_path):
+        model = DERMAXAIClassifier(num_classes=7, dropout_rate=0.3,
+                                    model_name="efficientnet_b3", pretrained=False)
+        torch.save({"epoch": 0, "model_state": model.state_dict(), "combined_score": 0.0}, ckpt_path)
 
     from fastapi.testclient import TestClient
     from app import app

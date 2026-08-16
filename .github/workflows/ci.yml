@@ -28,6 +28,12 @@ jobs:
         working-directory: backend
         run: pip install --no-cache-dir -r requirements.txt
 
+      - name: Install test-only dependencies
+        # httpx is required by Starlette's TestClient (used in smoke_test.py)
+        # but is NOT a production dependency of the running app -- it belongs
+        # here, not in requirements.txt, to keep production deps accurate.
+        run: pip install --no-cache-dir httpx
+
       - name: Syntax check every backend file
         working-directory: backend
         run: |
