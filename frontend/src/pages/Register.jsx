@@ -15,6 +15,7 @@ export default function Register() {
   const submit = async (e) => {
     e.preventDefault()
     if (!form.name || !form.email || !form.password) { toast.error('Please fill all fields'); return }
+    if (form.password.length < 8) { toast.error('Password must be at least 8 characters'); return }
     setLoading(true)
     try {
       const { data } = await authApi.register(form)
@@ -64,17 +65,12 @@ export default function Register() {
           </div>
           <div>
             <label className="text-xs text-muted mb-1.5 block font-medium">Account Type</label>
-            <div className="grid grid-cols-2 gap-3">
-              {['patient','doctor'].map(role => (
-                <button key={role} type="button" onClick={() => set('role', role)}
-                  className="py-2.5 rounded-lg text-sm font-medium capitalize transition-colors border"
-                  style={{ background: form.role === role ? '#EEF4F3' : 'transparent',
-                           borderColor: form.role === role ? '#B8C5C2' : '#E4E7E4',
-                           color: form.role === role ? '#254742' : '#5B6764' }}>
-                  {role}
-                </button>
-              ))}
+            <div className="py-2.5 px-3 rounded-lg text-sm font-medium border bg-[#EEF4F3] border-[#B8C5C2] text-[#254742]">
+              Patient
             </div>
+            <p className="text-xs text-muted mt-1.5">
+              Doctor accounts are provisioned separately by an administrator.
+            </p>
           </div>
           <button type="submit" disabled={loading} className="btn-primary w-full py-3">
             {loading ? 'Creating account...' : 'Create Account'}
