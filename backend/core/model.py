@@ -109,8 +109,8 @@ class DERMAXAIClassifier(nn.Module):
         # Matches the notebook's Cell 9 construction EXACTLY:
         # features_only=True, out_indices=(4,) -- this still exposes
         # self.backbone.blocks[-1][-1] (EfficientNetFeatures keeps .blocks
-        # as a real attribute), so gradcam.py's hooks work unmodified, AND
-        # it has zero conv_head/bn2/classifier parameters at all (unlike a
+        # as a real attribute), so gradcam.py's hooks work unmodified,
+        # AND it has zero conv_head/bn2/classifier parameters at all (unlike a
         # standard num_classes=0 model, which instantiates them unused and
         # produces "missing key" noise on every checkpoint load).
         self.backbone = timm.create_model(
@@ -119,18 +119,13 @@ class DERMAXAIClassifier(nn.Module):
         feat_dim = self.backbone.feature_info.channels()[-1]  # 384 for efficientnet_b3
 
         self.cbam = CBAM(feat_dim)
-        self.pool = GeM()   # NOTE: must be named "pool", not "gem" -- the notebook's
-                             # DermaNet class uses self.pool = GeM(), and checkpoints
-                             # store this parameter as "pool.p". Renaming this attribute
-                             # will silently stop the trained GeM exponent from loading
-                             # (falls back to the default p=3.0 init instead) -- do not
-                             # "clean up" this name without re-checking checkpoint keys.
+        self.pool = GeM()
         self.head = MLPHead(feat_dim, num_classes, hidden=512, drop=dropout_rate)
 
     def _pooled_features(self, x):
-        feats = self.backbone(x)[-1]  # (B, C, H, W) -- features_only returns a list
+        feats = self.backbone(x)[-1]
         feats = self.cbam(feats)
-        return self.pool(feats)  # (B, C)
+        return self.pool(feats)
 
     def forward(self, x):
         return self.head(self._pooled_features(x))
@@ -140,17 +135,16 @@ class DERMAXAIClassifier(nn.Module):
         return self._pooled_features(x)
 
 
-# Backwards-compatible alias -- older code in this repo may import DERMAXAIv6
 DERMAXAIv6 = DERMAXAIClassifier
 
 
 def load_model(model_path: str, device: torch.device) -> DERMAXAIClassifier:
     """
-    Loads DERMAXAI weights from a training checkpoint (best.pth /
-    best_phase4.pth). The notebook's Phase-4 checkpoint format is:
-      {"epoch": int, "model_state": <state_dict>, "combined_score": float}
-    Older checkpoints used "model_state_dict" plus class_names/mcue_threshold
-    metadata -- both keys are handled here for backward compatibility.
+    Loads DERMAXAI weights from a training checkpoint.
+
+    Production contract: a trained checkpoint MUST exist. Serving a model
+    with random weights is unsafe because the API would return plausible-
+    looking but meaningless diagnostic predictions.
     """
     model = DERMAXAIClassifier(
         num_classes=settings.NUM_CLASSES,
@@ -160,47 +154,49 @@ def load_model(model_path: str, device: torch.device) -> DERMAXAIClassifier:
     ).to(device)
 
     import os
-    if not os.path.exists(model_path):
-        print(f"[WARNING] Model weights not found at {model_path}.")
-        print("[WARNING] Using randomly initialized weights -- predictions will be meaningless.")
-        print("[WARNING] Copy your trained checkpoint to backend/models/best.pth "
-              "(or best_phase4.pth, whichever you're deploying)")
-        model.eval()
-        model.mcue_threshold = None
-        return model
+    if not os.path.isfile(model_path):
+        raise RuntimeError(
+            f"Model checkpoint not found at {model_path}. "
+            """DERMAXAI cannot start without trained model weights. """
+            """Mount/copy the trained checkpoint before starting the backend."""
+        )
 
-    ckpt = torch.load(model_path, map_location=device, weights_only=False)
-    # Phase-4 notebook checkpoints use "model_state"; older ones used "model_state_dict"
+    try:
+        ckpt = torch.load(model_path, map_location=device, weights_only=True)
+    except Exception as exc:
+        raise RuntimeError(
+            f"Failed to load model checkpoint {model_path} with safe weights-only loading: {exc}"
+        ) from exc
+
+    if not isinstance(ckpt, dict):
+        raise RuntimeError(f"Invalid model checkpoint format at {model_path}: expected a dictionary")
+
     state = ckpt.get("model_state", ckpt.get("model_state_dict", ckpt))
+    if not isinstance(state, dict):
+        raise RuntimeError(f"Invalid model checkpoint at {model_path}: model state is not a dictionary")
 
     missing, unexpected = model.load_state_dict(state, strict=False)
-    if missing:    print(f"[WARNING] Missing keys: {len(missing)} -- {missing[:5]}")
-    if unexpected: print(f"[WARNING] Unexpected keys: {len(unexpected)} -- {unexpected[:5]}")
-    if not missing and not unexpected:
-        print("[INFO] State dict loaded with an exact key match.")
+    if missing:
+        raise RuntimeError(f"Model checkpoint is missing {len(missing)} required keys: {missing[:5]}")
+    if unexpected:
+        raise RuntimeError(f"Model checkpoint contains {len(unexpected)} unexpected keys: {unexpected[:5]}")
+    print("[INFO] State dict loaded with an exact key match.")
 
     model.eval()
     epoch = ckpt.get("epoch", "unknown")
     val_acc = ckpt.get("val_acc", ckpt.get("combined_score", "unknown"))
 
-    # Sanity-check class order against what's baked into the checkpoint, if present.
-    # NOTE: the DERMAXAI_NOVA notebook checkpoints do NOT save class_names -- the
-    # order is implicit (alphabetical: akiec,bcc,bkl,df,mel,nv,vasc) and MUST match
-    # settings.CLASSES exactly, or predictions will be silently mislabeled.
     ckpt_classes = ckpt.get("class_names")
     if ckpt_classes and list(ckpt_classes) != list(settings.CLASSES):
-        print("[ERROR] settings.CLASSES order does not match the checkpoint's "
-              "class_names! Predictions will be mislabeled.")
-        print(f"        checkpoint class_names = {ckpt_classes}")
-        print(f"        settings.CLASSES       = {settings.CLASSES}")
+        raise RuntimeError(
+            "Checkpoint class_names do not match settings.CLASSES; refusing to serve "
+            "potentially mislabeled predictions."
+        )
 
-    # The DERMAXAI_NOVA notebook does not bake mcue_threshold into best_phase4.pth --
-    # theta_H is a separately-calibrated constant, set via settings.UNCERTAINTY_THETA.
     model.mcue_threshold = ckpt.get("mcue_threshold", None)
     if model.mcue_threshold is None:
         print(f"[INFO] No mcue_threshold in checkpoint -- using calibrated "
-              f"settings.UNCERTAINTY_THETA={settings.UNCERTAINTY_THETA} "
-              "(copy the exact theta_H your notebook computed in Cell 18).")
+              f"settings.UNCERTAINTY_THETA={settings.UNCERTAINTY_THETA}.")
 
     print(f"[INFO] Model loaded -- epoch={epoch}, val_acc/score={val_acc}")
     return model
