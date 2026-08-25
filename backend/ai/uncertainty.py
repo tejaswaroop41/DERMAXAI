@@ -2,10 +2,9 @@
 DERMAXAI -- Uncertainty Engine (MCUE)
 Matches DERMAXAI_NOVA notebook Cell 18 exactly.
 
-MCUE is computed from the predictor's TTA-averaged probability
-vector. The predictor is the single source of truth for preprocessing
-and the calibrated mel-only logit adjustment, so uncertainty cannot
-silently disagree with the prediction shown to the user.
+MCUE is computed from the predictor's TTA-averaged probability vector.
+The predictor is the single source of truth for preprocessing and the
+calibrated mel-only logit adjustment.
 """
 import numpy as np
 
@@ -13,21 +12,29 @@ from core.config import settings
 
 
 class UncertaintyEngine:
-    def __init__(self, predictor, mc_passes: int = None, theta_H: float = None):
-        self.predictor = predictor
+    def __init__(self, predictor_or_model, device=None, mc_passes: int = None, theta_H: float = None):
+        # app.py historically passes (predictor.model, predictor.device,
+        # mc_passes=...). The model now carries a back-reference to the
+        # predictor, so this remains source-compatible while reusing the
+        # exact prediction pipeline.
+        self.predictor = getattr(predictor_or_model, "predictor", None)
+        if self.predictor is None and hasattr(predictor_or_model, "predict"):
+            self.predictor = predictor_or_model
+        if self.predictor is None:
+            raise RuntimeError("MCUE requires the loaded DERMAXAI Predictor instance")
 
+        model = self.predictor.model
         if theta_H is not None:
             self.theta_H = float(theta_H)
-        elif getattr(predictor.model, "mcue_threshold", None) is not None:
-            self.theta_H = float(predictor.model.mcue_threshold)
+        elif getattr(model, "mcue_threshold", None) is not None:
+            self.theta_H = float(model.mcue_threshold)
         else:
             self.theta_H = settings.UNCERTAINTY_THETA
             print(f"[INFO] Using settings.UNCERTAINTY_THETA={self.theta_H} as theta_H "
                   "(no per-checkpoint value found).")
 
-        # Kept for backwards compatibility with app.py/config; NOVA MCUE
-        # does not use stochastic MC-Dropout passes.
         self.mc_passes = mc_passes
+        self.device = self.predictor.device
 
     def predictive_entropy(self, probs: np.ndarray) -> float:
         """Normalized predictive entropy in [0, 1]."""
