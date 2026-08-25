@@ -26,8 +26,6 @@ class Predictor:
         self.classes  = settings.CLASSES
 
         # Surgical, mel-only logit adjustment (see notebook Cells B/G/H).
-        # Built once at init as a (num_classes,) vector that's all zeros
-        # except at the mel index, so it never touches any other class's logits.
         self._adj_vec = torch.zeros(len(self.classes), device=self.device)
         if settings.LOGIT_ADJUSTMENT_ENABLED and settings.LOGIT_ADJUSTMENT_CLASS in self.classes:
             mel_idx = self.classes.index(settings.LOGIT_ADJUSTMENT_CLASS)
@@ -37,6 +35,10 @@ class Predictor:
         if self.loaded:
             return
         self.model  = load_model(settings.MODEL_PATH, self.device)
+        # The uncertainty engine is constructed with predictor.model by the
+        # existing app lifespan. Keep a back-reference so MCUE can reuse this
+        # exact calibrated TTA pipeline rather than performing a second pass.
+        self.model.predictor = self
         self.loaded = True
         print(f"[Predictor] Ready on device={self.device}")
 
@@ -59,7 +61,7 @@ class Predictor:
         self.model.eval()
         for tfm in self.tta_tfms:
             t = tfm(image=img_np)["image"].unsqueeze(0).to(self.device)
-            logits = self.model(t) + self._adj_vec  # surgical mel-only adjustment, pre-softmax
+            logits = self.model(t) + self._adj_vec
             preds += torch.softmax(logits, dim=1)
         preds /= len(self.tta_tfms)
 
@@ -77,7 +79,7 @@ class Predictor:
                 self.classes[i]: round(float(probs[i]), 4)
                 for i in range(len(self.classes))
             },
-            "raw_probs":  probs,          # used internally by uncertainty/decision engines
+            "raw_probs":  probs,
             "image_quality": quality,
         }
 
@@ -93,5 +95,4 @@ class Predictor:
         return feats.cpu().numpy()[0]
 
 
-# Module-level singleton
 predictor = Predictor()
