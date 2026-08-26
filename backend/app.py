@@ -67,7 +67,6 @@ class RegisterRequest(BaseModel):
     skin_type: Optional[str] = None
 
 
-# Doctor accounts are provisioned by an administrator, never self-registered.
 PUBLIC_REGISTRATION_ROLES = {"patient"}
 
 
@@ -183,8 +182,6 @@ async def diagnose(image: UploadFile = File(...), symptoms: str = Form(default="
         sun_exposure=sun_exposure or (patient.sun_exposure if patient else None),
     )
 
-    # Use exactly the probabilities produced by predictor.predict(): one TTA pass,
-    # including the surgical melanoma logit adjustment, for both classification and MCUE.
     uncertainty = uncertainty_engine.composite_uncertainty(raw_probs=image_result["raw_probs"])
     decision = decision_engine.fuse(image_result=image_result, symptom_risk=symptom_risk,
                                     demographic_risk=demographic_risk, uncertainty=uncertainty)
@@ -213,7 +210,8 @@ async def diagnose(image: UploadFile = File(...), symptoms: str = Form(default="
         image_confidence=decision["image_confidence"], is_malignant=decision["is_malignant"],
         requires_review=decision["requires_review"], urgency_escalated=decision["urgency_escalated"],
         aleatory_uncertainty=uncertainty["aleatory_uncertainty"],
-        epistemic_uncertainty=uncertainty["epistemic_uncertainty"],\n        fusion_uncertainty=uncertainty["fusion_uncertainty"],
+        epistemic_uncertainty=uncertainty["epistemic_uncertainty"],
+        fusion_uncertainty=uncertainty["fusion_uncertainty"],
         composite_uncertainty=uncertainty["composite_uncertainty"],
         symptom_risk_score=symptom_risk["symptom_risk_score"],
         demographic_risk_score=demographic_risk["demographic_risk_score"],
@@ -351,7 +349,6 @@ def claim_diagnosis(diagnosis_id: int, db: Session = Depends(get_db), current_us
         if diag.review.doctor_id == current_user.id:
             return {"message": "Already claimed by you", "review": _review_payload(diag)}
         raise HTTPException(status_code=409, detail="Case already claimed")
-
     review = DoctorReview(diagnosis_id=diag.id, doctor_id=current_user.id, status="claimed")
     db.add(review)
     try:
@@ -418,8 +415,7 @@ class PromoteUserRequest(BaseModel):
 @app.post("/api/admin/users/{user_id}/promote")
 def promote_user(user_id: int, req: PromoteUserRequest,
                  db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
-    role = req.role.lower().strip()
-    if role != "doctor":
+    if req.role.lower().strip() != "doctor":
         raise HTTPException(status_code=400, detail="Only doctor promotion is supported")
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
