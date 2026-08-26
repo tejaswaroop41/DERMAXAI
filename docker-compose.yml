@@ -6,6 +6,7 @@ services:
     ports:
       - "8000:8000"
     environment:
+      PORT: 8000
       SECRET_KEY: ${SECRET_KEY:-dermaxai-change-in-production}
       DEBUG: ${DEBUG:-false}
       MODEL_PATH: ${MODEL_PATH:-/data/models/best.pth}
@@ -31,6 +32,8 @@ services:
       dockerfile: Dockerfile
       args:
         VITE_API_URL: /api
+    environment:
+      BACKEND_URL: ${BACKEND_URL:-http://backend:8000}
     ports:
       - "5173:80"
     depends_on:
