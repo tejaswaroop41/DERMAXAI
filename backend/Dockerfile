@@ -1,69 +1,29 @@
 # ==========================================================
 # DERMAXAI v6 Dockerfile
 # ==========================================================
-
 FROM python:3.11-slim
 
-# Prevent Python from creating .pyc files
-ENV PYTHONDONTWRITEBYTECODE=1
-
-# Flush logs immediately
-ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PORT=8000
 
 WORKDIR /app
 
-# ----------------------------------------------------------
-# Install Linux packages
-# ----------------------------------------------------------
 RUN apt-get update && apt-get install -y \
-    gcc \
-    g++ \
-    git \
-    libgl1 \
-    libglib2.0-0 \
-    libsm6 \
-    libxext6 \
-    libxrender-dev \
-    curl \
+    gcc g++ git libgl1 libglib2.0-0 libsm6 libxext6 libxrender-dev curl \
     && rm -rf /var/lib/apt/lists/*
 
-# ----------------------------------------------------------
-# Install Python packages
-# ----------------------------------------------------------
 COPY requirements.txt .
+RUN pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt
 
-RUN pip install --upgrade pip
-
-RUN pip install --no-cache-dir -r requirements.txt
-
-# ----------------------------------------------------------
-# Copy project
-# ----------------------------------------------------------
 COPY . .
 
-# ----------------------------------------------------------
-# Create runtime directories
-# ----------------------------------------------------------
-RUN mkdir -p \
-    uploads \
-    heatmaps \
-    generated_reports \
-    models \
-    logs \
-    knowledge
+RUN mkdir -p uploads heatmaps generated_reports models logs knowledge
 
-# ----------------------------------------------------------
-# Port
-# ----------------------------------------------------------
 EXPOSE 8000
 
-# ----------------------------------------------------------
-# Health Check
-# ----------------------------------------------------------
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-CMD curl -f http://localhost:8000/api/health || exit 1
+  CMD curl -f http://localhost:${PORT}/api/health || exit 1
 
-# ----------------------------------------------------------
-# Run FastAPI
-# ----------------------------------------------------------
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
+# Cloud Run injects PORT; local Docker/Compose falls back to ENV PORT=8000.
+CMD ["/bin/sh", "-c", "exec uvicorn app:app --host 0.0.0.0 --port ${PORT}"]
