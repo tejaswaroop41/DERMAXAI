@@ -1,21 +1,11 @@
-﻿"""
+"""
 DERMAXAI — Model Architecture
 Rewritten to match the DERMAXAI_NOVA training notebook exactly:
 EfficientNet-B3 backbone (timm) -> CBAM (channel + spatial attention)
 -> GeM (Generalized Mean) pooling -> 3-layer LayerNorm/GELU/Dropout
-MLP head. This REPLACES the earlier plain-EfficientNet-B3 + LayerNorm
-head architecture (no CBAM/GeM) that a previous checkpoint used.
-
-self.backbone is still a standard timm model (num_classes=0), NOT
-features_only=True, specifically so `self.backbone.blocks[-1][-1]`
-keeps working for ai/gradcam.py's forward/backward hooks unchanged.
-CBAM + GeM are applied on top of `self.backbone.forward_features(x)`
-(the pre-pool spatial feature map), not inside the backbone itself.
-
-If you retrain again with a different architecture, update this file
-AND retrain so the saved state_dict loads with zero missing/unexpected
-keys -- that's the contract this repo depends on.
+MLP head.
 """
+import os
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -25,7 +15,6 @@ from core.config import settings
 
 
 class GeM(nn.Module):
-    """Generalized Mean Pooling -- matches notebook Cell 9 exactly."""
     def __init__(self, p=3.0, eps=1e-6):
         super().__init__()
         self.p = nn.Parameter(torch.ones(1) * p)
@@ -71,18 +60,10 @@ class CBAM(nn.Module):
         self.spatial_attn = SpatialAttention(kernel_size)
 
     def forward(self, x):
-        x = self.channel_attn(x)
-        x = self.spatial_attn(x)
-        return x
+        return self.spatial_attn(self.channel_attn(x))
 
 
 class MLPHead(nn.Module):
-    """
-    3-layer MLP head, LayerNorm BEFORE each Linear (not after) --
-    matches notebook Cell 9's MLPHead exactly. This ordering matters
-    for state_dict compatibility; do not silently "fix" it to
-    Linear->LayerNorm ordering, that was the OLD architecture.
-    """
     def __init__(self, in_dim, num_classes, hidden=512, drop=0.3):
         super().__init__()
         self.net = nn.Sequential(
@@ -96,111 +77,97 @@ class MLPHead(nn.Module):
 
 
 class DERMAXAIClassifier(nn.Module):
-    """
-    Matches DERMAXAI_NOVA notebook Cell 9 exactly:
-      EfficientNet-B3 (timm, num_classes=0) -> forward_features() (spatial)
-        -> CBAM (channel + spatial attention)
-        -> GeM pooling
-        -> MLPHead (LayerNorm -> Linear -> GELU -> Dropout, x3)
-    """
     def __init__(self, num_classes=7, dropout_rate=0.3,
                  model_name="efficientnet_b3", pretrained=False):
         super().__init__()
-        # Matches the notebook's Cell 9 construction EXACTLY:
-        # features_only=True, out_indices=(4,) -- this still exposes
-        # self.backbone.blocks[-1][-1] (EfficientNetFeatures keeps .blocks
-        # as a real attribute), so gradcam.py's hooks work unmodified, AND
-        # it has zero conv_head/bn2/classifier parameters at all (unlike a
-        # standard num_classes=0 model, which instantiates them unused and
-        # produces "missing key" noise on every checkpoint load).
         self.backbone = timm.create_model(
             model_name, pretrained=pretrained, features_only=True, out_indices=(4,)
         )
-        feat_dim = self.backbone.feature_info.channels()[-1]  # 384 for efficientnet_b3
-
+        feat_dim = self.backbone.feature_info.channels()[-1]
         self.cbam = CBAM(feat_dim)
-        self.pool = GeM()   # NOTE: must be named "pool", not "gem" -- the notebook's
-                             # DermaNet class uses self.pool = GeM(), and checkpoints
-                             # store this parameter as "pool.p". Renaming this attribute
-                             # will silently stop the trained GeM exponent from loading
-                             # (falls back to the default p=3.0 init instead) -- do not
-                             # "clean up" this name without re-checking checkpoint keys.
+        self.pool = GeM()
         self.head = MLPHead(feat_dim, num_classes, hidden=512, drop=dropout_rate)
 
     def _pooled_features(self, x):
-        feats = self.backbone(x)[-1]  # (B, C, H, W) -- features_only returns a list
+        feats = self.backbone(x)[-1]
         feats = self.cbam(feats)
-        return self.pool(feats)  # (B, C)
+        return self.pool(feats)
 
     def forward(self, x):
         return self.head(self._pooled_features(x))
 
     def forward_features(self, x):
-        """Returns pooled (post-CBAM, post-GeM) embedding. Used for t-SNE / feature inspection."""
         return self._pooled_features(x)
 
 
-# Backwards-compatible alias -- older code in this repo may import DERMAXAIv6
 DERMAXAIv6 = DERMAXAIClassifier
 
 
+def _extract_state_dict(ckpt):
+    if isinstance(ckpt, dict):
+        state = ckpt.get("model_state")
+        if state is None:
+            state = ckpt.get("model_state_dict")
+        if state is None and all(hasattr(v, "shape") for v in ckpt.values()):
+            state = ckpt
+        return state
+    return None
+
+
 def load_model(model_path: str, device: torch.device) -> DERMAXAIClassifier:
-    """
-    Loads DERMAXAI weights from a training checkpoint (best.pth /
-    best_phase4.pth). The notebook's Phase-4 checkpoint format is:
-      {"epoch": int, "model_state": <state_dict>, "combined_score": float}
-    Older checkpoints used "model_state_dict" plus class_names/mcue_threshold
-    metadata -- both keys are handled here for backward compatibility.
-    """
+    """Load the trained checkpoint and fail closed when it is unavailable/invalid."""
     model = DERMAXAIClassifier(
         num_classes=settings.NUM_CLASSES,
         dropout_rate=settings.DROPOUT,
         model_name=settings.MODEL_NAME,
-        pretrained=False
+        pretrained=False,
     ).to(device)
 
-    import os
     if not os.path.exists(model_path):
-        print(f"[WARNING] Model weights not found at {model_path}.")
-        print("[WARNING] Using randomly initialized weights -- predictions will be meaningless.")
-        print("[WARNING] Copy your trained checkpoint to backend/models/best.pth "
-              "(or best_phase4.pth, whichever you're deploying)")
-        model.eval()
-        model.mcue_threshold = None
-        return model
+        allow_random = os.getenv("ALLOW_RANDOM_WEIGHTS", "false").lower() == "true"
+        if allow_random:
+            print(f"[WARNING] Model weights not found at {model_path}; "
+                  "ALLOW_RANDOM_WEIGHTS=true so random weights are enabled for dev/CI only.")
+            model.eval()
+            model.mcue_threshold = None
+            return model
+        raise RuntimeError(
+            f"Trained model weights not found at {model_path}. "
+            "Refusing to start with random weights. Set ALLOW_RANDOM_WEIGHTS=true "
+            "only for development/CI."
+        )
 
-    ckpt = torch.load(model_path, map_location=device, weights_only=False)
-    # Phase-4 notebook checkpoints use "model_state"; older ones used "model_state_dict"
-    state = ckpt.get("model_state", ckpt.get("model_state_dict", ckpt))
+    try:
+        try:
+            ckpt = torch.load(model_path, map_location=device, weights_only=True)
+        except (TypeError, RuntimeError, ValueError) as exc:
+            print(f"[WARNING] weights_only=True could not read checkpoint ({exc}); "
+                  "falling back to legacy checkpoint loading.")
+            ckpt = torch.load(model_path, map_location=device, weights_only=False)
+    except Exception as exc:
+        raise RuntimeError(f"Failed to load model checkpoint {model_path}: {exc}") from exc
+
+    state = _extract_state_dict(ckpt)
+    if state is None:
+        raise RuntimeError("Checkpoint does not contain a recognized model state dict")
 
     missing, unexpected = model.load_state_dict(state, strict=False)
-    if missing:    print(f"[WARNING] Missing keys: {len(missing)} -- {missing[:5]}")
-    if unexpected: print(f"[WARNING] Unexpected keys: {len(unexpected)} -- {unexpected[:5]}")
-    if not missing and not unexpected:
-        print("[INFO] State dict loaded with an exact key match.")
+    if missing or unexpected:
+        raise RuntimeError(
+            f"Checkpoint architecture mismatch: missing={len(missing)}, "
+            f"unexpected={len(unexpected)}. Refusing to serve a partially loaded model."
+        )
 
     model.eval()
-    epoch = ckpt.get("epoch", "unknown")
-    val_acc = ckpt.get("val_acc", ckpt.get("combined_score", "unknown"))
+    model.mcue_threshold = ckpt.get("mcue_threshold") if isinstance(ckpt, dict) else None
 
-    # Sanity-check class order against what's baked into the checkpoint, if present.
-    # NOTE: the DERMAXAI_NOVA notebook checkpoints do NOT save class_names -- the
-    # order is implicit (alphabetical: akiec,bcc,bkl,df,mel,nv,vasc) and MUST match
-    # settings.CLASSES exactly, or predictions will be silently mislabeled.
-    ckpt_classes = ckpt.get("class_names")
+    ckpt_classes = ckpt.get("class_names") if isinstance(ckpt, dict) else None
     if ckpt_classes and list(ckpt_classes) != list(settings.CLASSES):
-        print("[ERROR] settings.CLASSES order does not match the checkpoint's "
-              "class_names! Predictions will be mislabeled.")
-        print(f"        checkpoint class_names = {ckpt_classes}")
-        print(f"        settings.CLASSES       = {settings.CLASSES}")
+        raise RuntimeError(
+            "Checkpoint class_names order does not match settings.CLASSES; refusing to serve."
+        )
 
-    # The DERMAXAI_NOVA notebook does not bake mcue_threshold into best_phase4.pth --
-    # theta_H is a separately-calibrated constant, set via settings.UNCERTAINTY_THETA.
-    model.mcue_threshold = ckpt.get("mcue_threshold", None)
-    if model.mcue_threshold is None:
-        print(f"[INFO] No mcue_threshold in checkpoint -- using calibrated "
-              f"settings.UNCERTAINTY_THETA={settings.UNCERTAINTY_THETA} "
-              "(copy the exact theta_H your notebook computed in Cell 18).")
-
-    print(f"[INFO] Model loaded -- epoch={epoch}, val_acc/score={val_acc}")
+    epoch = ckpt.get("epoch", "unknown") if isinstance(ckpt, dict) else "unknown"
+    score = ckpt.get("val_acc", ckpt.get("combined_score", "unknown")) if isinstance(ckpt, dict) else "unknown"
+    print(f"[INFO] Model loaded -- epoch={epoch}, val_acc/score={score}")
     return model
