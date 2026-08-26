@@ -43,10 +43,29 @@ def main():
 
     from fastapi.testclient import TestClient
     from app import app
+    from core.auth import hash_password
+    from core.database import SessionLocal, User
     from PIL import Image
     import numpy as np
 
     with TestClient(app) as client:
+        # Public registration is intentionally patient-only. Bootstrap an
+        # admin directly in the isolated CI database, then exercise the
+        # real admin promotion endpoint to provision the doctor account.
+        db = SessionLocal()
+        try:
+            admin = User(email="ci_admin@test.com", name="CI Admin",
+                         hashed_password=hash_password("ciadmin123"), role="admin")
+            db.add(admin)
+            db.commit()
+        finally:
+            db.close()
+
+        r = client.post("/api/auth/login", json={
+            "email": "ci_admin@test.com", "password": "ciadmin123"})
+        assert r.status_code == 200, f"Admin login failed: {r.text}"
+        admin_headers = {"Authorization": f"Bearer {r.json()['access_token']}"}
+
         r = client.post("/api/auth/register", json={
             "email": "ci_patient@test.com", "name": "CI Patient",
             "password": "cipass123", "role": "patient"})
@@ -55,8 +74,17 @@ def main():
 
         r = client.post("/api/auth/register", json={
             "email": "ci_doctor@test.com", "name": "CI Doctor",
-            "password": "cipass123", "role": "doctor"})
-        assert r.status_code == 200, f"Doctor registration failed: {r.text}"
+            "password": "cipass123", "role": "patient"})
+        assert r.status_code == 200, f"Doctor bootstrap registration failed: {r.text}"
+        doctor_user_id = r.json()["user"]["id"]
+
+        r = client.post(f"/api/admin/users/{doctor_user_id}/promote",
+                        headers=admin_headers, json={"role": "doctor"})
+        assert r.status_code == 200, f"Doctor promotion failed: {r.text}"
+
+        r = client.post("/api/auth/login", json={
+            "email": "ci_doctor@test.com", "password": "cipass123"})
+        assert r.status_code == 200, f"Doctor login failed: {r.text}"
         doctor_headers = {"Authorization": f"Bearer {r.json()['access_token']}"}
 
         img = Image.fromarray((np.random.rand(450, 600, 3) * 255).astype("uint8"))
