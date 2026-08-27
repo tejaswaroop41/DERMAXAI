@@ -14,3 +14,4 @@ dist/
 venv/
 .venv/
 *.egg-info/
+gha-creds-*.json
