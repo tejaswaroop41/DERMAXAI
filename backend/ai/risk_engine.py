@@ -7,6 +7,8 @@ following established dermatological risk-factor literature
 import re
 from typing import Optional
 
+from ai.text_negation import is_negated
+
 
 # Fitzpatrick skin type risk multipliers
 # Type I/II (fair skin) carry higher melanoma risk
@@ -25,7 +27,6 @@ class RiskEngine:
     Computes demographic and history-based risk score.
     Combined with image and symptom modalities via the decision engine.
     """
-
     def compute_age_risk(self, age: Optional[int]) -> float:
         if age is None:
             return 0.0
@@ -40,16 +41,10 @@ class RiskEngine:
             return 0.05
         normalized = skin_type.strip().lower()
 
-        # Exact match first — covers the normal dropdown case ("Type III", etc.)
         exact_lookup = {k.lower(): v for k, v in FITZPATRICK_RISK.items()}
         if normalized in exact_lookup:
             return exact_lookup[normalized]
 
-        # Word-boundary fallback for free text. Plain substring ("in") matching
-        # is unsafe here: "Type I" is a substring of "Type II"/"III"/"IV", so a
-        # naive `in` check would silently misclassify II/III/IV as Type I (and
-        # VI as V). \b prevents that by requiring the match not be immediately
-        # followed by another word character (another roman-numeral letter).
         for key, val in FITZPATRICK_RISK.items():
             if re.search(rf'\b{re.escape(key.lower())}\b', normalized):
                 return val
@@ -67,8 +62,11 @@ class RiskEngine:
             "previous biopsy": 0.10,
         }
         for kw, weight in risk_factors.items():
-            if kw in history_lower:
+            for match in re.finditer(re.escape(kw), history_lower):
+                if is_negated(history_lower, match.start()):
+                    continue
                 risk += weight
+                break
         return min(risk, 1.0)
 
     def compute_sun_exposure_risk(self, sun_exposure: Optional[str]) -> float:
@@ -86,21 +84,19 @@ class RiskEngine:
         Returns the composite demographic risk score [0, 1]
         plus a breakdown of contributing factors.
         """
-        age_risk      = self.compute_age_risk(age)
-        skin_risk     = self.compute_skin_type_risk(skin_type)
-        history_risk  = self.compute_history_risk(medical_history)
-        sun_risk      = self.compute_sun_exposure_risk(sun_exposure)
+        age_risk = self.compute_age_risk(age)
+        skin_risk = self.compute_skin_type_risk(skin_type)
+        history_risk = self.compute_history_risk(medical_history)
+        sun_risk = self.compute_sun_exposure_risk(sun_exposure)
 
-        composite = min(
-            age_risk + skin_risk + history_risk + sun_risk, 1.0
-        )
+        composite = min(age_risk + skin_risk + history_risk + sun_risk, 1.0)
 
         return {
             "demographic_risk_score": round(composite, 4),
             "breakdown": {
-                "age_risk":       round(age_risk, 4),
+                "age_risk": round(age_risk, 4),
                 "skin_type_risk": round(skin_risk, 4),
-                "history_risk":   round(history_risk, 4),
+                "history_risk": round(history_risk, 4),
                 "sun_exposure_risk": round(sun_risk, 4),
             },
             "risk_level": self._risk_label(composite),
