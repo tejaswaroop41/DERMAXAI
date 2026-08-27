@@ -13,8 +13,6 @@ jobs:
   backend:
     name: Backend — install, test, syntax check, smoke test
     runs-on: ubuntu-latest
-    env:
-      PYTHONPATH: ${{ github.workspace }}/backend
     steps:
       - uses: actions/checkout@v6
 
@@ -44,7 +42,7 @@ jobs:
 
       - name: Run backend regression tests
         working-directory: backend
-        run: pytest -q tests/test_uncertainty.py
+        run: python -m pytest -q tests/test_uncertainty.py
 
       - name: Run smoke test (auth -> diagnose -> doctor review)
         working-directory: backend
