@@ -45,7 +45,8 @@ class Settings:
     DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{BASE_DIR}/dermaxai.db")
 
     # ── Auth ─────────────────────────────────────────────
-    SECRET_KEY  = os.getenv("SECRET_KEY", "dermaxai-v6-change-in-production")
+    _secret_key_env = os.getenv("SECRET_KEY")
+    SECRET_KEY  = _secret_key_env or ""
     ALGORITHM   = "HS256"
     TOKEN_EXPIRE_MINUTES = 60 * 24
 
@@ -90,7 +91,14 @@ class Settings:
         ["http://localhost:5173", "http://localhost:8000"]
     )
 
+
 settings = Settings()
+
+if not settings.SECRET_KEY and not settings.DEBUG:
+    raise RuntimeError(
+        "SECRET_KEY must be set in non-debug deployments. "
+        "Refusing to start with an empty JWT signing key."
+    )
 
 for d in [settings.UPLOADS_DIR, settings.HEATMAPS_DIR,
           settings.REPORTS_DIR, settings.KNOWLEDGE_DIR]:
