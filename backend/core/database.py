@@ -3,7 +3,7 @@ DERMAXAI v6 — Database Models
 SQLAlchemy ORM models for users, patients, and diagnoses.
 """
 from sqlalchemy import (create_engine, Column, Integer, String, Float,
-                         DateTime, Text, Boolean, ForeignKey)
+                         DateTime, Text, Boolean, ForeignKey, UniqueConstraint)
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 from datetime import datetime
@@ -36,10 +36,15 @@ class User(Base):
     created_at       = Column(DateTime, default=datetime.utcnow)
     is_active        = Column(Boolean, default=True)
     diagnoses        = relationship("Diagnosis", back_populates="user")
+    patient          = relationship("Patient", back_populates="user", uselist=False,
+                                    cascade="all, delete-orphan")
 
 
 class Patient(Base):
     __tablename__ = "patients"
+    __table_args__ = (
+        UniqueConstraint("user_id", name="uq_patients_user_id"),
+    )
     id               = Column(Integer, primary_key=True, index=True)
     user_id          = Column(Integer, ForeignKey("users.id"), nullable=False)
     age              = Column(Integer)
@@ -49,6 +54,7 @@ class Patient(Base):
     sun_exposure     = Column(String)
     created_at       = Column(DateTime, default=datetime.utcnow)
     diagnoses        = relationship("Diagnosis", back_populates="patient")
+    user             = relationship("User", back_populates="patient")
 
 
 class Diagnosis(Base):
@@ -108,15 +114,10 @@ class DoctorReview(Base):
 
 def create_tables():
     """
-    Creates any missing TABLES (Base.metadata.create_all handles this
-    correctly on its own) AND adds any missing COLUMNS on tables that
-    already exist -- create_all() does NOT do the latter, which is
-    exactly what caused the abcd_features column to be silently absent
-    from an existing dermaxai.db after it was added to the Diagnosis
-    model. This is a lightweight substitute for a real migration tool
-    (Alembic) -- it only handles ADD COLUMN, not renames/drops/type
-    changes, but that covers every additive change this project has
-    needed so far.
+    Creates any missing tables and adds missing columns for additive schema
+    changes. The patients.user_id uniqueness invariant is also materialized
+    as a unique constraint/index so an existing database cannot create more
+    than one patient profile for the same user.
     """
     from sqlalchemy import inspect, text
 
@@ -125,7 +126,7 @@ def create_tables():
     inspector = inspect(engine)
     for table in Base.metadata.sorted_tables:
         if table.name not in inspector.get_table_names():
-            continue  # brand-new table, create_all() already handled it
+            continue
         existing_cols = {c["name"] for c in inspector.get_columns(table.name)}
         for col in table.columns:
             if col.name in existing_cols:
@@ -134,6 +135,25 @@ def create_tables():
             with engine.begin() as conn:
                 conn.execute(text(f'ALTER TABLE "{table.name}" ADD COLUMN "{col.name}" {col_type}'))
             print(f"[INFO] Auto-migration: added missing column {table.name}.{col.name}")
+
+    # Materialize the User -> Patient one-to-one invariant for databases
+    # created before the UniqueConstraint was added to the ORM model.
+    patient_table = Patient.__table__
+    if patient_table.name in inspector.get_table_names():
+        existing_uniques = {
+            uc.get("name") for uc in inspector.get_unique_constraints(patient_table.name)
+        }
+        existing_indexes = {
+            idx.get("name") for idx in inspector.get_indexes(patient_table.name)
+        }
+        invariant_name = "uq_patients_user_id"
+        if invariant_name not in existing_uniques and invariant_name not in existing_indexes:
+            with engine.begin() as conn:
+                conn.execute(text(
+                    f'CREATE UNIQUE INDEX "{invariant_name}" '
+                    f'ON "{patient_table.name}" ("user_id")'
+                ))
+            print(f"[INFO] Auto-migration: added unique patient.user_id invariant")
 
 
 def get_db():
