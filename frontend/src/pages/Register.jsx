@@ -62,20 +62,14 @@ export default function Register() {
                 value={form.password} onChange={e => set('password', e.target.value)} />
             </div>
           </div>
-          <div>
-            <label className="text-xs text-muted mb-1.5 block font-medium">Account Type</label>
-            <div className="grid grid-cols-2 gap-3">
-              {['patient','doctor'].map(role => (
-                <button key={role} type="button" onClick={() => set('role', role)}
-                  className="py-2.5 rounded-lg text-sm font-medium capitalize transition-colors border"
-                  style={{ background: form.role === role ? '#EEF4F3' : 'transparent',
-                           borderColor: form.role === role ? '#B8C5C2' : '#E4E7E4',
-                           color: form.role === role ? '#254742' : '#5B6764' }}>
-                  {role}
-                </button>
-              ))}
-            </div>
+
+          <div className="rounded-lg border border-line bg-paper/60 px-3 py-2.5">
+            <p className="text-xs text-muted leading-relaxed">
+              New accounts are created as <span className="font-medium text-ink">patients</span>.
+              Doctor accounts must be provisioned by an administrator after registration.
+            </p>
           </div>
+
           <button type="submit" disabled={loading} className="btn-primary w-full py-3">
             {loading ? 'Creating account...' : 'Create Account'}
           </button>
