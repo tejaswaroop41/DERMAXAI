@@ -2,14 +2,32 @@
 DERMAXAI v6 — Database Models
 SQLAlchemy ORM models for users, patients, and diagnoses.
 """
-from sqlalchemy import (create_engine, Column, Integer, String, Float,
-                         DateTime, Text, Boolean, ForeignKey, UniqueConstraint)
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, relationship
 from datetime import datetime
 from pathlib import Path
 
+from sqlalchemy import (Boolean, Column, DateTime, Float, ForeignKey, Integer,
+                        String, Text, UniqueConstraint, create_engine)
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import relationship, sessionmaker
+from sqlalchemy.types import TypeDecorator
+
 from core.config import settings
+
+
+class NormalizedEmail(TypeDecorator):
+    """Store and compare email addresses using a canonical lowercase form."""
+
+    impl = String
+    cache_ok = True
+
+    def process_bind_param(self, value, dialect):
+        if value is None:
+            return None
+        return str(value).strip().lower()
+
+    def process_result_value(self, value, dialect):
+        return value
+
 
 DATABASE_URL = settings.DATABASE_URL
 if DATABASE_URL.startswith("postgres://"):
@@ -29,7 +47,7 @@ Base = declarative_base()
 class User(Base):
     __tablename__ = "users"
     id               = Column(Integer, primary_key=True, index=True)
-    email            = Column(String, unique=True, index=True, nullable=False)
+    email            = Column(NormalizedEmail(320), unique=True, index=True, nullable=False)
     name             = Column(String, nullable=False)
     hashed_password  = Column(String, nullable=False)
     role             = Column(String, default="patient")
@@ -114,10 +132,9 @@ class DoctorReview(Base):
 
 def create_tables():
     """
-    Creates any missing tables and adds missing columns for additive schema
-    changes. The patients.user_id uniqueness invariant is also materialized
-    as a unique constraint/index so an existing database cannot create more
-    than one patient profile for the same user.
+    Creates missing tables, applies additive column migrations, materializes
+    the User -> Patient uniqueness invariant, and canonicalizes legacy email
+    addresses before the unique user-email constraint is relied upon.
     """
     from sqlalchemy import inspect, text
 
@@ -136,8 +153,6 @@ def create_tables():
                 conn.execute(text(f'ALTER TABLE "{table.name}" ADD COLUMN "{col.name}" {col_type}'))
             print(f"[INFO] Auto-migration: added missing column {table.name}.{col.name}")
 
-    # Materialize the User -> Patient one-to-one invariant for databases
-    # created before the UniqueConstraint was added to the ORM model.
     patient_table = Patient.__table__
     if patient_table.name in inspector.get_table_names():
         existing_uniques = {
@@ -153,7 +168,21 @@ def create_tables():
                     f'CREATE UNIQUE INDEX "{invariant_name}" '
                     f'ON "{patient_table.name}" ("user_id")'
                 ))
-            print(f"[INFO] Auto-migration: added unique patient.user_id invariant")
+            print("[INFO] Auto-migration: added unique patient.user_id invariant")
+
+    users_table = User.__table__
+    if users_table.name in inspector.get_table_names():
+        with engine.begin() as conn:
+            duplicates = conn.execute(text(
+                'SELECT LOWER(TRIM(email)) AS normalized_email, COUNT(*) AS count '
+                'FROM "users" GROUP BY LOWER(TRIM(email)) HAVING COUNT(*) > 1'
+            )).fetchall()
+            if duplicates:
+                values = ", ".join(row[0] for row in duplicates)
+                raise RuntimeError(
+                    "Cannot normalize user emails because case-insensitive duplicates exist: " + values
+                )
+            conn.execute(text('UPDATE "users" SET email = LOWER(TRIM(email))'))
 
 
 def get_db():
