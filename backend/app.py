@@ -9,13 +9,16 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import Optional
 
-from fastapi import FastAPI, Depends, UploadFile, File, Form, HTTPException
+from fastapi import FastAPI, Depends, UploadFile, File, Form, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 
 from core.config import settings
 from core.database import create_tables, get_db, User, Patient, Diagnosis, DoctorReview
@@ -37,6 +40,7 @@ from utils.validators import (validate_image_extension, validate_image_size,
 logger = get_logger("dermaxai")
 uncertainty_engine: Optional[UncertaintyEngine] = None
 gradcam_engine: Optional[GradCAMEngine] = None
+limiter = Limiter(key_func=get_remote_address)
 
 
 @asynccontextmanager
@@ -52,7 +56,12 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title=settings.APP_NAME, description="Multimodal AI-Powered Healthcare Diagnostic Assistant",
-              version=settings.APP_VERSION, lifespan=lifespan)
+              version=settings.APP_VERSION, lifespan=lifespan,
+              docs_url="/docs" if settings.DEBUG else None,
+              redoc_url="/redoc" if settings.DEBUG else None,
+              openapi_url="/openapi.json" if settings.DEBUG else None)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(CORSMiddleware, allow_origins=settings.CORS_ORIGINS,
                    allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
@@ -60,11 +69,18 @@ app.add_middleware(CORSMiddleware, allow_origins=settings.CORS_ORIGINS,
 class RegisterRequest(BaseModel):
     email: str
     name: str
-    password: str
+    password: str = Field(..., min_length=8, max_length=128)
     role: str = "patient"
     age: Optional[int] = None
     gender: Optional[str] = None
     skin_type: Optional[str] = None
+
+    @field_validator("password")
+    @classmethod
+    def validate_password(cls, value: str) -> str:
+        if not any(ch.isalpha() for ch in value) or not any(ch.isdigit() for ch in value):
+            raise ValueError("Password must contain at least one letter and one number")
+        return value
 
 
 PUBLIC_REGISTRATION_ROLES = {"patient"}
@@ -121,7 +137,8 @@ async def health():
 
 
 @app.post("/api/auth/register")
-def register(req: RegisterRequest, db: Session = Depends(get_db)):
+@limiter.limit("5/minute")
+def register(request: Request, req: RegisterRequest, db: Session = Depends(get_db)):
     role = req.role.lower().strip()
     if role not in PUBLIC_REGISTRATION_ROLES:
         raise HTTPException(status_code=403,
@@ -138,7 +155,8 @@ def register(req: RegisterRequest, db: Session = Depends(get_db)):
 
 
 @app.post("/api/auth/login")
-def login(req: LoginRequest, db: Session = Depends(get_db)):
+@limiter.limit("10/minute")
+def login(request: Request, req: LoginRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == req.email).first()
     if not user or not verify_password(req.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
