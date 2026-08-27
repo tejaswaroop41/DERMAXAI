@@ -9,6 +9,7 @@ restartPolicyType    = "on-failure"
 restartPolicyMaxRetries = 3
 
 [env]
-SECRET_KEY  = "change-this-in-railway-dashboard"
+# SECRET_KEY must be configured as a Railway service variable.
+# The backend refuses to start in non-debug mode without it.
 MODEL_PATH  = "models/best.pth"
 DEBUG       = "false"
