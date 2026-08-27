@@ -3,9 +3,11 @@ DERMAXAI v6 — Predictor Engine
 
 Runs Test-Time Augmentation (TTA) inference using the trained
 EfficientNet-B3 classifier and returns calibrated class
-probabilities for downstream fusion.
+probabilities for downstream fusion. It also computes stochastic
+Monte Carlo dropout samples for uncertainty estimation.
 """
 import torch
+import torch.nn as nn
 import numpy as np
 
 from core.config import settings
@@ -16,7 +18,7 @@ from core.preprocessing import get_tta_transforms, load_image, validate_image_qu
 class Predictor:
     """
     Singleton-style predictor wrapping the trained DERMAXAI v6 model.
-    Performs TTA-averaged inference for stable, robust predictions.
+    Performs TTA-averaged inference and optional MC-dropout sampling.
     """
     def __init__(self):
         self.device  = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -40,14 +42,45 @@ class Predictor:
         self.loaded = True
         print(f"[Predictor] Ready on device={self.device}")
 
+    def _mc_dropout_probs(self, img_np: np.ndarray) -> np.ndarray:
+        """Run stochastic forward passes with only dropout layers enabled."""
+        if not self.loaded:
+            self.load()
+
+        passes = max(2, int(settings.MC_DROPOUT_PASSES))
+        tfm = self.tta_tfms[0]
+        t = tfm(image=img_np)["image"].unsqueeze(0).to(self.device)
+
+        # Keep batch-normalization and the rest of the network in eval mode;
+        # only explicit dropout modules are switched to train mode so each
+        # pass samples a different sub-network without changing BN statistics.
+        original_states = {module: module.training for module in self.model.modules()}
+        try:
+            self.model.eval()
+            for module in self.model.modules():
+                if isinstance(module, (nn.Dropout, nn.Dropout1d, nn.Dropout2d,
+                                       nn.Dropout3d, nn.AlphaDropout,
+                                       nn.FeatureAlphaDropout)):
+                    module.train()
+
+            samples = []
+            for _ in range(passes):
+                logits = self.model(t) + self._adj_vec
+                samples.append(torch.softmax(logits, dim=1)[0].detach().cpu().numpy())
+            return np.stack(samples, axis=0).astype(np.float32)
+        finally:
+            for module, training in original_states.items():
+                module.train(training)
+
     @torch.no_grad()
     def predict(self, image_path: str) -> dict:
         """
-        Runs full TTA inference pipeline:
+        Runs the full inference pipeline:
           1. Load + validate image quality
-          2. Run model on 8 augmented crops
-          3. Average softmax probabilities
-          4. Return predicted class, confidence, full distribution
+          2. Run model on configured TTA views
+          3. Average TTA probabilities for the primary prediction
+          4. Run stochastic MC-dropout passes on the deterministic view
+          5. Return both distributions for downstream MCUE uncertainty
         """
         if not self.loaded:
             self.load()
@@ -68,6 +101,8 @@ class Predictor:
         pred_class = self.classes[class_idx]
         confidence = float(probs[class_idx])
 
+        mc_probs = self._mc_dropout_probs(img_np)
+
         return {
             "predicted_class": pred_class,
             "class_name":      settings.CLASS_FULL_NAMES[pred_class],
@@ -77,7 +112,8 @@ class Predictor:
                 self.classes[i]: round(float(probs[i]), 4)
                 for i in range(len(self.classes))
             },
-            "raw_probs":  probs,          # used internally by uncertainty/decision engines
+            "raw_probs":  probs,          # TTA mean probabilities
+            "mc_probs":   mc_probs,       # stochastic MC-dropout probabilities
             "image_quality": quality,
         }
 
