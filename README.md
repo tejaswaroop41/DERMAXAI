@@ -18,23 +18,26 @@ Dermoscopic Image
 │  + ACWF-FL Loss (Training)          │
 │  + SAM Optimizer (Phase 2)          │
 │  + SWA (Phase 3)                    │
-│  + 8-Crop TTA (Inference)           │
+│  + TTA augmentation ensemble        │
 └────────────────┬────────────────────┘
                  │ Image Prediction + Confidence
                  ▼
 ┌────────────────────────────────────────────────────────┐
 │                CMCA Fusion Engine                       │
-│  w_m = c_m / Σc_k  (confidence-weighted)               │
+│  Confidence-weighted clinical-concern aggregation       │
 │                                                        │
-│  Image Modality ──────┐                               │
-│  Symptom NLP ─────────┼──► Fused Decision              │
-│  Demographic Risk ────┘     + MCUE Uncertainty         │
+│  Image malignancy mass ──┐                            │
+│  Symptom risk ───────────┼──► Clinical concern score   │
+│  Demographic risk ───────┘                            │
+│                                                        │
+│  Classification label remains image-model-derived       │
 └────────────────────────────────────────────────────────┘
                  │
                  ▼
 ┌────────────────────────────────────────────────────────┐
 │  Outputs                                               │
-│  • Predicted class + fused confidence                  │
+│  • Predicted class + image confidence                  │
+│  • CMCA clinical concern score                          │
 │  • MCUE uncertainty score (θ_H deferral)               │
 │  • Grad-CAM heatmap (XAI)                              │
 │  • Clinical recommendations (knowledge base)           │
@@ -47,11 +50,11 @@ Dermoscopic Image
 | Algorithm | Description |
 |-----------|-------------|
 | **ACWF-FL** | Adaptive Class Weight Function + Focal Loss. Effective-number weighting + 1.5× malignancy amplification + focal γ=2.0 |
-| **CMCA**    | Cross-Modal Confidence Aggregation. Dynamic per-prediction confidence-weighted fusion of image, NLP, and demographic modalities |
-| **MCUE**    | Multimodal Calibrated Uncertainty Estimation. Aleatory (entropy) + epistemic (MC-Dropout) + fusion disagreement |
+| **CMCA**    | Cross-Modal Confidence Aggregation. Confidence-weighted aggregation of image malignancy mass, symptom risk, and demographic risk into a separate clinical-concern score; it does not relabel the image class. |
+| **MCUE**    | Monte Carlo Uncertainty Estimation. Aleatory uncertainty from expected MC entropy + epistemic uncertainty from mutual information + TTA/MC disagreement. |
 | **SAM**     | Sharpness-Aware Minimization. Finds flat minima → better generalization |
 | **SWA**     | Stochastic Weight Averaging. Averages weights over final epochs for stable, calibrated predictions |
-| **TTA**     | 8-crop Test-Time Augmentation ensemble at inference |
+| **TTA**     | Augmentation ensemble at inference time |
 
 ## Tech Stack
 
@@ -62,7 +65,7 @@ Dermoscopic Image
 | Optimizer | SAM + AdamW + SWA |
 | Dataset | ISIC 2018 (10,015 images, 7 classes) |
 | Backend | FastAPI + SQLAlchemy + JWT |
-| XAI | Grad-CAM (EfficientNet-B3 feature hook) |
+| XAI | Grad-CAM |
 | Reports | ReportLab PDF |
 | Frontend | React 18 + Vite + TailwindCSS |
 | Deployment | Railway.app / Docker |
@@ -80,21 +83,16 @@ DERMAXAI/
 │   │   ├── database.py           ← SQLAlchemy models
 │   │   └── auth.py               ← JWT auth + bcrypt
 │   ├── ai/
-│   │   ├── predictor.py          ← 8-crop TTA inference engine
-│   │   ├── uncertainty.py        ← MCUE (aleatory+epistemic+fusion)
+│   │   ├── predictor.py          ← TTA inference engine
+│   │   ├── uncertainty.py        ← MCUE (aleatory+epistemic+disagreement)
 │   │   ├── gradcam.py            ← Grad-CAM heatmap generation
-│   │   ├── biobert_engine.py     ← Symptom NLP (rule-based + BioBERT)
+│   │   ├── biobert_engine.py     ← Symptom NLP (rule-based + optional BioBERT)
 │   │   ├── risk_engine.py        ← Demographic risk scoring
-│   │   ├── decision_engine.py    ← CMCA multimodal fusion
+│   │   ├── decision_engine.py    ← CMCA clinical-concern fusion
 │   │   └── recommendation_engine.py ← Clinical recommendations
 │   ├── knowledge/                ← Per-class clinical JSON files
-│   │   ├── mel.json, bcc.json, akiec.json
-│   │   ├── bkl.json, nv.json, df.json, vasc.json
-│   ├── reports/
-│   │   └── report_generator.py   ← ReportLab PDF with Grad-CAM
-│   ├── utils/
-│   │   ├── logger.py
-│   │   └── validators.py
+│   ├── reports/                  ← PDF report generator
+│   ├── utils/                    ← Logging + validation helpers
 │   ├── models/                   ← Place best.pth here
 │   ├── uploads/                  ← Uploaded images
 │   ├── heatmaps/                 ← Generated Grad-CAM images
@@ -103,12 +101,8 @@ DERMAXAI/
 │   └── Dockerfile
 ├── frontend/
 │   ├── Dockerfile               ← Production static frontend image
-│   ├── nginx.conf               ← SPA + /api reverse proxy config
+│   ├── nginx.conf.template      ← SPA + /api reverse proxy template
 │   └── src/
-│       ├── pages/                ← Landing, Login, Register, Dashboard,
-│       │                            Diagnose, History, Profile, Admin
-│       ├── components/layout/    ← Glassmorphism sidebar
-│       └── lib/api.js            ← Axios API client
 ├── docker-compose.yml           ← Docker Compose stack
 ├── .env.example                 ← Docker/local environment template
 ├── railway.toml
@@ -127,7 +121,7 @@ cp /path/to/best.pth backend/models/best.pth
 
 # 3. Create local environment file
 cp .env.example .env
-# edit SECRET_KEY if this is not just a local demo
+# set a non-default SECRET_KEY for local development
 
 # 4. Keep the trained weights at backend/models/best.pth
 # Docker Compose mounts backend/models read-only at /data/models.
@@ -137,7 +131,7 @@ docker compose up --build
 
 # App  → http://localhost:5173
 # API  → http://localhost:8000
-# Docs → http://localhost:8000/docs
+# Docs → http://localhost:8000/docs when DEBUG=true
 ```
 
 ## Docker Notes
@@ -148,70 +142,3 @@ The default Docker Compose stack is production-style:
 - `frontend` builds the Vite app into static files and serves them from Nginx on port `5173`.
 - Nginx proxies `/api/*` requests to the backend service, so the frontend can use `VITE_API_URL=/api`.
 - The frontend Nginx upload limit is set above the backend 10 MB image limit to allow multipart form overhead through the proxy.
-- Persistent backend runtime data is stored in the `backend_data` Docker volume under `/data`.
-- Local model weights are mounted read-only from `backend/models` to `/data/models`.
-
-Important runtime paths can be configured from `.env`:
-
-| Variable | Default in Docker | Purpose |
-|----------|-------------------|---------|
-| `MODEL_PATH` | `/data/models/best.pth` | Trained PyTorch checkpoint mounted from `backend/models/best.pth` |
-| `DATABASE_URL` | `sqlite:////data/dermaxai.db` | Database connection string |
-| `UPLOADS_DIR` | `/data/uploads` | Uploaded diagnosis images |
-| `HEATMAPS_DIR` | `/data/heatmaps` | Generated Grad-CAM images |
-| `REPORTS_DIR` | `/data/generated_reports` | Generated PDFs |
-| `CORS_ORIGINS` | `http://localhost:5173,http://localhost:8000` | Allowed browser origins |
-
-## Manual Setup (without Docker)
-
-### Backend
-```bash
-cd backend
-python -m venv venv && source venv/bin/activate
-pip install -r requirements.txt
-# Optional: use variables from ../.env or export them in your shell
-uvicorn app:app --reload --port 8000
-```
-
-### Frontend
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-## Deploy to Railway
-
-1. Push to GitHub
-2. New project on railway.app → Deploy from GitHub repo
-3. Set environment variables:
-   - `SECRET_KEY` — strong random string
-   - `MODEL_PATH` — `models/best.pth`
-4. Upload `best.pth` as a Railway volume or use a CDN URL
-
-## API Endpoints
-
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | /api/health | Model status + algorithm list |
-| POST | /api/auth/register | Create user + patient profile |
-| POST | /api/auth/login | Get JWT token |
-| GET | /api/auth/me | Current user info |
-| POST | /api/diagnose | **Full pipeline** — TTA → NLP → Risk → MCUE → CMCA → Grad-CAM → PDF |
-| GET | /api/diagnose/history | User's diagnosis history |
-| GET | /api/diagnose/{id}/gradcam | Grad-CAM heatmap image |
-| GET | /api/reports/{id} | Download PDF report |
-| GET/PUT | /api/patients/profile | Patient profile |
-| GET | /api/admin/stats | Admin overview |
-| GET | /api/admin/users | User list |
-
-## Team
-
-| Name | USN |
-|------|-----|
-| Eddula Tejaswaroop | 1DA23CS057 |
-| Himanshu Mankotia | 1DA23CS066 |
-| Hrishita Nandan Gowda | 1DA23CS067 |
-| Jyothi S | 1DA23CS071 |
-
-**Guide:** Dr. Suresha D, Assoc. Prof., CSE Programme, Dr. AIT, Bengaluru
