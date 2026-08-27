@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import Layout from '../components/layout/Layout'
 import { adminApi } from '../lib/api'
+import toast from 'react-hot-toast'
 import { Shield, Users, Activity, AlertTriangle, BarChart2 } from 'lucide-react'
 
 export default function Admin() {
@@ -8,6 +9,12 @@ export default function Admin() {
   const [users, setUsers]   = useState([])
   const [tab, setTab]       = useState('overview')
   const [loading, setLoading] = useState(true)
+  const [promoting, setPromoting] = useState(null)
+
+  const loadUsers = async () => {
+    const { data } = await adminApi.users()
+    setUsers(data)
+  }
 
   useEffect(() => {
     Promise.all([adminApi.stats(), adminApi.users()])
@@ -15,6 +22,20 @@ export default function Admin() {
       .catch(() => {})
       .finally(() => setLoading(false))
   }, [])
+
+  const promoteToDoctor = async (user) => {
+    if (user.role !== 'patient') return
+    setPromoting(user.id)
+    try {
+      await adminApi.promote(user.id, { role: 'doctor' })
+      toast.success(`${user.name} is now a doctor`)
+      await loadUsers()
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Unable to promote user')
+    } finally {
+      setPromoting(null)
+    }
+  }
 
   return (
     <Layout>
@@ -90,16 +111,30 @@ export default function Admin() {
         ) : tab === 'users' ? (
           <div className="glass overflow-hidden">
             <div className="grid text-xs text-muted px-5 py-3 border-b border-line"
-              style={{ gridTemplateColumns: '1fr 2fr 1fr 1fr' }}>
-              <span>Name</span><span>Email</span><span>Role</span><span>Joined</span>
+              style={{ gridTemplateColumns: '1fr 2fr 1fr 1.2fr 1.2fr' }}>
+              <span>Name</span><span>Email</span><span>Role</span><span>Joined</span><span>Action</span>
             </div>
             {users.map(u => (
               <div key={u.id} className="grid items-center px-5 py-3 border-b border-line hover:bg-paper transition-colors"
-                style={{ gridTemplateColumns: '1fr 2fr 1fr 1fr' }}>
+                style={{ gridTemplateColumns: '1fr 2fr 1fr 1.2fr 1.2fr' }}>
                 <span className="text-sm text-ink font-medium">{u.name}</span>
-                <span className="text-sm text-muted">{u.email}</span>
+                <span className="text-sm text-muted truncate pr-3">{u.email}</span>
                 <span className="text-xs text-teal-500 capitalize font-mono">{u.role}</span>
                 <span className="text-xs text-muted">{new Date(u.created_at).toLocaleDateString()}</span>
+                <div>
+                  {u.role === 'patient' ? (
+                    <button
+                      type="button"
+                      disabled={promoting === u.id}
+                      onClick={() => promoteToDoctor(u)}
+                      className="px-2.5 py-1.5 rounded-md text-xs font-medium border border-line hover:bg-paper disabled:opacity-50 transition-colors"
+                    >
+                      {promoting === u.id ? 'Promoting…' : 'Promote to doctor'}
+                    </button>
+                  ) : (
+                    <span className="text-xs text-muted">—</span>
+                  )}
+                </div>
               </div>
             ))}
             {users.length === 0 && (
