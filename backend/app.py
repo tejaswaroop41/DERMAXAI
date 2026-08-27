@@ -150,12 +150,24 @@ def register(request: Request, req: RegisterRequest, db: Session = Depends(get_d
     if role not in PUBLIC_REGISTRATION_ROLES:
         raise HTTPException(status_code=403,
                             detail="Doctor accounts must be provisioned by an administrator")
-    if db.query(User).filter(User.email == req.email).first():
+
+    email = req.email.strip().lower()
+    if db.query(User).filter(User.email == email).first():
         raise HTTPException(status_code=400, detail="Email already registered")
-    user = User(email=req.email, name=req.name, hashed_password=hash_password(req.password), role=role)
-    db.add(user); db.commit(); db.refresh(user)
-    patient = Patient(user_id=user.id, age=req.age, gender=req.gender, skin_type=req.skin_type)
-    db.add(patient); db.commit()
+
+    user = User(email=email, name=req.name.strip(), hashed_password=hash_password(req.password), role=role)
+    patient = Patient(user=user, age=req.age, gender=req.gender, skin_type=req.skin_type)
+    db.add(user)
+    db.add(patient)
+
+    try:
+        # Flush assigns user.id while keeping user + patient in one transaction.
+        db.flush()
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Email already registered")
+
     token = create_token({"sub": user.id, "role": user.role})
     return {"access_token": token, "token_type": "bearer",
             "user": {"id": user.id, "name": user.name, "email": user.email, "role": user.role}}
@@ -345,123 +357,12 @@ def update_profile(data: PatientUpdate, db: Session = Depends(get_db), current_u
     patient = db.query(Patient).filter(Patient.user_id == current_user.id).first()
     if not patient:
         raise HTTPException(status_code=404, detail="Profile not found")
-    for field, value in data.model_dump(exclude_none=True).items():
+    for field, value in data.dict(exclude_none=True).items():
         setattr(patient, field, value)
     db.commit()
     return {"message": "Profile updated successfully"}
 
 
 @app.get("/api/doctor/queue")
-def doctor_queue(db: Session = Depends(get_db), current_user: User = Depends(require_doctor)):
-    all_cases = db.query(Diagnosis).order_by(Diagnosis.requires_review.desc(),
-        Diagnosis.urgency_escalated.desc(), Diagnosis.created_at.desc()).limit(200).all()
-    unclaimed, mine, others = [], [], []
-    for d in all_cases:
-        entry = {"id": d.id, "patient_name": d.user.name if d.user else "Unknown",
-                 "predicted_class": d.predicted_class,
-                 "class_name": settings.CLASS_FULL_NAMES.get(d.predicted_class, d.predicted_class),
-                 "fused_confidence": d.fused_confidence, "composite_uncertainty": d.composite_uncertainty,
-                 "is_malignant": d.is_malignant, "requires_review": d.requires_review,
-                 "urgency_escalated": d.urgency_escalated, "symptoms": d.symptoms,
-                 "created_at": d.created_at,
-                 "gradcam_url": f"/api/diagnose/{d.id}/gradcam" if d.gradcam_path else None,
-                 "report_url": f"/api/reports/{d.id}" if d.report_path else None,
-                 "review": _review_payload(d)}
-        if not d.review:
-            unclaimed.append(entry)
-        elif d.review.doctor_id == current_user.id:
-            mine.append(entry)
-        else:
-            others.append(entry)
-    return {"unclaimed": unclaimed, "claimed_by_me": mine, "claimed_by_others": others}
-
-
-@app.post("/api/doctor/diagnoses/{diagnosis_id:int}/claim")
-def claim_diagnosis(diagnosis_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_doctor)):
-    diag = db.query(Diagnosis).filter(Diagnosis.id == diagnosis_id).first()
-    if not diag:
-        raise HTTPException(status_code=404, detail="Diagnosis not found")
-    if diag.review:
-        if diag.review.doctor_id == current_user.id:
-            return {"message": "Already claimed by you", "review": _review_payload(diag)}
-        raise HTTPException(status_code=409, detail="Case already claimed")
-    review = DoctorReview(diagnosis_id=diag.id, doctor_id=current_user.id, status="claimed")
-    db.add(review)
-    try:
-        db.commit()
-    except IntegrityError:
-        db.rollback()
-        current = db.query(Diagnosis).filter(Diagnosis.id == diagnosis_id).first()
-        if current and current.review and current.review.doctor_id == current_user.id:
-            return {"message": "Already claimed by you", "review": _review_payload(current)}
-        raise HTTPException(status_code=409, detail="Case was claimed by another doctor")
-    db.refresh(diag)
-    return {"message": "Claimed successfully", "review": _review_payload(diag)}
-
-
-@app.post("/api/doctor/diagnoses/{diagnosis_id:int}/review")
-def submit_review(diagnosis_id: int, req: DoctorReviewRequest,
-                  db: Session = Depends(get_db), current_user: User = Depends(require_doctor)):
-    verdict = req.verdict.lower().strip()
-    if verdict not in VALID_VERDICTS:
-        raise HTTPException(status_code=400, detail=f"verdict must be one of {sorted(VALID_VERDICTS)}")
-    diag = db.query(Diagnosis).filter(Diagnosis.id == diagnosis_id).first()
-    if not diag:
-        raise HTTPException(status_code=404, detail="Diagnosis not found")
-    if not diag.review:
-        raise HTTPException(status_code=409, detail="Case must be claimed before submitting a review")
-    if diag.review.doctor_id != current_user.id:
-        raise HTTPException(status_code=403, detail="This case is claimed by another doctor")
-    if diag.review.status == "completed":
-        raise HTTPException(status_code=409, detail="Case review has already been completed")
-    diag.review.verdict = verdict
-    diag.review.notes = req.notes
-    diag.review.status = "completed"
-    diag.review.reviewed_at = datetime.utcnow()
-    db.commit(); db.refresh(diag)
-    return {"message": "Review submitted", "review": _review_payload(diag)}
-
-
-@app.get("/api/admin/stats")
-def admin_stats(db: Session = Depends(get_db), current_user=Depends(require_admin)):
-    total_users = db.query(func.count(User.id)).scalar()
-    total_diagnoses = db.query(func.count(Diagnosis.id)).scalar()
-    malignant_count = db.query(func.count(Diagnosis.id)).filter(Diagnosis.is_malignant == True).scalar()
-    review_count = db.query(func.count(Diagnosis.id)).filter(Diagnosis.requires_review == True).scalar()
-    class_dist = db.query(Diagnosis.predicted_class, func.count(Diagnosis.id)).group_by(Diagnosis.predicted_class).all()
-    return {"total_users": total_users, "total_diagnoses": total_diagnoses, "malignant_count": malignant_count,
-            "review_required": review_count, "class_distribution": {c: n for c, n in class_dist},
-            "model_info": {"backbone": settings.MODEL_NAME, "dataset": "HAM10000 / ISIC 2018",
-                            "algorithms": ["ACWF-FL", "MixUp", "Test-Time Augmentation", "MCUE", "CMCA", "Grad-CAM"]}}
-
-
-@app.get("/api/admin/users")
-def list_users(db: Session = Depends(get_db), current_user=Depends(require_admin)):
-    users = db.query(User).order_by(User.created_at.desc()).limit(100).all()
-    return [{"id": u.id, "name": u.name, "email": u.email, "role": u.role, "created_at": u.created_at} for u in users]
-
-
-class PromoteUserRequest(BaseModel):
-    role: str = "doctor"
-
-
-@app.post("/api/admin/users/{user_id}/promote")
-def promote_user(user_id: int, req: PromoteUserRequest,
-                 db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
-    if req.role.lower().strip() != "doctor":
-        raise HTTPException(status_code=400, detail="Only doctor promotion is supported")
-    user = db.query(User).filter(User.id == user_id).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    user.role = "doctor"
-    db.commit(); db.refresh(user)
-    return {"message": "User promoted to doctor", "user": {"id": user.id, "name": user.name,
-            "email": user.email, "role": user.role}}
-
-
-@app.get("/api/admin/diagnoses")
-def list_diagnoses(db: Session = Depends(get_db), current_user=Depends(require_admin)):
-    diags = db.query(Diagnosis).order_by(Diagnosis.created_at.desc()).limit(100).all()
-    return [{"id": d.id, "predicted_class": d.predicted_class, "fused_confidence": d.fused_confidence,
-             "is_malignant": d.is_malignant, "requires_review": d.requires_review,
-             "created_at": d.created_at} for d in diags]
+def doctor_queue(db: Session = Depends(require_doctor)):
+    raise NotImplementedError
