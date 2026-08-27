@@ -46,7 +46,6 @@ api.interceptors.response.use(
   r => r,
   err => {
     if (err.response?.status === 401) {
-      // avoid clearing during login/register failure responses
       const url = err.config?.url || ''
       const isAuthEndpoint = url.includes('/auth/login') || url.includes('/auth/register')
       if (!isAuthEndpoint) {
@@ -106,5 +105,6 @@ export const patientApi = {
 export const adminApi = {
   stats:     () => api.get('/admin/stats'),
   users:     () => api.get('/admin/users'),
+  promote:   (id, data = { role: 'doctor' }) => api.post(`/admin/users/${id}/promote`, data),
   diagnoses: () => api.get('/admin/diagnoses'),
 }
