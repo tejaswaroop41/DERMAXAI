@@ -150,12 +150,23 @@ def register(request: Request, req: RegisterRequest, db: Session = Depends(get_d
     if role not in PUBLIC_REGISTRATION_ROLES:
         raise HTTPException(status_code=403,
                             detail="Doctor accounts must be provisioned by an administrator")
-    if db.query(User).filter(User.email == req.email).first():
+
+    email = req.email.strip().lower()
+    if db.query(User).filter(User.email == email).first():
         raise HTTPException(status_code=400, detail="Email already registered")
-    user = User(email=req.email, name=req.name, hashed_password=hash_password(req.password), role=role)
-    db.add(user); db.commit(); db.refresh(user)
-    patient = Patient(user_id=user.id, age=req.age, gender=req.gender, skin_type=req.skin_type)
-    db.add(patient); db.commit()
+
+    user = User(email=email, name=req.name.strip(), hashed_password=hash_password(req.password), role=role)
+    patient = Patient(user=user, age=req.age, gender=req.gender, skin_type=req.skin_type)
+    db.add(user)
+    db.add(patient)
+
+    try:
+        db.flush()
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Email already registered")
+
     token = create_token({"sub": user.id, "role": user.role})
     return {"access_token": token, "token_type": "bearer",
             "user": {"id": user.id, "name": user.name, "email": user.email, "role": user.role}}
