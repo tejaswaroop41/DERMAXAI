@@ -9,7 +9,7 @@ services:
       PORT: 8000
       SECRET_KEY: ${SECRET_KEY:-}
       DEBUG: ${DEBUG:-false}
-      ALLOW_RANDOM_WEIGHTS: ${ALLOW_RANDOM_WEIGHTS:-true}
+      ALLOW_RANDOM_WEIGHTS: ${ALLOW_RANDOM_WEIGHTS:-false}
       MODEL_PATH: ${MODEL_PATH:-/data/models/best.pth}
       DATABASE_URL: ${DATABASE_URL:-sqlite:////data/dermaxai.db}
       UPLOADS_DIR: ${UPLOADS_DIR:-/data/uploads}
