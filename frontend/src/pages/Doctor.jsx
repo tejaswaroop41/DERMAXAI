@@ -1,13 +1,13 @@
 import { useEffect, useState, useMemo } from 'react'
 import Layout from '../components/layout/Layout'
 import { doctorApi, diagnoseApi, reportApi } from '../lib/api'
-import { ClipboardCheck, AlertTriangle, Download, Image as ImageIcon, CheckCircle2, XCircle, RotateCcw, Search } from 'lucide-react'
+import { AlertTriangle, Download, Image as ImageIcon, CheckCircle2, XCircle, RotateCcw, Search } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 const VERDICTS = [
-  { value: 'confirmed', label: 'Confirmed',  icon: CheckCircle2, color: '#B4413A' },
-  { value: 'revised',   label: 'Revised',    icon: RotateCcw,    color: '#B08135' },
-  { value: 'dismissed', label: 'Dismissed',  icon: XCircle,      color: '#4F7A52' },
+  { value: 'confirmed', label: 'Confirmed', icon: CheckCircle2, color: '#B4413A' },
+  { value: 'revised', label: 'Revised', icon: RotateCcw, color: '#B08135' },
+  { value: 'dismissed', label: 'Dismissed', icon: XCircle, color: '#4F7A52' },
 ]
 
 function VerdictBadge({ verdict }) {
@@ -30,11 +30,26 @@ function CaseCard({ item, onClaim, onReview, readOnly, claimedByOther }) {
   const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
+    let cancelled = false
+    let blobUrl = null
+
     if (item.gradcam_url) {
-      diagnoseApi.gradcam(item.gradcam_url).then(setGradcamUrl).catch(() => {})
+      diagnoseApi.gradcam(item.gradcam_url)
+        .then(url => {
+          if (cancelled) {
+            URL.revokeObjectURL(url)
+            return
+          }
+          blobUrl = url
+          setGradcamUrl(url)
+        })
+        .catch(() => {})
     }
-    return () => { if (gradcamUrl) URL.revokeObjectURL(gradcamUrl) }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
+    return () => {
+      cancelled = true
+      if (blobUrl) URL.revokeObjectURL(blobUrl)
+    }
   }, [item.gradcam_url])
 
   const handleSubmitReview = async () => {
@@ -182,7 +197,6 @@ export default function Doctor() {
     { key: 'unclaimed', label: 'Unclaimed', items: applyFilters(queue.unclaimed), rawCount: queue.unclaimed.length },
     { key: 'mine',      label: 'Claimed by me', items: applyFilters(queue.claimed_by_me), rawCount: queue.claimed_by_me.length },
     { key: 'others',    label: 'Claimed by others', items: applyFilters(queue.claimed_by_others), rawCount: null },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   ], [queue, search, malignantOnly])
   const active = tabs.find(t => t.key === tab)
 
