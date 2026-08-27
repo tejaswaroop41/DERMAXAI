@@ -1,0 +1,104 @@
+name: Cloud Run Deploy
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    name: Deploy DERMAXAI to Cloud Run
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v3
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker "${{ secrets.GCP_REGION }}-docker.pkg.dev" --quiet
+
+      - name: Validate deployment inputs
+        env:
+          PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          REGION: ${{ secrets.GCP_REGION }}
+          ARTIFACT_REPOSITORY: ${{ secrets.GCP_ARTIFACT_REPOSITORY }}
+          BACKEND_SERVICE: ${{ secrets.CLOUD_RUN_BACKEND_SERVICE }}
+          FRONTEND_SERVICE: ${{ secrets.CLOUD_RUN_FRONTEND_SERVICE }}
+          DERMAXAI_SECRET_KEY: ${{ secrets.DERMAXAI_SECRET_KEY }}
+        run: |
+          test -n "$PROJECT_ID"
+          test -n "$REGION"
+          test -n "$ARTIFACT_REPOSITORY"
+          test -n "$BACKEND_SERVICE"
+          test -n "$FRONTEND_SERVICE"
+          test -n "$DERMAXAI_SECRET_KEY"
+          test -f backend/models/best.pth || {
+            echo "ERROR: backend/models/best.pth is required for a real Cloud Run deployment."
+            echo "The production image is intentionally fail-closed when trained weights are absent."
+            exit 1
+          }
+
+      - name: Build and push backend image
+        env:
+          PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          REGION: ${{ secrets.GCP_REGION }}
+          ARTIFACT_REPOSITORY: ${{ secrets.GCP_ARTIFACT_REPOSITORY }}
+        run: |
+          IMAGE="$REGION-docker.pkg.dev/$PROJECT_ID/$ARTIFACT_REPOSITORY/dermaxai-backend:$GITHUB_SHA"
+          docker build -t "$IMAGE" ./backend
+          docker push "$IMAGE"
+          echo "BACKEND_IMAGE=$IMAGE" >> "$GITHUB_ENV"
+
+      - name: Deploy backend to Cloud Run
+        env:
+          PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          REGION: ${{ secrets.GCP_REGION }}
+          BACKEND_SERVICE: ${{ secrets.CLOUD_RUN_BACKEND_SERVICE }}
+          DERMAXAI_SECRET_KEY: ${{ secrets.DERMAXAI_SECRET_KEY }}
+        run: |
+          gcloud run deploy "$BACKEND_SERVICE" \
+            --project "$PROJECT_ID" \
+            --region "$REGION" \
+            --platform managed \
+            --image "$BACKEND_IMAGE" \
+            --allow-unauthenticated \
+            --set-env-vars "SECRET_KEY=$DERMAXAI_SECRET_KEY,DEBUG=false"
+          BACKEND_URL="$(gcloud run services describe "$BACKEND_SERVICE" --project "$PROJECT_ID" --region "$REGION" --format='value(status.url)')"
+          test -n "$BACKEND_URL"
+          echo "BACKEND_URL=$BACKEND_URL" >> "$GITHUB_ENV"
+
+      - name: Build and push frontend image
+        env:
+          PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          REGION: ${{ secrets.GCP_REGION }}
+          ARTIFACT_REPOSITORY: ${{ secrets.GCP_ARTIFACT_REPOSITORY }}
+        run: |
+          IMAGE="$REGION-docker.pkg.dev/$PROJECT_ID/$ARTIFACT_REPOSITORY/dermaxai-frontend:$GITHUB_SHA"
+          docker build --build-arg VITE_API_URL=/api -t "$IMAGE" ./frontend
+          docker push "$IMAGE"
+          echo "FRONTEND_IMAGE=$IMAGE" >> "$GITHUB_ENV"
+
+      - name: Deploy frontend to Cloud Run
+        env:
+          PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          REGION: ${{ secrets.GCP_REGION }}
+          FRONTEND_SERVICE: ${{ secrets.CLOUD_RUN_FRONTEND_SERVICE }}
+        run: |
+          gcloud run deploy "$FRONTEND_SERVICE" \
+            --project "$PROJECT_ID" \
+            --region "$REGION" \
+            --platform managed \
+            --image "$FRONTEND_IMAGE" \
+            --allow-unauthenticated \
+            --set-env-vars "BACKEND_URL=$BACKEND_URL"
+          FRONTEND_URL="$(gcloud run services describe "$FRONTEND_SERVICE" --project "$PROJECT_ID" --region "$REGION" --format='value(status.url)')"
+          echo "Cloud Run backend: $BACKEND_URL"
+          echo "Cloud Run frontend: $FRONTEND_URL"
