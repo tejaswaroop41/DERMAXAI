@@ -181,7 +181,7 @@ def me(current_user: User = Depends(get_current_user)):
 @app.post("/api/diagnose")
 async def diagnose(image: UploadFile = File(...), symptoms: str = Form(default=""),
                    age: Optional[int] = Form(default=None), gender: str = Form(default=""),
-                   skin_type: str = Form(default""), sun_exposure: str = Form(default=""),
+                   skin_type: str = Form(default=""), sun_exposure: str = Form(default=""),
                    db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     if not validate_image_extension(image.filename):
         raise HTTPException(status_code=400, detail="Unsupported image format")
@@ -269,7 +269,6 @@ async def diagnose(image: UploadFile = File(...), symptoms: str = Form(default="
                 "gradcam_url": f"/api/diagnose/{diag.id}/gradcam" if gradcam_path else None,
                 "report_url": f"/api/reports/{diag.id}" if diag.report_path else None}
     except Exception:
-        # Keep the database clean if inference or downstream generation fails.
         try:
             if os.path.exists(img_path):
                 os.remove(img_path)
