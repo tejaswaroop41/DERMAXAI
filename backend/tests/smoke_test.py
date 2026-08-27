@@ -38,7 +38,7 @@ def main():
 
     if not os.path.exists(ckpt_path):
         model = DERMAXAIClassifier(num_classes=7, dropout_rate=0.3,
-                                    model_name="efficientnet_b3", pretrained=False)
+                                   model_name="efficientnet_b3", pretrained=False)
         torch.save({"epoch": 0, "model_state": model.state_dict(), "combined_score": 0.0}, ckpt_path)
 
     from fastapi.testclient import TestClient
@@ -49,8 +49,25 @@ def main():
     import numpy as np
 
     with TestClient(app) as client:
-        # Public registration is intentionally patient-only. Bootstrap an
-        # admin directly in the isolated CI database, then exercise the
+        # Public registration is intentionally patient-only. The API must
+        # reject attempts to self-register directly as a doctor.
+        r = client.post("/api/auth/register", json={
+            "email": "ci_rejected_doctor@test.com", "name": "Rejected Doctor",
+            "password": "validpass123", "role": "doctor"})
+        assert r.status_code == 403, f"Doctor self-registration was not rejected: {r.text}"
+
+        # Password policy must reject short passwords and passwords without a number.
+        r = client.post("/api/auth/register", json={
+            "email": "ci_bad_password@test.com", "name": "Bad Password",
+            "password": "short", "role": "patient"})
+        assert r.status_code == 422, f"Short password was accepted: {r.text}"
+
+        r = client.post("/api/auth/register", json={
+            "email": "ci_bad_password2@test.com", "name": "Bad Password 2",
+            "password": "onlyletters", "role": "patient"})
+        assert r.status_code == 422, f"Password without a number was accepted: {r.text}"
+
+        # Bootstrap an admin directly in the isolated CI database, then exercise the
         # real admin promotion endpoint to provision the doctor account.
         db = SessionLocal()
         try:
@@ -65,6 +82,12 @@ def main():
             "email": "ci_admin@test.com", "password": "ciadmin123"})
         assert r.status_code == 200, f"Admin login failed: {r.text}"
         admin_headers = {"Authorization": f"Bearer {r.json()['access_token']}"}
+
+        # Exercise the login limiter without consuming it before the real doctor login.
+        for _ in range(8):
+            r = client.post("/api/auth/login", json={
+                "email": "ci_admin@test.com", "password": "wrong-password"})
+            assert r.status_code == 401, f"Invalid login did not return 401: {r.text}"
 
         r = client.post("/api/auth/register", json={
             "email": "ci_patient@test.com", "name": "CI Patient",
@@ -87,13 +110,19 @@ def main():
         assert r.status_code == 200, f"Doctor login failed: {r.text}"
         doctor_headers = {"Authorization": f"Bearer {r.json()['access_token']}"}
 
+        # One more failed login crosses the 10/minute login limit (admin success + 8
+        # failures + doctor success = 10), proving the rate limiter is active.
+        r = client.post("/api/auth/login", json={
+            "email": "ci_admin@test.com", "password": "wrong-password"})
+        assert r.status_code == 429, f"Login rate limiter did not return 429: {r.text}"
+
         img = Image.fromarray((np.random.rand(450, 600, 3) * 255).astype("uint8"))
         buf = io.BytesIO()
         img.save(buf, format="JPEG")
         buf.seek(0)
         r = client.post("/api/diagnose", headers=patient_headers,
-                         files={"image": ("test.jpg", buf, "image/jpeg")},
-                         data={"symptoms": "ci smoke test", "age": "30"})
+                        files={"image": ("test.jpg", buf, "image/jpeg")},
+                        data={"symptoms": "ci smoke test", "age": "30"})
         assert r.status_code == 200, f"Diagnose failed: {r.text}"
         diag_id = r.json()["diagnosis_id"]
         assert "abcd_features" in r.json(), "ABCD features missing from response"
@@ -108,7 +137,7 @@ def main():
         assert r.status_code == 200, f"Claim failed: {r.text}"
 
         r = client.post(f"/api/doctor/diagnoses/{diag_id}/review", headers=doctor_headers,
-                         json={"verdict": "confirmed", "notes": "CI smoke test review"})
+                        json={"verdict": "confirmed", "notes": "CI smoke test review"})
         assert r.status_code == 200, f"Review submit failed: {r.text}"
 
         r = client.get("/api/diagnose/notifications", headers=patient_headers)
@@ -117,7 +146,7 @@ def main():
         r = client.post("/api/diagnose/notifications/mark-seen", headers=patient_headers)
         assert r.json()["marked_seen"] == 1, f"Mark-seen wrong: {r.json()}"
 
-    print("SMOKE TEST PASSED: register, diagnose, ABCD, history, doctor queue, claim, review, notifications")
+    print("SMOKE TEST PASSED: auth policy, rate limiting, register, diagnose, ABCD, history, doctor queue, claim, review, notifications")
 
 
 if __name__ == "__main__":
