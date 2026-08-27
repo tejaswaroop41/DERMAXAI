@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import Layout from '../components/layout/Layout'
 import { useAuth } from '../App'
-import { diagnoseApi, doctorApi } from '../lib/api'
+import { diagnoseApi, doctorApi, reportApi } from '../lib/api'
 import { Link } from 'react-router-dom'
 import { Microscope, AlertTriangle, Clock, ChevronRight, TrendingUp, ClipboardCheck, Stethoscope, Bell } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
@@ -102,7 +102,15 @@ function PatientDashboard({ user }) {
                       {new Date(d.created_at).toLocaleDateString()} · {(d.fused_confidence * 100).toFixed(1)}% confidence
                     </div>
                   </div>
-                  {d.report_url && <a href={d.report_url} target="_blank" rel="noreferrer" className="text-xs text-teal-500 hover:text-teal-600 flex-shrink-0">PDF</a>}
+                  {d.report_url && (
+                    <button
+                      type="button"
+                      onClick={() => reportApi.download(d.report_url, `DERMAXAI_Report_${d.id}.pdf`)}
+                      className="text-xs text-teal-500 hover:text-teal-600 flex-shrink-0"
+                    >
+                      PDF
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
