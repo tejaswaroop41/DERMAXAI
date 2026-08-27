@@ -58,9 +58,11 @@ export default function Register() {
             <label className="text-xs text-muted mb-1.5 block font-medium">Password</label>
             <div className="relative">
               <Lock size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
-              <input type="password" className="input-glass pl-9" placeholder="Min 8 characters" required
+              <input type="password" className="input-glass pl-9" placeholder="At least 8 characters" required
+                minLength={8} maxLength={128} autoComplete="new-password"
                 value={form.password} onChange={e => set('password', e.target.value)} />
             </div>
+            <p className="text-[11px] text-muted mt-1">Use at least 8 characters, including a letter and a number.</p>
           </div>
 
           <div className="rounded-lg border border-line bg-paper/60 px-3 py-2.5">
