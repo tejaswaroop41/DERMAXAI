@@ -6,15 +6,18 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
   backend:
     name: Backend — install, syntax check, smoke test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.11"
 
@@ -29,31 +32,29 @@ jobs:
         run: pip install --no-cache-dir -r requirements.txt
 
       - name: Install test-only dependencies
-        # httpx is required by Starlette's TestClient (used in smoke_test.py)
-        # but is NOT a production dependency of the running app -- it belongs
-        # here, not in requirements.txt, to keep production deps accurate.
+        # httpx is required by Starlette's TestClient in smoke_test.py.
         run: pip install --no-cache-dir httpx
 
       - name: Syntax check every backend file
         working-directory: backend
         run: |
           python -m py_compile app.py
-          find core ai reports -name "*.py" -exec python -m py_compile {} +
+          find core ai reports tests -name "*.py" -exec python -m py_compile {} +
 
       - name: Run smoke test (register -> diagnose -> doctor review, random-init model)
         working-directory: backend
         run: python tests/smoke_test.py
 
   frontend:
-    name: Frontend — install, build
+    name: Frontend — install, test, build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Set up Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
-          node-version: "20"
+          node-version: "24"
           cache: "npm"
           cache-dependency-path: frontend/package-lock.json
 
@@ -61,49 +62,66 @@ jobs:
         working-directory: frontend
         run: npm ci
 
+      - name: Frontend contract tests
+        working-directory: frontend
+        run: node --test tests/ui_contract.test.mjs
+
       - name: Production build
         working-directory: frontend
         run: npm run build
 
   docker:
-    name: Docker — build both images (no push)
+    name: Docker — build and integration check
     runs-on: ubuntu-latest
     needs: [backend, frontend]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - name: Build backend image
-        run: docker build -t dermaxai-backend:ci ./backend
+      - name: Build both images
+        run: docker compose build
 
-      - name: Build frontend image
-        run: docker build -t dermaxai-frontend:ci ./frontend
+      - name: Start integrated stack
+        env:
+          SECRET_KEY: ci-compose-secret
+          DEBUG: "true"
+          ALLOW_RANDOM_WEIGHTS: "true"
+        run: docker compose up -d
 
-  # ────────────────────────────────────────────────────────────
-  # Optional: deploy to Railway on push to main, only after every
-  # check above passes. Requires a RAILWAY_TOKEN repo secret --
-  # Settings -> Secrets and variables -> Actions -> New repository
-  # secret. Get the token from Railway's dashboard (Account
-  # Settings -> Tokens). If you don't add this secret, this job
-  # is simply skipped -- everything else still runs.
-  #
-  # NOTE: if you connect this GitHub repo directly in Railway's
-  # own dashboard instead, Railway auto-deploys on push without
-  # needing this job at all -- pick ONE of the two approaches,
-  # not both, or you'll get duplicate/competing deploys.
-  # ────────────────────────────────────────────────────────────
+      - name: Wait for backend health
+        run: |
+          for i in {1..30}; do
+            if curl --fail --silent http://localhost:8000/api/health > /tmp/backend-health.json; then
+              cat /tmp/backend-health.json
+              exit 0
+            fi
+            sleep 4
+          done
+          docker compose ps
+          docker compose logs --no-color backend
+          exit 1
+
+      - name: Verify frontend health and API proxy
+        run: |
+          curl --fail --silent http://localhost:5173/healthz
+          curl --fail --silent http://localhost:5173/api/health
+
+      - name: Stop integrated stack
+        if: always()
+        run: docker compose down -v
+
   deploy:
     name: Deploy to Railway
     runs-on: ubuntu-latest
     needs: [backend, frontend, docker]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Deploy
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
         run: |
           if [ -z "$RAILWAY_TOKEN" ]; then
-            echo "RAILWAY_TOKEN secret not set -- skipping deploy. See comment above this job."
+            echo "RAILWAY_TOKEN secret not set -- skipping deploy."
             exit 0
           fi
           npm install -g @railway/cli
