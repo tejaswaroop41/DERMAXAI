@@ -6,13 +6,39 @@ EfficientNet-B3 classifier and returns calibrated class
 probabilities for downstream fusion. It also computes stochastic
 Monte Carlo dropout samples for uncertainty estimation.
 """
+import os
+
 import torch
 import torch.nn as nn
 import numpy as np
+from fastapi import HTTPException
+from PIL import Image, UnidentifiedImageError
 
 from core.config import settings
 from core.model import load_model
 from core.preprocessing import get_tta_transforms, load_image, validate_image_quality
+
+
+SUPPORTED_IMAGE_FORMATS = {".jpg": "JPEG", ".jpeg": "JPEG", ".png": "PNG", ".bmp": "BMP"}
+
+
+def validate_image_file(path: str) -> None:
+    """Validate the actual image payload before it reaches preprocessing/inference."""
+    extension = os.path.splitext(path)[1].lower()
+    expected_format = SUPPORTED_IMAGE_FORMATS.get(extension)
+    if expected_format is None:
+        raise HTTPException(status_code=400, detail="Unsupported image format")
+
+    try:
+        with Image.open(path) as image:
+            actual_format = (image.format or "").upper()
+            if actual_format != expected_format:
+                raise HTTPException(status_code=400, detail="Invalid image file")
+            image.verify()
+    except HTTPException:
+        raise
+    except (UnidentifiedImageError, OSError, ValueError):
+        raise HTTPException(status_code=400, detail="Invalid image file")
 
 
 class Predictor:
@@ -76,7 +102,7 @@ class Predictor:
     def predict(self, image_path: str) -> dict:
         """
         Runs the full inference pipeline:
-          1. Load + validate image quality
+          1. Validate the actual image payload and image quality
           2. Run model on configured TTA views
           3. Average TTA probabilities for the primary prediction
           4. Run stochastic MC-dropout passes on the deterministic view
@@ -85,6 +111,7 @@ class Predictor:
         if not self.loaded:
             self.load()
 
+        validate_image_file(image_path)
         img_np  = load_image(image_path)
         quality = validate_image_quality(img_np)
 
@@ -122,6 +149,7 @@ class Predictor:
         """Returns the pooled feature vector for t-SNE/feature inspection."""
         if not self.loaded:
             self.load()
+        validate_image_file(image_path)
         img_np = load_image(image_path)
         tfm    = self.tta_tfms[0]
         t      = tfm(image=img_np)["image"].unsqueeze(0).to(self.device)
