@@ -108,7 +108,14 @@ VALID_VERDICTS = {"confirmed", "revised", "dismissed"}
 
 
 def _can_view_diagnosis(diag: Diagnosis, current_user: User) -> bool:
-    return diag.user_id == current_user.id or current_user.role == "doctor"
+    """Allow the patient owner or the doctor who claimed the case to view it."""
+    if diag.user_id == current_user.id:
+        return True
+    return bool(
+        current_user.role == "doctor"
+        and diag.review is not None
+        and diag.review.doctor_id == current_user.id
+    )
 
 
 def _review_payload(diag: Diagnosis) -> Optional[dict]:
@@ -174,7 +181,7 @@ def me(current_user: User = Depends(get_current_user)):
 @app.post("/api/diagnose")
 async def diagnose(image: UploadFile = File(...), symptoms: str = Form(default=""),
                    age: Optional[int] = Form(default=None), gender: str = Form(default=""),
-                   skin_type: str = Form(default=""), sun_exposure: str = Form(default=""),
+                   skin_type: str = Form(default""), sun_exposure: str = Form(default=""),
                    db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     if not validate_image_extension(image.filename):
         raise HTTPException(status_code=400, detail="Unsupported image format")
@@ -189,77 +196,86 @@ async def diagnose(image: UploadFile = File(...), symptoms: str = Form(default="
     with open(img_path, "wb") as f:
         f.write(file_bytes)
 
-    image_result = predictor.predict(img_path)
-    symptom_risk = biobert_engine.compute_symptom_risk(symptoms)
-    patient = db.query(Patient).filter(Patient.user_id == current_user.id).first()
-    demographic_risk = risk_engine.assess(
-        age=age if age is not None else (patient.age if patient else None),
-        gender=gender or (patient.gender if patient else None),
-        skin_type=skin_type or (patient.skin_type if patient else None),
-        medical_history=patient.medical_history if patient else None,
-        sun_exposure=sun_exposure or (patient.sun_exposure if patient else None),
-    )
-
-    uncertainty = uncertainty_engine.composite_uncertainty(
-        raw_probs=image_result["raw_probs"],
-        mc_probs=image_result["mc_probs"],
-    )
-    decision = decision_engine.fuse(image_result=image_result, symptom_risk=symptom_risk,
-                                    demographic_risk=demographic_risk, uncertainty=uncertainty)
-
-    gradcam_path = os.path.join(settings.HEATMAPS_DIR, f"gradcam_{img_id}.jpg")
     try:
-        class_idx = settings.CLASSES.index(decision["predicted_class"])
-        gradcam_engine.generate(img_path, class_idx, gradcam_path)
-    except Exception as e:
-        logger.warning(f"Grad-CAM generation failed: {e}")
-        gradcam_path = None
+        image_result = predictor.predict(img_path)
+        symptom_risk = biobert_engine.compute_symptom_risk(symptoms)
+        patient = db.query(Patient).filter(Patient.user_id == current_user.id).first()
+        demographic_risk = risk_engine.assess(
+            age=age if age is not None else (patient.age if patient else None),
+            gender=gender or (patient.gender if patient else None),
+            skin_type=skin_type or (patient.skin_type if patient else None),
+            medical_history=patient.medical_history if patient else None,
+            sun_exposure=sun_exposure or (patient.sun_exposure if patient else None),
+        )
 
-    recommendation = recommendation_engine.generate(decision=decision, uncertainty=uncertainty,
-                                                    symptom_risk=symptom_risk)
-    try:
-        abcd_features = extract_abcd_features(img_path)
-    except Exception as e:
-        logger.warning(f"ABCD feature extraction failed: {e}")
-        abcd_features = {"asymmetry": None, "border_irregularity": None,
-                         "color_variation": None, "diameter_px": None, "segmentation_ok": False}
+        uncertainty = uncertainty_engine.composite_uncertainty(
+            raw_probs=image_result["raw_probs"],
+            mc_probs=image_result["mc_probs"],
+        )
+        decision = decision_engine.fuse(image_result=image_result, symptom_risk=symptom_risk,
+                                        demographic_risk=demographic_risk, uncertainty=uncertainty)
 
-    diag = Diagnosis(
-        user_id=current_user.id, patient_id=patient.id if patient else None,
-        image_path=img_path, symptoms=symptoms,
-        predicted_class=decision["predicted_class"], fused_confidence=decision["fused_confidence"],
-        image_confidence=decision["image_confidence"], is_malignant=decision["is_malignant"],
-        requires_review=decision["requires_review"], urgency_escalated=decision["urgency_escalated"],
-        aleatory_uncertainty=uncertainty["aleatory_uncertainty"],
-        epistemic_uncertainty=uncertainty["epistemic_uncertainty"],
-        fusion_uncertainty=uncertainty["fusion_uncertainty"],
-        composite_uncertainty=uncertainty["composite_uncertainty"],
-        symptom_risk_score=symptom_risk["symptom_risk_score"],
-        demographic_risk_score=demographic_risk["demographic_risk_score"],
-        gradcam_path=gradcam_path, class_probs=json.dumps(decision["class_probabilities"]),
-        modality_weights=json.dumps(decision["modality_weights"]), abcd_features=json.dumps(abcd_features),
-    )
-    db.add(diag); db.commit(); db.refresh(diag)
+        gradcam_path = os.path.join(settings.HEATMAPS_DIR, f"gradcam_{img_id}.jpg")
+        try:
+            class_idx = settings.CLASSES.index(decision["predicted_class"])
+            gradcam_engine.generate(img_path, class_idx, gradcam_path)
+        except Exception as e:
+            logger.warning(f"Grad-CAM generation failed: {e}")
+            gradcam_path = None
 
-    report_path = os.path.join(settings.REPORTS_DIR, f"report_{diag.id}.pdf")
-    try:
-        patient_data = {"name": current_user.name,
-                        "age": age if age is not None else (patient.age if patient else "N/A"),
-                        "gender": gender or (patient.gender if patient else "N/A"),
-                        "skin_type": skin_type or (patient.skin_type if patient else "N/A"),
-                        "diagnosis_id": diag.id}
-        generate_report(decision, uncertainty, recommendation, patient_data, gradcam_path, report_path)
-        diag.report_path = report_path
-        db.commit()
-    except Exception as e:
-        logger.warning(f"PDF generation failed: {e}")
+        recommendation = recommendation_engine.generate(decision=decision, uncertainty=uncertainty,
+                                                        symptom_risk=symptom_risk)
+        try:
+            abcd_features = extract_abcd_features(img_path)
+        except Exception as e:
+            logger.warning(f"ABCD feature extraction failed: {e}")
+            abcd_features = {"asymmetry": None, "border_irregularity": None,
+                             "color_variation": None, "diameter_px": None, "segmentation_ok": False}
 
-    return {"diagnosis_id": diag.id, "decision": decision, "uncertainty": uncertainty,
-            "symptom_analysis": symptom_risk, "demographic_risk": demographic_risk,
-            "recommendation": recommendation, "image_quality": image_result["image_quality"],
-            "abcd_features": abcd_features,
-            "gradcam_url": f"/api/diagnose/{diag.id}/gradcam" if gradcam_path else None,
-            "report_url": f"/api/reports/{diag.id}" if diag.report_path else None}
+        diag = Diagnosis(
+            user_id=current_user.id, patient_id=patient.id if patient else None,
+            image_path=img_path, symptoms=symptoms,
+            predicted_class=decision["predicted_class"], fused_confidence=decision["fused_confidence"],
+            image_confidence=decision["image_confidence"], is_malignant=decision["is_malignant"],
+            requires_review=decision["requires_review"], urgency_escalated=decision["urgency_escalated"],
+            aleatory_uncertainty=uncertainty["aleatory_uncertainty"],
+            epistemic_uncertainty=uncertainty["epistemic_uncertainty"],
+            fusion_uncertainty=uncertainty["fusion_uncertainty"],
+            composite_uncertainty=uncertainty["composite_uncertainty"],
+            symptom_risk_score=symptom_risk["symptom_risk_score"],
+            demographic_risk_score=demographic_risk["demographic_risk_score"],
+            gradcam_path=gradcam_path, class_probs=json.dumps(decision["class_probabilities"]),
+            modality_weights=json.dumps(decision["modality_weights"]), abcd_features=json.dumps(abcd_features),
+        )
+        db.add(diag); db.commit(); db.refresh(diag)
+
+        report_path = os.path.join(settings.REPORTS_DIR, f"report_{diag.id}.pdf")
+        try:
+            patient_data = {"name": current_user.name,
+                            "age": age if age is not None else (patient.age if patient else "N/A"),
+                            "gender": gender or (patient.gender if patient else "N/A"),
+                            "skin_type": skin_type or (patient.skin_type if patient else "N/A"),
+                            "diagnosis_id": diag.id}
+            generate_report(decision, uncertainty, recommendation, patient_data, gradcam_path, report_path)
+            diag.report_path = report_path
+            db.commit()
+        except Exception as e:
+            logger.warning(f"PDF generation failed: {e}")
+
+        return {"diagnosis_id": diag.id, "decision": decision, "uncertainty": uncertainty,
+                "symptom_analysis": symptom_risk, "demographic_risk": demographic_risk,
+                "recommendation": recommendation, "image_quality": image_result["image_quality"],
+                "abcd_features": abcd_features,
+                "gradcam_url": f"/api/diagnose/{diag.id}/gradcam" if gradcam_path else None,
+                "report_url": f"/api/reports/{diag.id}" if diag.report_path else None}
+    except Exception:
+        # Keep the database clean if inference or downstream generation fails.
+        try:
+            if os.path.exists(img_path):
+                os.remove(img_path)
+        except OSError:
+            pass
+        raise
 
 
 @app.get("/api/diagnose/notifications")
@@ -330,7 +346,7 @@ def update_profile(data: PatientUpdate, db: Session = Depends(get_db), current_u
     patient = db.query(Patient).filter(Patient.user_id == current_user.id).first()
     if not patient:
         raise HTTPException(status_code=404, detail="Profile not found")
-    for field, value in data.dict(exclude_none=True).items():
+    for field, value in data.model_dump(exclude_none=True).items():
         setattr(patient, field, value)
     db.commit()
     return {"message": "Profile updated successfully"}
@@ -394,14 +410,11 @@ def submit_review(diagnosis_id: int, req: DoctorReviewRequest,
     if not diag:
         raise HTTPException(status_code=404, detail="Diagnosis not found")
     if not diag.review:
-        try:
-            diag.review = DoctorReview(diagnosis_id=diag.id, doctor_id=current_user.id, status="claimed")
-            db.add(diag.review); db.flush()
-        except IntegrityError:
-            db.rollback()
-            raise HTTPException(status_code=409, detail="Case was claimed by another doctor")
-    elif diag.review.doctor_id != current_user.id:
+        raise HTTPException(status_code=409, detail="Case must be claimed before submitting a review")
+    if diag.review.doctor_id != current_user.id:
         raise HTTPException(status_code=403, detail="This case is claimed by another doctor")
+    if diag.review.status == "completed":
+        raise HTTPException(status_code=409, detail="Case review has already been completed")
     diag.review.verdict = verdict
     diag.review.notes = req.notes
     diag.review.status = "completed"
