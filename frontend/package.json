@@ -44,7 +44,7 @@
 
     "autoprefixer": "^10.4.20",
 
-    "postcss": "^8.4.49",
+    "postcss": "^8.5.26",
 
     "eslint": "^9.14.0",
 
