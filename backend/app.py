@@ -200,7 +200,10 @@ async def diagnose(image: UploadFile = File(...), symptoms: str = Form(default="
         sun_exposure=sun_exposure or (patient.sun_exposure if patient else None),
     )
 
-    uncertainty = uncertainty_engine.composite_uncertainty(raw_probs=image_result["raw_probs"])
+    uncertainty = uncertainty_engine.composite_uncertainty(
+        raw_probs=image_result["raw_probs"],
+        mc_probs=image_result["mc_probs"],
+    )
     decision = decision_engine.fuse(image_result=image_result, symptom_risk=symptom_risk,
                                     demographic_risk=demographic_risk, uncertainty=uncertainty)
 
