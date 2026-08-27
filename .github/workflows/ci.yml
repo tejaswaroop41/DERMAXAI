@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   backend:
-    name: Backend — install, syntax check, smoke test
+    name: Backend — install, test, syntax check, smoke test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -32,8 +32,7 @@ jobs:
         run: pip install --no-cache-dir -r requirements.txt
 
       - name: Install test-only dependencies
-        # httpx is required by Starlette's TestClient in smoke_test.py.
-        run: pip install --no-cache-dir httpx
+        run: pip install --no-cache-dir httpx pytest
 
       - name: Syntax check every backend file
         working-directory: backend
@@ -41,7 +40,11 @@ jobs:
           python -m py_compile app.py
           find core ai reports tests -name "*.py" -exec python -m py_compile {} +
 
-      - name: Run smoke test (register -> diagnose -> doctor review, random-init model)
+      - name: Run backend regression tests
+        working-directory: backend
+        run: pytest -q tests/test_uncertainty.py
+
+      - name: Run smoke test (auth -> diagnose -> doctor review)
         working-directory: backend
         run: python tests/smoke_test.py
 
@@ -69,6 +72,10 @@ jobs:
       - name: Production build
         working-directory: frontend
         run: npm run build
+
+      - name: Lint
+        working-directory: frontend
+        run: npm run lint -- --max-warnings=0
 
   docker:
     name: Docker — build and integration check
