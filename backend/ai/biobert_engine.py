@@ -11,6 +11,8 @@ the `transformers` package and model weights are available.
 import re
 from typing import Optional
 
+from ai.text_negation import is_negated
+
 
 # High-risk clinical keywords associated with malignant transformation
 URGENT_KEYWORDS = {
@@ -21,7 +23,7 @@ URGENT_KEYWORDS = {
     "rapid growth":     0.30,
     "rapidly growing":  0.30,
     "growing fast":     0.30,
-    "irregular border": 0.20,
+    "irregular border":  0.20,
     "irregular shape":  0.20,
     "color change":     0.20,
     "changed color":    0.20,
@@ -91,16 +93,19 @@ class BioBERTEngine:
             }
 
         text_lower = text.lower()
-        matched    = []
+        matched = []
         risk_score = 0.0
 
         for kw, weight in URGENT_KEYWORDS.items():
-            if kw in text_lower:
+            for match in re.finditer(re.escape(kw), text_lower):
+                if is_negated(text_lower, match.start()):
+                    continue
                 matched.append(kw)
                 risk_score += weight
+                break
 
         risk_score = min(risk_score, 1.0)
-        duration   = self.extract_duration(text)
+        duration = self.extract_duration(text)
 
         # Rapid onset (under 30 days) + any risk keyword raises urgency
         urgency_flag = bool(matched) and (
@@ -109,9 +114,9 @@ class BioBERTEngine:
 
         return {
             "symptom_risk_score": round(risk_score, 4),
-            "matched_keywords":   matched,
-            "duration":           duration,
-            "urgency_flag":       urgency_flag,
+            "matched_keywords": matched,
+            "duration": duration,
+            "urgency_flag": urgency_flag,
         }
 
     def get_embedding(self, text: str):
