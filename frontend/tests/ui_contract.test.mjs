@@ -6,6 +6,7 @@ import path from 'node:path'
 const root = path.resolve(import.meta.dirname, '..')
 const register = fs.readFileSync(path.join(root, 'src/pages/Register.jsx'), 'utf8')
 const admin = fs.readFileSync(path.join(root, 'src/pages/Admin.jsx'), 'utf8')
+const dashboard = fs.readFileSync(path.join(root, 'src/pages/Dashboard.jsx'), 'utf8')
 const api = fs.readFileSync(path.join(root, 'src/lib/api.js'), 'utf8')
 
 
@@ -21,4 +22,11 @@ test('admin UI exposes doctor provisioning', () => {
   assert.match(api, /promote:\s*\(id, data = \{ role: 'doctor' \}\)/)
   assert.match(admin, /Promote to doctor/)
   assert.match(admin, /adminApi\.promote\(user\.id, \{ role: 'doctor' \}\)/)
+})
+
+
+test('dashboard report downloads use authenticated API helper', () => {
+  assert.match(dashboard, /import \{ diagnoseApi, doctorApi, reportApi \} from '..\/lib\/api'/)
+  assert.match(dashboard, /reportApi\.download\(d\.report_url, `DERMAXAI_Report_\$\{d\.id\}\.pdf`\)/)
+  assert.doesNotMatch(dashboard, /<a href=\{d\.report_url\}/)
 })
