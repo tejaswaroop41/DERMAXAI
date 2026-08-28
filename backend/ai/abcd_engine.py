@@ -37,6 +37,14 @@ def _otsu_segment(img_bgr: np.ndarray):
     return mask, largest
 
 
+def _normalized_color_variation(lesion_pixels: np.ndarray):
+    """Return mean channel standard deviation normalized to [0, 1]."""
+    if lesion_pixels is None or len(lesion_pixels) == 0:
+        return None
+    channel_std_mean = lesion_pixels.reshape(-1, 3).std(axis=0).mean()
+    return float(np.clip(channel_std_mean / 255.0, 0, 1))
+
+
 def extract_abcd_features(image_path: str) -> dict:
     """
     Returns a dict with asymmetry, border_irregularity, color_variation,
@@ -77,11 +85,7 @@ def extract_abcd_features(image_path: str) -> dict:
 
     # --- Color variation: normalized channel dispersion within the lesion ---
     lesion_pixels = img_bgr[lesion_mask > 0]
-    if len(lesion_pixels):
-        channel_std_mean = lesion_pixels.reshape(-1, 3).std(axis=0).mean()
-        color_variation = float(np.clip(channel_std_mean / 255.0, 0, 1))
-    else:
-        color_variation = None
+    color_variation = _normalized_color_variation(lesion_pixels)
 
     # --- Diameter: min enclosing circle, in pixels ---
     (_, _), radius = cv2.minEnclosingCircle(contour)
