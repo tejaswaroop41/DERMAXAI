@@ -75,9 +75,13 @@ def extract_abcd_features(image_path: str) -> dict:
     compactness = (4 * math.pi * lesion_area) / (perimeter ** 2 + 1e-6)
     border_irregularity = float(np.clip(1 - compactness, 0, 1))
 
-    # --- Color variation: std of RGB channel means within the lesion mask ---
+    # --- Color variation: normalized channel dispersion within the lesion ---
     lesion_pixels = img_bgr[lesion_mask > 0]
-    color_variation = float(lesion_pixels.reshape(-1, 3).std(axis=0).mean()) if len(lesion_pixels) else None
+    if len(lesion_pixels):
+        channel_std_mean = lesion_pixels.reshape(-1, 3).std(axis=0).mean()
+        color_variation = float(np.clip(channel_std_mean / 255.0, 0, 1))
+    else:
+        color_variation = None
 
     # --- Diameter: min enclosing circle, in pixels ---
     (_, _), radius = cv2.minEnclosingCircle(contour)
@@ -86,7 +90,7 @@ def extract_abcd_features(image_path: str) -> dict:
     return {
         "asymmetry": round(asymmetry, 4),
         "border_irregularity": round(border_irregularity, 4),
-        "color_variation": round(color_variation, 2) if color_variation is not None else None,
+        "color_variation": round(color_variation, 4) if color_variation is not None else None,
         "diameter_px": round(diameter_px, 1),
         "segmentation_ok": True,
     }
