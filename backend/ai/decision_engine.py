@@ -29,6 +29,16 @@ class DecisionEngine:
             raise ValueError("CMCA modality weights must contain positive mass")
         return sum(values[name] * weights[name] for name in values) / total_weight
 
+    @staticmethod
+    def _reported_weights(weights: dict) -> dict:
+        """Round normalized weights to four decimals while preserving a 1.0 sum."""
+        total = sum(weights.values())
+        normalized = {name: weight / total for name, weight in weights.items()}
+        names = list(normalized)
+        reported = {name: round(normalized[name], 4) for name in names[:-1]}
+        reported[names[-1]] = round(1.0 - sum(reported.values()), 4)
+        return reported
+
     def fuse(self, image_result: dict,
              symptom_risk: dict,
              demographic_risk: dict,
@@ -100,10 +110,7 @@ class DecisionEngine:
             "clinical_concern": bool(cmca_score >= self.CMCA_CONCERN_THRESHOLD or requires_review),
             "requires_review": requires_review,
             "urgency_escalated": urgency_escalation,
-            "modality_weights": {
-                name: round(weight / sum(weights.values()), 4)
-                for name, weight in weights.items()
-            },
+            "modality_weights": self._reported_weights(weights),
             "class_probabilities": class_probs,
         }
 
