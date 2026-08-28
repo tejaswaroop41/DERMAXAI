@@ -33,11 +33,18 @@ function AuthProvider({ children }) {
   return <AuthCtx.Provider value={{ user, login, logout }}>{children}</AuthCtx.Provider>
 }
 
-function Protected({ children, adminOnly = false, doctorOnly = false }) {
+function homeForRole(role) {
+  if (role === 'admin') return '/admin'
+  if (role === 'doctor') return '/doctor'
+  return '/dashboard'
+}
+
+function Protected({ children, roles }) {
   const { user } = useAuth()
   if (!user) return <Navigate to="/login" replace />
-  if (adminOnly && user.role !== 'admin') return <Navigate to="/dashboard" replace />
-  if (doctorOnly && user.role !== 'doctor') return <Navigate to="/dashboard" replace />
+  if (roles && !roles.includes(user.role)) {
+    return <Navigate to={homeForRole(user.role)} replace />
+  }
   return children
 }
 
@@ -53,12 +60,14 @@ export default function App() {
           <Route path="/"          element={<Landing />} />
           <Route path="/login"     element={<Login />} />
           <Route path="/register"  element={<Register />} />
-          <Route path="/dashboard" element={<Protected><Dashboard /></Protected>} />
-          <Route path="/diagnose"  element={<Protected><Diagnose /></Protected>} />
-          <Route path="/history"   element={<Protected><History /></Protected>} />
-          <Route path="/profile"   element={<Protected><Profile /></Protected>} />
-          <Route path="/admin"     element={<Protected adminOnly><Admin /></Protected>} />
-          <Route path="/doctor"    element={<Protected doctorOnly><Doctor /></Protected>} />
+
+          <Route path="/dashboard" element={<Protected roles={['patient']}><Dashboard /></Protected>} />
+          <Route path="/diagnose"  element={<Protected roles={['patient']}><Diagnose /></Protected>} />
+          <Route path="/history"   element={<Protected roles={['patient']}><History /></Protected>} />
+          <Route path="/profile"   element={<Protected roles={['patient']}><Profile /></Protected>} />
+          <Route path="/admin"     element={<Protected roles={['admin']}><Admin /></Protected>} />
+          <Route path="/doctor"    element={<Protected roles={['doctor']}><Doctor /></Protected>} />
+
           <Route path="*"          element={<Navigate to="/" replace />} />
         </Routes>
     </AuthProvider>
