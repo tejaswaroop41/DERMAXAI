@@ -90,6 +90,20 @@ def test_cmca_modality_weights_sum_to_one_and_drive_score():
     )
 
     weights = result["modality_weights"]
-    assert abs(sum(weights.values()) - 1.0) < 1e-6
+    assert sum(weights.values()) == 1.0
     assert all(0.0 <= w <= 1.0 for w in weights.values())
     assert 0.0 <= result["cmca_clinical_concern_score"] <= 1.0
+
+
+def test_reported_cmca_weights_have_four_decimal_precision_and_exact_sum():
+    engine = DecisionEngine()
+    result = engine.fuse(
+        image_result=_image_result("nv", 0.73),
+        symptom_risk=_risk(symptoms=0.37),
+        demographic_risk={"demographic_risk_score": 0.19},
+        uncertainty={"requires_review": False},
+    )
+
+    weights = result["modality_weights"]
+    assert sum(weights.values()) == 1.0
+    assert all(abs(weight - round(weight, 4)) < 1e-12 for weight in weights.values())
