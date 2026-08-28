@@ -114,6 +114,17 @@ def _extract_state_dict(ckpt):
     return None
 
 
+def _validate_checkpoint_class_order(ckpt):
+    """Reject a checkpoint when it explicitly declares a different class order."""
+    if not isinstance(ckpt, dict):
+        return
+    ckpt_classes = ckpt.get("class_names")
+    if ckpt_classes and list(ckpt_classes) != list(settings.CLASSES):
+        raise RuntimeError(
+            "Checkpoint class_names order does not match settings.CLASSES; refusing to serve."
+        )
+
+
 def load_model(model_path: str, device: torch.device) -> DERMAXAIClassifier:
     """Load the trained checkpoint and fail closed when it is unavailable/invalid."""
     model = DERMAXAIClassifier(
@@ -147,6 +158,8 @@ def load_model(model_path: str, device: torch.device) -> DERMAXAIClassifier:
     except Exception as exc:
         raise RuntimeError(f"Failed to load model checkpoint {model_path}: {exc}") from exc
 
+    _validate_checkpoint_class_order(ckpt)
+
     state = _extract_state_dict(ckpt)
     if state is None:
         raise RuntimeError("Checkpoint does not contain a recognized model state dict")
@@ -160,12 +173,6 @@ def load_model(model_path: str, device: torch.device) -> DERMAXAIClassifier:
 
     model.eval()
     model.mcue_threshold = ckpt.get("mcue_threshold") if isinstance(ckpt, dict) else None
-
-    ckpt_classes = ckpt.get("class_names") if isinstance(ckpt, dict) else None
-    if ckpt_classes and list(ckpt_classes) != list(settings.CLASSES):
-        raise RuntimeError(
-            "Checkpoint class_names order does not match settings.CLASSES; refusing to serve."
-        )
 
     epoch = ckpt.get("epoch", "unknown") if isinstance(ckpt, dict) else "unknown"
     score = ckpt.get("val_acc", ckpt.get("combined_score", "unknown")) if isinstance(ckpt, dict) else "unknown"
