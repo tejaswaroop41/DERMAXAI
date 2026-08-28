@@ -26,11 +26,6 @@ class GradCAMEngine:
         except (AttributeError, IndexError, TypeError):
             return None
 
-    def _placeholder_heatmap(self, size: int) -> np.ndarray:
-        heatmap = np.zeros((size, size), dtype=np.float32)
-        cv2.circle(heatmap, (size // 2, size // 2), size // 3, 1.0, -1)
-        return heatmap
-
     def _render(self, img_np, heatmap, save_path):
         size = settings.IMG_SIZE
         orig = cv2.resize(img_np, (size, size))
@@ -49,7 +44,7 @@ class GradCAMEngine:
         size = settings.IMG_SIZE
         target_layer = self._target_layer()
         if target_layer is None:
-            return self._render(img_np, self._placeholder_heatmap(size), save_path)
+            raise RuntimeError("Grad-CAM target layer is unavailable; explanation not generated")
 
         tensor = self.tfm(image=img_np)["image"].unsqueeze(0).to(self.device)
         tensor.requires_grad_(True)
@@ -67,23 +62,27 @@ class GradCAMEngine:
         try:
             self.model.eval()
             output = self.model(tensor)
+            if output.ndim != 2 or output.shape[0] != 1 or not (0 <= target_class_idx < output.shape[1]):
+                raise RuntimeError("Invalid Grad-CAM target class")
             self.model.zero_grad()
             output[0, target_class_idx].backward()
         finally:
-            h1.remove(); h2.remove()
+            h1.remove()
+            h2.remove()
 
         if not activations or not gradients:
-            heatmap = self._placeholder_heatmap(size)
-        else:
-            acts = activations[0].squeeze(0)
-            grads = gradients[0].squeeze(0)
-            weights = grads.mean(dim=(1, 2))
-            cam = torch.sum(weights[:, None, None] * acts, dim=0)
-            cam = torch.relu(cam).cpu().numpy()
-            cam = cam - cam.min()
-            if cam.max() > 0:
-                cam = cam / cam.max()
-            heatmap = cv2.resize(cam, (size, size))
+            raise RuntimeError("Grad-CAM gradients or activations are unavailable; explanation not generated")
+
+        acts = activations[0].squeeze(0)
+        grads = gradients[0].squeeze(0)
+        weights = grads.mean(dim=(1, 2))
+        cam = torch.sum(weights[:, None, None] * acts, dim=0)
+        cam = torch.relu(cam).cpu().numpy()
+        cam = cam - cam.min()
+        if cam.max() <= 0:
+            raise RuntimeError("Grad-CAM produced an empty activation map; explanation not generated")
+        cam = cam / cam.max()
+        heatmap = cv2.resize(cam, (size, size))
         return self._render(img_np, heatmap, save_path)
 
     def get_heatmap_stats(self, image_path: str, target_class_idx: int) -> dict:
@@ -102,10 +101,13 @@ class GradCAMEngine:
         try:
             self.model.eval()
             output = self.model(tensor)
+            if output.ndim != 2 or output.shape[0] != 1 or not (0 <= target_class_idx < output.shape[1]):
+                return {"focus_concentration": 0.0, "lesion_coverage_pct": 0.0, "fallback": True}
             self.model.zero_grad()
             output[0, target_class_idx].backward()
         finally:
-            h1.remove(); h2.remove()
+            h1.remove()
+            h2.remove()
 
         if not activations or not gradients:
             return {"focus_concentration": 0.0, "lesion_coverage_pct": 0.0, "fallback": True}
@@ -116,8 +118,9 @@ class GradCAMEngine:
         cam = torch.sum(weights[:, None, None] * acts, dim=0)
         cam = torch.relu(cam).cpu().numpy()
         cam = cam - cam.min()
-        if cam.max() > 0:
-            cam = cam / cam.max()
+        if cam.max() <= 0:
+            return {"focus_concentration": 0.0, "lesion_coverage_pct": 0.0, "fallback": True}
+        cam = cam / cam.max()
         high_attention_pct = float((cam > 0.5).sum() / cam.size * 100)
         return {"focus_concentration": round(float(cam.std()), 4),
                 "lesion_coverage_pct": round(high_attention_pct, 2),
