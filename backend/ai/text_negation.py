@@ -10,13 +10,26 @@ NEGATION_PATTERNS = (
     r"\babsent\b",
 )
 
+# Common clause boundaries that should terminate a local negation scope.
+NEGATION_SCOPE_BREAKS = re.compile(
+    r"\b(?:but|however|except|although|though|yet|now|currently|reports|has|have)\b"
+)
 
-def is_negated(text: str, start: int, *, window_chars: int = 48) -> bool:
+
+def is_negated(text: str, start: int, *, window_tokens: int = 8) -> bool:
     """Return True when a matched term is locally preceded by a negator.
 
-    This intentionally uses a short local context instead of attempting full
-    clinical parsing. It prevents common false positives such as "no bleeding"
-    and "denies family history" while preserving positive mentions elsewhere.
+    The scope is token-based rather than character-suffix based so common
+    clinical constructions such as ``no family history of melanoma`` are
+    handled correctly. The scan stops at punctuation and common clause
+    boundaries so a negation does not leak into a later positive statement.
+    This remains intentionally conservative and is not a full clinical NLP
+    parser.
     """
-    prefix = text[max(0, start - window_chars):start]
-    return any(re.search(pattern + r"[\s,:;-]*$", prefix) for pattern in NEGATION_PATTERNS)
+    prefix = text[:start].lower()
+    # Keep only the current sentence/clause.
+    prefix = re.split(r"[.!?\n]+", prefix)[-1]
+    prefix = re.split(NEGATION_SCOPE_BREAKS, prefix)[-1]
+    tokens = re.findall(r"\b[\w'-]+\b", prefix)
+    context = " ".join(tokens[-window_tokens:])
+    return any(re.search(pattern + r"(?:\s|$)", context) for pattern in NEGATION_PATTERNS)
