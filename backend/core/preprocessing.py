@@ -1,7 +1,7 @@
 """
 DERMAXAI v6 — Image Preprocessing
 Implements the exact same augmentation pipeline used at training time
-for standard inference, plus 8-crop TTA transforms.
+for standard inference, plus fixed-view TTA transforms.
 """
 import numpy as np
 import cv2
@@ -26,9 +26,10 @@ def get_inference_transform():
 
 def get_tta_transforms(n=8):
     """
-    8-crop Test-Time Augmentation transforms.
-    Used at inference to average predictions over multiple views,
-    improving robustness and reducing prediction variance.
+    Fixed-view Test-Time Augmentation transforms.
+    Uses full-image geometric variants rather than spatial crops.
+    The configured value is the number of deterministic views averaged
+    for the primary prediction.
     """
     base = [A.Resize(IMG_SIZE, IMG_SIZE)]
     tfms = [
