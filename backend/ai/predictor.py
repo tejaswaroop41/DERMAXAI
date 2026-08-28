@@ -44,13 +44,13 @@ def validate_image_file(path: str) -> None:
 class Predictor:
     """
     Singleton-style predictor wrapping the trained DERMAXAI v6 model.
-    Performs TTA-averaged inference and optional MC-dropout sampling.
+    Performs fixed-view TTA-averaged inference and optional MC-dropout sampling.
     """
     def __init__(self):
         self.device  = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.model   = None
         self.loaded  = False
-        self.tta_tfms = get_tta_transforms(settings.TTA_CROPS)
+        self.tta_tfms = get_tta_transforms(settings.TTA_VIEWS)
         self.classes  = settings.CLASSES
 
         # Surgical, mel-only logit adjustment (see notebook Cells B/G/H).
