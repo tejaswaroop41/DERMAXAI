@@ -71,7 +71,10 @@ class Settings:
     }
 
     # ── Inference ────────────────────────────────────────
-    TTA_CROPS         = 8
+    # Canonical name: this pipeline uses full-image transformed views,
+    # not spatial crops. TTA_CROPS remains as a backward-compatible alias.
+    TTA_VIEWS = int(os.getenv("TTA_VIEWS", os.getenv("TTA_CROPS", "8")))
+    TTA_CROPS = TTA_VIEWS  # deprecated compatibility alias; use TTA_VIEWS
     MC_DROPOUT_PASSES = 20
 
     UNCERTAINTY_THETA = 0.8054
