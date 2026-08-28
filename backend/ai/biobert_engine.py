@@ -95,14 +95,24 @@ class BioBERTEngine:
         text_lower = text.lower()
         matched = []
         risk_score = 0.0
+        matched_spans = []
 
+        # Evaluate longer phrases first and prevent overlapping spans from
+        # contributing twice (e.g. "painful" must not also count as "pain").
+        keyword_matches = []
         for kw, weight in URGENT_KEYWORDS.items():
             for match in re.finditer(re.escape(kw), text_lower):
-                if is_negated(text_lower, match.start()):
-                    continue
-                matched.append(kw)
-                risk_score += weight
-                break
+                keyword_matches.append((match.start(), match.end(), kw, weight))
+
+        keyword_matches.sort(key=lambda item: (-(item[1] - item[0]), item[0]))
+        for start, end, kw, weight in keyword_matches:
+            if any(start < used_end and end > used_start for used_start, used_end in matched_spans):
+                continue
+            if is_negated(text_lower, start):
+                continue
+            matched.append(kw)
+            risk_score += weight
+            matched_spans.append((start, end))
 
         risk_score = min(risk_score, 1.0)
         duration = self.extract_duration(text)
