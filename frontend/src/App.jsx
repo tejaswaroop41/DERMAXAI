@@ -41,12 +41,18 @@ function AuthProvider({ children }) {
       setInitializing(false)
       return
     }
+
     authApi.me()
       .then(({ data }) => {
         localStorage.setItem('user', JSON.stringify(data))
         setUser(data)
       })
-      .catch(() => logout())
+      .catch(err => {
+        // Keep a cached session during temporary API/network failures.
+        // The API interceptor already clears credentials for HTTP 401 responses.
+        const status = err.response?.status
+        if (status === 401 || status === 403) logout()
+      })
       .finally(() => setInitializing(false))
   }, [])
 
