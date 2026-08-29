@@ -1,6 +1,6 @@
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
-import { useState, createContext, useContext } from 'react'
+import { useState, createContext, useContext, useEffect } from 'react'
 import './index.css'
 
 import Login      from './pages/Login'
@@ -12,6 +12,7 @@ import Profile    from './pages/Profile'
 import Admin      from './pages/Admin'
 import Doctor     from './pages/Doctor'
 import Landing    from './pages/Landing'
+import { authApi } from './lib/api'
 
 export const AuthCtx = createContext(null)
 export const useAuth = () => useContext(AuthCtx)
@@ -20,17 +21,40 @@ function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
     try { return JSON.parse(localStorage.getItem('user')) } catch { return null }
   })
+  const [initializing, setInitializing] = useState(true)
+
   const login = (userData, token) => {
     localStorage.setItem('token', token)
     localStorage.setItem('user', JSON.stringify(userData))
     setUser(userData)
   }
+
   const logout = () => {
     localStorage.removeItem('token')
     localStorage.removeItem('user')
     setUser(null)
   }
-  return <AuthCtx.Provider value={{ user, login, logout }}>{children}</AuthCtx.Provider>
+
+  useEffect(() => {
+    const token = localStorage.getItem('token')
+    if (!token) {
+      setInitializing(false)
+      return
+    }
+    authApi.me()
+      .then(({ data }) => {
+        localStorage.setItem('user', JSON.stringify(data))
+        setUser(data)
+      })
+      .catch(() => logout())
+      .finally(() => setInitializing(false))
+  }, [])
+
+  return (
+    <AuthCtx.Provider value={{ user, login, logout, initializing }}>
+      {children}
+    </AuthCtx.Provider>
+  )
 }
 
 function homeForRole(role) {
@@ -40,8 +64,13 @@ function homeForRole(role) {
 }
 
 function Protected({ children, roles }) {
-  const { user } = useAuth()
-  if (!user) return <Navigate to="/login" replace />
+  const { user, initializing } = useAuth()
+  const location = useLocation()
+
+  if (initializing) {
+    return <div className="min-h-screen flex items-center justify-center bg-paper text-muted">Loading…</div>
+  }
+  if (!user) return <Navigate to="/login" state={{ from: location.pathname }} replace />
   if (roles && !roles.includes(user.role)) {
     return <Navigate to={homeForRole(user.role)} replace />
   }
@@ -51,25 +80,27 @@ function Protected({ children, roles }) {
 export default function App() {
   return (
     <AuthProvider>
-        <div className="bg-mesh" />
-        <Toaster position="top-right" toastOptions={{
-          style: { background: 'rgba(15,23,42,0.95)', border: '1px solid rgba(14,165,233,0.3)',
-                   color: '#e2e8f0', fontFamily: 'Syne, sans-serif', borderRadius: '12px' }
-        }} />
-        <Routes>
-          <Route path="/"          element={<Landing />} />
-          <Route path="/login"     element={<Login />} />
-          <Route path="/register"  element={<Register />} />
+      <div className="bg-mesh" />
+      <Toaster position="top-right" toastOptions={{
+        style: {
+          background: 'rgba(15,23,42,0.95)', border: '1px solid rgba(14,165,233,0.3)',
+          color: '#e2e8f0', fontFamily: 'Syne, sans-serif', borderRadius: '12px'
+        }
+      }} />
+      <Routes>
+        <Route path="/"         element={<Landing />} />
+        <Route path="/login"    element={<Login />} />
+        <Route path="/register" element={<Register />} />
 
-          <Route path="/dashboard" element={<Protected roles={['patient']}><Dashboard /></Protected>} />
-          <Route path="/diagnose"  element={<Protected roles={['patient']}><Diagnose /></Protected>} />
-          <Route path="/history"   element={<Protected roles={['patient']}><History /></Protected>} />
-          <Route path="/profile"   element={<Protected roles={['patient']}><Profile /></Protected>} />
-          <Route path="/admin"     element={<Protected roles={['admin']}><Admin /></Protected>} />
-          <Route path="/doctor"    element={<Protected roles={['doctor']}><Doctor /></Protected>} />
+        <Route path="/dashboard" element={<Protected roles={['patient', 'doctor']}><Dashboard /></Protected>} />
+        <Route path="/diagnose"  element={<Protected roles={['patient']}><Diagnose /></Protected>} />
+        <Route path="/history"   element={<Protected roles={['patient']}><History /></Protected>} />
+        <Route path="/profile"   element={<Protected roles={['patient']}><Profile /></Protected>} />
+        <Route path="/admin"     element={<Protected roles={['admin']}><Admin /></Protected>} />
+        <Route path="/doctor"    element={<Protected roles={['doctor']}><Doctor /></Protected>} />
 
-          <Route path="*"          element={<Navigate to="/" replace />} />
-        </Routes>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
     </AuthProvider>
   )
 }
