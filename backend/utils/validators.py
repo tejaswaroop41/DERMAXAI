@@ -22,8 +22,9 @@ def validate_image_extension(filename: Optional[str]) -> bool:
 
 
 def validate_image_size(file_bytes: bytes) -> bool:
-    size_mb = len(file_bytes) / (1024 * 1024)
-    return size_mb <= MAX_IMAGE_SIZE_MB
+    if not isinstance(file_bytes, (bytes, bytearray)):
+        return False
+    return len(file_bytes) <= MAX_IMAGE_SIZE_MB * 1024 * 1024
 
 
 def validate_age(age: Optional[int]) -> bool:
@@ -61,6 +62,7 @@ def validate_password_strength(password: str) -> dict:
 
 
 def sanitize_filename(filename: str) -> str:
-    """Strips potentially dangerous characters from uploaded filenames."""
-    name = re.sub(r'[^\w\-_\.]', '_', filename)
-    return name[:100]   # cap length
+    """Strip path separators and dangerous characters from an upload name."""
+    name = os.path.basename(filename or "upload")
+    name = re.sub(r'[^\w\-.]', '_', name)
+    return name[:100] or "upload"
