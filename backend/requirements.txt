@@ -44,5 +44,5 @@ huggingface-hub==0.26.2
 safetensors==0.4.5
 
 # Utilities / test HTTP client
- tqdm==4.66.5
+tqdm==4.66.5
 httpx==0.27.2
