@@ -134,6 +134,14 @@ docker compose up --build
 # Docs → http://localhost:8000/docs when DEBUG=true
 ```
 
+## Production Model Storage (Railway)
+
+Trained `.pth` files are intentionally excluded from Git. The production service therefore **must** receive the trained checkpoint separately; CI uses `ALLOW_RANDOM_WEIGHTS=true` only for integration tests and must never be used for real diagnosis.
+
+For Railway, attach a persistent Volume to the backend service and mount it at `/app/models`, then upload the trained checkpoint as `/app/models/best.pth`. Keep `MODEL_PATH=models/best.pth` (the Railway working directory is `/app`). Railway volumes are mounted at runtime, so the checkpoint must be uploaded to the volume after it is attached. The application refuses to start without trained weights when `DEBUG=false` and `ALLOW_RANDOM_WEIGHTS` is not enabled.
+
+For production persistence, use a Railway Volume for the SQLite database and generated files as well, or configure `DATABASE_URL` to a managed PostgreSQL service and point `UPLOADS_DIR`, `HEATMAPS_DIR`, and `REPORTS_DIR` at durable storage. Railway's filesystem is otherwise ephemeral between deployments. See the official Railway volume documentation for the current volume setup and file-management commands.
+
 ## Docker Notes
 
 The default Docker Compose stack is production-style:
