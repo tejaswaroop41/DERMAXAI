@@ -9,9 +9,11 @@ from utils.validators import (
     MIN_AGE,
     MIN_PASSWORD_LENGTH,
     normalize_email,
+    sanitize_filename,
     validate_age,
     validate_email,
     validate_image_extension,
+    validate_image_size,
     validate_password_strength,
 )
 
@@ -29,6 +31,12 @@ def test_validate_image_extension_accepts_supported_case_insensitive_extensions(
 def test_validate_image_extension_rejects_unsupported_extensions():
     assert validate_image_extension("lesion.gif") is False
     assert validate_image_extension("lesion.png.exe") is False
+
+
+def test_image_size_validation_uses_exact_10mb_limit():
+    assert validate_image_size(b"x" * (10 * 1024 * 1024)) is True
+    assert validate_image_size(b"x" * (10 * 1024 * 1024 + 1)) is False
+    assert validate_image_size("not-bytes") is False
 
 
 def test_age_policy_has_explicit_bounds():
@@ -56,3 +64,11 @@ def test_password_policy_is_single_canonical_rule():
     assert validate_password_strength("NoNumberHere")["is_valid"] is False
     assert validate_password_strength("A1")["is_valid"] is False
     assert validate_password_strength("A1" + "a" * 128)["is_valid"] is False
+
+
+def test_filename_sanitization_strips_path_components():
+    sanitized = sanitize_filename("../../secret/lesion image.jpg")
+    assert ".." not in sanitized
+    assert "/" not in sanitized
+    assert "\\" not in sanitized
+    assert sanitized.endswith(".jpg")
