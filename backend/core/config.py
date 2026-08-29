@@ -18,6 +18,19 @@ def _csv_env(name: str, default: list[str]) -> list[str]:
     return [item.strip() for item in raw.split(",") if item.strip()]
 
 
+def _bounded_int_env(name: str, default: int, minimum: int, maximum: int) -> int:
+    raw = os.getenv(name)
+    if raw is None or not raw.strip():
+        return default
+    try:
+        value = int(raw)
+    except ValueError as exc:
+        raise RuntimeError(f"{name} must be an integer") from exc
+    if not minimum <= value <= maximum:
+        raise RuntimeError(f"{name} must be between {minimum} and {maximum}")
+    return value
+
+
 def _default_model_path(base_dir: Path = BASE_DIR) -> str:
     """Return the preferred checkpoint path, with a legacy local fallback."""
     model_dir = Path(base_dir) / "models"
@@ -29,28 +42,23 @@ def _default_model_path(base_dir: Path = BASE_DIR) -> str:
 
 
 class Settings:
-    # ── App ──────────────────────────────────────────────
     APP_NAME    = "DERMAXAI"
     APP_VERSION = "6.0.0"
     DEBUG       = os.getenv("DEBUG", "false").lower() == "true"
 
-    # ── Paths ────────────────────────────────────────────
     MODEL_PATH = os.getenv("MODEL_PATH", _default_model_path())
     UPLOADS_DIR     = os.getenv("UPLOADS_DIR", str(BASE_DIR / "uploads"))
     HEATMAPS_DIR    = os.getenv("HEATMAPS_DIR", str(BASE_DIR / "heatmaps"))
     REPORTS_DIR     = os.getenv("REPORTS_DIR", str(BASE_DIR / "generated_reports"))
     KNOWLEDGE_DIR   = os.getenv("KNOWLEDGE_DIR", str(BASE_DIR / "knowledge"))
 
-    # ── Database ─────────────────────────────────────────
     DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{BASE_DIR}/dermaxai.db")
 
-    # ── Auth ─────────────────────────────────────────────
     _secret_key_env = os.getenv("SECRET_KEY")
     SECRET_KEY  = _secret_key_env or ""
     ALGORITHM   = "HS256"
     TOKEN_EXPIRE_MINUTES = 60 * 24
 
-    # ── Model architecture (must match training) ──────────
     MODEL_NAME  = "efficientnet_b3"
     IMG_SIZE    = 300
     DROPOUT     = 0.3
@@ -70,12 +78,9 @@ class Settings:
         'vasc':  'Vascular Lesions',
     }
 
-    # ── Inference ────────────────────────────────────────
-    # Canonical name: this pipeline uses full-image transformed views,
-    # not spatial crops. TTA_CROPS remains as a backward-compatible alias.
-    TTA_VIEWS = int(os.getenv("TTA_VIEWS", os.getenv("TTA_CROPS", "8")))
-    TTA_CROPS = TTA_VIEWS  # deprecated compatibility alias; use TTA_VIEWS
-    MC_DROPOUT_PASSES = 20
+    TTA_VIEWS = _bounded_int_env("TTA_VIEWS", _bounded_int_env("TTA_CROPS", 8, 1, 8), 1, 8)
+    TTA_CROPS = TTA_VIEWS
+    MC_DROPOUT_PASSES = _bounded_int_env("MC_DROPOUT_PASSES", 20, 2, 100)
 
     UNCERTAINTY_THETA = 0.8054
 
@@ -84,11 +89,9 @@ class Settings:
     LOGIT_ADJUSTMENT_TAU     = 0.3
     MEL_LOG_PRIOR            = -2.1970
 
-    # ── Normalization (must match training) ───────────────
     NORM_MEAN = [0.485, 0.456, 0.406]
     NORM_STD  = [0.229, 0.224, 0.225]
 
-    # ── CORS ─────────────────────────────────────────────
     CORS_ORIGINS = _csv_env(
         "CORS_ORIGINS",
         ["http://localhost:5173", "http://localhost:8000"]
