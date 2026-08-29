@@ -24,18 +24,12 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install CPU-only torch first
+      - name: Install backend dependencies
         working-directory: backend
-        run: |
-          grep -E "^torch(vision)?==" requirements.txt | \
-            xargs pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu
-
-      - name: Install remaining backend dependencies
-        working-directory: backend
-        run: pip install --no-cache-dir -r requirements.txt
+        run: python -m pip install --no-cache-dir -r requirements.txt
 
       - name: Install test-only dependencies
-        run: pip install --no-cache-dir httpx pytest
+        run: python -m pip install --no-cache-dir pytest
 
       - name: Syntax check every backend file
         working-directory: backend
@@ -45,10 +39,12 @@ jobs:
 
       - name: Run backend regression tests
         working-directory: backend
-        run: python -m pytest -q tests/test_uncertainty.py
+        run: python -m pytest -q tests
 
       - name: Run smoke test (auth -> diagnose -> doctor review)
         working-directory: backend
+        env:
+          ALLOW_RANDOM_WEIGHTS: "true"
         run: python tests/smoke_test.py
 
   frontend:
