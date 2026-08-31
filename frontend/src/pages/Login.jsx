@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { useAuth } from '../App'
+import { useAuth, homeForRole } from '../App'
 import { authApi } from '../lib/api'
 import toast from 'react-hot-toast'
 import { Microscope, Eye, EyeOff, Mail, Lock } from 'lucide-react'
@@ -19,7 +19,7 @@ export default function Login() {
       const { data } = await authApi.login(form)
       login(data.user, data.access_token)
       toast.success(`Welcome back, ${data.user.name}!`)
-      navigate(data.user.role === 'admin' ? '/admin' : '/dashboard')
+      navigate(homeForRole(data.user.role))
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Login failed')
     } finally { setLoading(false) }

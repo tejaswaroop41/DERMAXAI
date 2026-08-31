@@ -63,7 +63,7 @@ function AuthProvider({ children }) {
   )
 }
 
-function homeForRole(role) {
+export function homeForRole(role) {
   if (role === 'admin') return '/admin'
   if (role === 'doctor') return '/doctor'
   return '/dashboard'

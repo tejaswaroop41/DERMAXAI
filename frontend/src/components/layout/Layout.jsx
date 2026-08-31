@@ -4,11 +4,15 @@ import { diagnoseApi } from '../../lib/api'
 import { useEffect, useState } from 'react'
 import { LayoutDashboard, Microscope, History, User, Shield, LogOut, ClipboardCheck } from 'lucide-react'
 
-const nav = [
+const PATIENT_NAV = [
   { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { path: '/diagnose',  icon: Microscope,      label: 'Diagnose' },
   { path: '/history',   icon: History,         label: 'History' },
   { path: '/profile',   icon: User,            label: 'Profile' },
+]
+
+const DOCTOR_NAV = [
+  { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
 ]
 
 export default function Layout({ children }) {
@@ -17,6 +21,10 @@ export default function Layout({ children }) {
   const navigate = useNavigate()
   const handleLogout = () => { logout(); navigate('/') }
   const [unread, setUnread] = useState(0)
+
+  const nav = user?.role === 'doctor' ? DOCTOR_NAV
+    : user?.role === 'admin' ? []
+    : PATIENT_NAV
 
   useEffect(() => {
     if (user?.role === 'patient') {
