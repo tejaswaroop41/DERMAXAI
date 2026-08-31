@@ -245,7 +245,7 @@ export default function Diagnose() {
                       {[
                         { label: 'Asymmetry', val: result.abcd_features.asymmetry, fmt: v => (v*100).toFixed(1)+'%' },
                         { label: 'Border Irregularity', val: result.abcd_features.border_irregularity, fmt: v => (v*100).toFixed(1)+'%' },
-                        { label: 'Color Variation', val: result.abcd_features.color_variation, fmt: v => v.toFixed(1) },
+                        { label: 'Color Variation', val: result.abcd_features.color_variation, fmt: v => (v*100).toFixed(1)+'%' },
                         { label: 'Diameter', val: result.abcd_features.diameter_px, fmt: v => v.toFixed(0)+' px' },
                       ].map(m => (
                         <div key={m.label} className="p-3 rounded-lg bg-paper border border-line">

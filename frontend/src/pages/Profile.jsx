@@ -19,7 +19,8 @@ export default function Profile() {
     setSaving(true)
     try {
       await patientApi.updateProfile({
-        age: form.age, gender: form.gender, skin_type: form.skin_type,
+        age: form.age === '' || form.age == null ? null : Number(form.age),
+        gender: form.gender, skin_type: form.skin_type,
         medical_history: form.medical_history, sun_exposure: form.sun_exposure
       })
       toast.success('Profile updated!')

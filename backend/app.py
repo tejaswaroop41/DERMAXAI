@@ -35,7 +35,8 @@ from ai.abcd_engine import extract_abcd_features
 from reports.report_generator import generate_report
 from utils.logger import get_logger
 from utils.validators import (validate_image_extension, validate_image_size,
-                              sanitize_filename)
+                              sanitize_filename, validate_age, validate_email,
+                              validate_password_strength, normalize_email)
 
 logger = get_logger("dermaxai")
 uncertainty_engine: Optional[UncertaintyEngine] = None
@@ -85,11 +86,26 @@ class RegisterRequest(BaseModel):
     gender: Optional[str] = None
     skin_type: Optional[str] = None
 
+    @field_validator("email")
+    @classmethod
+    def validate_email_field(cls, value: str) -> str:
+        if not validate_email(value):
+            raise ValueError("Invalid email address")
+        return normalize_email(value)
+
     @field_validator("password")
     @classmethod
     def validate_password(cls, value: str) -> str:
-        if not any(ch.isalpha() for ch in value) or not any(ch.isdigit() for ch in value):
-            raise ValueError("Password must contain at least one letter and one number")
+        result = validate_password_strength(value)
+        if not result["is_valid"]:
+            raise ValueError("; ".join(result["issues"]))
+        return value
+
+    @field_validator("age")
+    @classmethod
+    def validate_age_field(cls, value: Optional[int]) -> Optional[int]:
+        if not validate_age(value):
+            raise ValueError("Age must be between 0 and 120")
         return value
 
 
@@ -107,6 +123,13 @@ class PatientUpdate(BaseModel):
     skin_type: Optional[str] = None
     medical_history: Optional[str] = None
     sun_exposure: Optional[str] = None
+
+    @field_validator("age")
+    @classmethod
+    def validate_age_field(cls, value: Optional[int]) -> Optional[int]:
+        if not validate_age(value):
+            raise ValueError("Age must be between 0 and 120")
+        return value
 
 
 class DoctorReviewRequest(BaseModel):

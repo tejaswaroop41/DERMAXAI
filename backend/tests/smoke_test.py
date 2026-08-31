@@ -53,7 +53,7 @@ def main():
         # reject attempts to self-register directly as a doctor.
         r = client.post("/api/auth/register", json={
             "email": "ci_rejected_doctor@test.com", "name": "Rejected Doctor",
-            "password": "validpass123", "role": "doctor"})
+            "password": "ValidPass123", "role": "doctor"})
         assert r.status_code == 403, f"Doctor self-registration was not rejected: {r.text}"
 
         # Password policy must reject short passwords and passwords without a number.
@@ -91,13 +91,13 @@ def main():
 
         r = client.post("/api/auth/register", json={
             "email": "ci_patient@test.com", "name": "CI Patient",
-            "password": "cipass123", "role": "patient"})
+            "password": "CiPass123", "role": "patient"})
         assert r.status_code == 200, f"Patient registration failed: {r.text}"
         patient_headers = {"Authorization": f"Bearer {r.json()['access_token']}"}
 
         r = client.post("/api/auth/register", json={
             "email": "ci_doctor@test.com", "name": "CI Doctor",
-            "password": "cipass123", "role": "patient"})
+            "password": "CiPass123", "role": "patient"})
         assert r.status_code == 200, f"Doctor bootstrap registration failed: {r.text}"
         doctor_user_id = r.json()["user"]["id"]
 
@@ -106,7 +106,7 @@ def main():
         assert r.status_code == 200, f"Doctor promotion failed: {r.text}"
 
         r = client.post("/api/auth/login", json={
-            "email": "ci_doctor@test.com", "password": "cipass123"})
+            "email": "ci_doctor@test.com", "password": "CiPass123"})
         assert r.status_code == 200, f"Doctor login failed: {r.text}"
         doctor_headers = {"Authorization": f"Bearer {r.json()['access_token']}"}
 

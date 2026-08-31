@@ -118,7 +118,6 @@ def generate_report(decision: dict, uncertainty: dict,
         "demographic signals influence urgency and review, not the "
         "confidence figure reported above.", body_style))
     mw = decision["modality_weights"]
-    mw = decision["modality_weights"]
 
     model_name = settings.MODEL_NAME.replace("_", "-").title()
 
