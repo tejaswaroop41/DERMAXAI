@@ -1,6 +1,6 @@
 """
 DERMAXAI v6 — Main Application Entry Point
-Wires together all AI engines into a single diagnostic pipeline exposed via FastAPI.
+Wires together all AI engines into a single diagnostic pipeline exposed through FastAPI.
 """
 import os
 import json
@@ -141,14 +141,16 @@ VALID_VERDICTS = {"confirmed", "revised", "dismissed"}
 
 
 def _can_view_diagnosis(diag: Diagnosis, current_user: User) -> bool:
-    """Allow the patient owner or the doctor who claimed the case to view it."""
+    """Allow the patient owner or any doctor to view a diagnosis.
+
+    Viewing is intentionally separate from review actions: doctors may inspect
+    unclaimed cases, including the report and Grad-CAM, before deciding whether
+    to claim them. Claiming/submitting a review remains restricted to the doctor
+    who owns the case review.
+    """
     if diag.user_id == current_user.id:
         return True
-    return bool(
-        current_user.role == "doctor"
-        and diag.review is not None
-        and diag.review.doctor_id == current_user.id
-    )
+    return current_user.role == "doctor"
 
 
 def _review_payload(diag: Diagnosis) -> Optional[dict]:
@@ -558,19 +560,17 @@ def claim_diagnosis(
     if diag.review:
         if diag.review.doctor_id == current_user.id:
             return {"message": "Already claimed by you", "review": _review_payload(diag)}
-        raise HTTPException(status_code=409, detail="Case already claimed")
-    review = DoctorReview(diagnosis_id=diag.id, doctor_id=current_user.id, status="claimed")
+        raise HTTPException(status_code=409, detail="Diagnosis already claimed by another doctor")
+    review = DoctorReview(
+        diagnosis_id=diag.id,
+        doctor_id=current_user.id,
+        status="claimed",
+        verdict=None,
+    )
     db.add(review)
-    try:
-        db.commit()
-    except IntegrityError:
-        db.rollback()
-        current = db.query(Diagnosis).filter(Diagnosis.id == diagnosis_id).first()
-        if current and current.review and current.review.doctor_id == current_user.id:
-            return {"message": "Already claimed by you", "review": _review_payload(current)}
-        raise HTTPException(status_code=409, detail="Case was claimed by another doctor")
-    db.refresh(diag)
-    return {"message": "Claimed successfully", "review": _review_payload(diag)}
+    db.commit()
+    db.refresh(review)
+    return {"message": "Diagnosis claimed successfully", "review": _review_payload(diag)}
 
 
 @app.post("/api/doctor/diagnoses/{diagnosis_id:int}/review")
@@ -582,101 +582,59 @@ def submit_review(
 ):
     verdict = req.verdict.lower().strip()
     if verdict not in VALID_VERDICTS:
-        raise HTTPException(
-            status_code=400, detail=f"verdict must be one of {sorted(VALID_VERDICTS)}"
-        )
+        raise HTTPException(status_code=400, detail=f"Invalid verdict. Expected one of: {sorted(VALID_VERDICTS)}")
+
     diag = db.query(Diagnosis).filter(Diagnosis.id == diagnosis_id).first()
-    if not diag:
-        raise HTTPException(status_code=404, detail="Diagnosis not found")
-    if not diag.review:
-        raise HTTPException(status_code=409, detail="Case must be claimed before submitting a review")
-    if diag.review.doctor_id != current_user.id:
-        raise HTTPException(status_code=403, detail="This case is claimed by another doctor")
-    if diag.review.status == "completed":
-        raise HTTPException(status_code=409, detail="Case review has already been completed")
+    if not diag or not diag.review or diag.review.doctor_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Only the claiming doctor can submit this review")
+
+    diag.review.status = "completed"
     diag.review.verdict = verdict
     diag.review.notes = req.notes
-    diag.review.status = "completed"
     diag.review.reviewed_at = datetime.utcnow()
     db.commit()
-    db.refresh(diag)
-    return {"message": "Review submitted", "review": _review_payload(diag)}
-
-
-@app.get("/api/admin/stats")
-def admin_stats(db: Session = Depends(get_db), current_user=Depends(require_admin)):
-    total_users = db.query(func.count(User.id)).scalar()
-    total_diagnoses = db.query(func.count(Diagnosis.id)).scalar()
-    malignant_count = db.query(func.count(Diagnosis.id)).filter(Diagnosis.is_malignant.is_(True)).scalar()
-    review_count = db.query(func.count(Diagnosis.id)).filter(Diagnosis.requires_review.is_(True)).scalar()
-    class_dist = db.query(
-        Diagnosis.predicted_class, func.count(Diagnosis.id)
-    ).group_by(Diagnosis.predicted_class).all()
-    return {
-        "total_users": total_users,
-        "total_diagnoses": total_diagnoses,
-        "malignant_count": malignant_count,
-        "review_required": review_count,
-        "class_distribution": {c: n for c, n in class_dist},
-        "model_info": {
-            "backbone": settings.MODEL_NAME,
-            "dataset": "HAM10000 / ISIC 2018",
-            "algorithms": ["ACWF-FL", "MixUp", "Test-Time Augmentation", "MCUE", "CMCA", "Grad-CAM"],
-        },
-    }
+    db.refresh(diag.review)
+    return {"message": "Review submitted successfully", "review": _review_payload(diag)}
 
 
 @app.get("/api/admin/users")
-def list_users(db: Session = Depends(get_db), current_user=Depends(require_admin)):
-    users = db.query(User).order_by(User.created_at.desc()).limit(100).all()
+def admin_users(db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+    users = db.query(User).order_by(User.id.asc()).all()
     return [
-        {
-            "id": u.id,
-            "name": u.name,
-            "email": u.email,
-            "role": u.role,
-            "created_at": u.created_at,
-        }
-        for u in users
+        {"id": user.id, "name": user.name, "email": user.email, "role": user.role}
+        for user in users
     ]
 
 
-class PromoteUserRequest(BaseModel):
-    role: str = "doctor"
-
-
-@app.post("/api/admin/users/{user_id}/promote")
-def promote_user(
+@app.post("/api/admin/users/{user_id:int}/promote-doctor")
+def promote_doctor(
     user_id: int,
-    req: PromoteUserRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    if req.role.lower().strip() != "doctor":
-        raise HTTPException(status_code=400, detail="Only doctor promotion is supported")
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+    if user.role == "admin":
+        raise HTTPException(status_code=400, detail="Admin accounts cannot be promoted to doctor")
     user.role = "doctor"
     db.commit()
-    db.refresh(user)
+    return {"message": "User promoted to doctor", "user": {"id": user.id, "role": user.role}}
+
+
+@app.get("/api/admin/stats")
+def admin_stats(db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+    total_users = db.query(User).count()
+    total_diagnoses = db.query(Diagnosis).count()
+    malignant = db.query(Diagnosis).filter(Diagnosis.is_malignant.is_(True)).count()
+    needs_review = db.query(Diagnosis).filter(Diagnosis.requires_review.is_(True)).count()
+    doctors = db.query(User).filter(User.role == "doctor").count()
+    patients = db.query(User).filter(User.role == "patient").count()
     return {
-        "message": "User promoted to doctor",
-        "user": {"id": user.id, "name": user.name, "email": user.email, "role": user.role},
+        "total_users": total_users,
+        "total_diagnoses": total_diagnoses,
+        "malignant": malignant,
+        "needs_review": needs_review,
+        "doctors": doctors,
+        "patients": patients,
     }
-
-
-@app.get("/api/admin/diagnoses")
-def list_diagnoses(db: Session = Depends(get_db), current_user=Depends(require_admin)):
-    diags = db.query(Diagnosis).order_by(Diagnosis.created_at.desc()).limit(100).all()
-    return [
-        {
-            "id": d.id,
-            "predicted_class": d.predicted_class,
-            "fused_confidence": d.fused_confidence,
-            "is_malignant": d.is_malignant,
-            "requires_review": d.requires_review,
-            "created_at": d.created_at,
-        }
-        for d in diags
-    ]
