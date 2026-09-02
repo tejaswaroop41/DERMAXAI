@@ -10,13 +10,13 @@ def test_patient_owner_can_view_own_diagnosis():
     assert _can_view_diagnosis(diagnosis, patient) is True
 
 
-def test_unclaimed_diagnosis_is_not_visible_to_doctor():
+def test_unclaimed_diagnosis_is_visible_to_any_doctor():
     diagnosis = SimpleNamespace(user_id=101, review=None)
     doctor = SimpleNamespace(id=202, role="doctor")
-    assert _can_view_diagnosis(diagnosis, doctor) is False
+    assert _can_view_diagnosis(diagnosis, doctor) is True
 
 
-def test_claimed_diagnosis_is_visible_only_to_claiming_doctor():
+def test_claimed_diagnosis_is_visible_to_any_doctor():
     diagnosis = SimpleNamespace(
         user_id=101,
         review=SimpleNamespace(doctor_id=202),
@@ -24,7 +24,7 @@ def test_claimed_diagnosis_is_visible_only_to_claiming_doctor():
     claiming_doctor = SimpleNamespace(id=202, role="doctor")
     other_doctor = SimpleNamespace(id=303, role="doctor")
     assert _can_view_diagnosis(diagnosis, claiming_doctor) is True
-    assert _can_view_diagnosis(diagnosis, other_doctor) is False
+    assert _can_view_diagnosis(diagnosis, other_doctor) is True
 
 
 def test_admin_without_ownership_cannot_use_doctor_access_path():
