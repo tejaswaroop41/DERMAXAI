@@ -19,9 +19,9 @@ test('registration UI is patient-only', () => {
 
 
 test('admin UI exposes doctor provisioning', () => {
-  assert.match(api, /promote:\s*\(id, data = \{ role: 'doctor' \}\)/)
+  assert.match(api, /promote:\s*\(id\) => api\.post\(`\/admin\/users\/\$\{id\}\/promote-doctor`\)/)
   assert.match(admin, /Promote to doctor/)
-  assert.match(admin, /adminApi\.promote\(user\.id, \{ role: 'doctor' \}\)/)
+  assert.match(admin, /adminApi\.promote\(user\.id\)/)
 })
 
 

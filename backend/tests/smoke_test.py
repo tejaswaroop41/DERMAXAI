@@ -101,8 +101,8 @@ def main():
         assert r.status_code == 200, f"Doctor bootstrap registration failed: {r.text}"
         doctor_user_id = r.json()["user"]["id"]
 
-        r = client.post(f"/api/admin/users/{doctor_user_id}/promote",
-                        headers=admin_headers, json={"role": "doctor"})
+        r = client.post(f"/api/admin/users/{doctor_user_id}/promote-doctor",
+                        headers=admin_headers)
         assert r.status_code == 200, f"Doctor promotion failed: {r.text}"
 
         r = client.post("/api/auth/login", json={

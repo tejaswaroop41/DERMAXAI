@@ -1,15 +1,18 @@
 import { useEffect, useState } from 'react'
 import Layout from '../components/layout/Layout'
 import { adminApi } from '../lib/api'
+import { useAuth } from '../App'
 import toast from 'react-hot-toast'
 import { Shield, Users, Activity, AlertTriangle, BarChart2 } from 'lucide-react'
 
 export default function Admin() {
+  const { user: currentUser } = useAuth()
   const [stats, setStats]   = useState(null)
   const [users, setUsers]   = useState([])
   const [tab, setTab]       = useState('overview')
   const [loading, setLoading] = useState(true)
   const [promoting, setPromoting] = useState(null)
+  const [togglingActive, setTogglingActive] = useState(null)
 
   const loadUsers = async () => {
     const { data } = await adminApi.users()
@@ -27,13 +30,31 @@ export default function Admin() {
     if (user.role !== 'patient') return
     setPromoting(user.id)
     try {
-      await adminApi.promote(user.id, { role: 'doctor' })
+      await adminApi.promote(user.id)
       toast.success(`${user.name} is now a doctor`)
       await loadUsers()
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Unable to promote user')
     } finally {
       setPromoting(null)
+    }
+  }
+
+  const toggleActive = async (user) => {
+    setTogglingActive(user.id)
+    try {
+      if (user.is_active) {
+        await adminApi.deactivate(user.id)
+        toast.success(`${user.name} has been deactivated`)
+      } else {
+        await adminApi.reactivate(user.id)
+        toast.success(`${user.name} has been reactivated`)
+      }
+      await loadUsers()
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Unable to update user status')
+    } finally {
+      setTogglingActive(null)
     }
   }
 
@@ -111,18 +132,21 @@ export default function Admin() {
         ) : tab === 'users' ? (
           <div className="glass overflow-hidden">
             <div className="grid text-xs text-muted px-5 py-3 border-b border-line"
-              style={{ gridTemplateColumns: '1fr 2fr 1fr 1.2fr 1.2fr' }}>
-              <span>Name</span><span>Email</span><span>Role</span><span>Joined</span><span>Action</span>
+              style={{ gridTemplateColumns: '1fr 2fr 1fr 1fr 1.2fr 1.6fr' }}>
+              <span>Name</span><span>Email</span><span>Role</span><span>Status</span><span>Joined</span><span>Action</span>
             </div>
             {users.map(u => (
               <div key={u.id} className="grid items-center px-5 py-3 border-b border-line hover:bg-paper transition-colors"
-                style={{ gridTemplateColumns: '1fr 2fr 1fr 1.2fr 1.2fr' }}>
+                style={{ gridTemplateColumns: '1fr 2fr 1fr 1fr 1.2fr 1.6fr' }}>
                 <span className="text-sm text-ink font-medium">{u.name}</span>
                 <span className="text-sm text-muted truncate pr-3">{u.email}</span>
                 <span className="text-xs text-teal-500 capitalize font-mono">{u.role}</span>
+                <span className={`text-xs font-mono ${u.is_active ? 'text-teal-500' : 'text-red-500'}`}>
+                  {u.is_active ? 'Active' : 'Deactivated'}
+                </span>
                 <span className="text-xs text-muted">{new Date(u.created_at).toLocaleDateString()}</span>
-                <div>
-                  {u.role === 'patient' ? (
+                <div className="flex gap-2">
+                  {u.role === 'patient' && (
                     <button
                       type="button"
                       disabled={promoting === u.id}
@@ -131,9 +155,20 @@ export default function Admin() {
                     >
                       {promoting === u.id ? 'Promoting…' : 'Promote to doctor'}
                     </button>
-                  ) : (
-                    <span className="text-xs text-muted">—</span>
                   )}
+                  {u.role !== 'admin' && u.id !== currentUser?.id && (
+                    <button
+                      type="button"
+                      disabled={togglingActive === u.id}
+                      onClick={() => toggleActive(u)}
+                      className="px-2.5 py-1.5 rounded-md text-xs font-medium border border-line hover:bg-paper disabled:opacity-50 transition-colors"
+                    >
+                      {togglingActive === u.id ? 'Updating…' : u.is_active ? 'Deactivate' : 'Reactivate'}
+                    </button>
+                  )}
+                  {u.role === 'admin' || u.id === currentUser?.id ? (
+                    <span className="text-xs text-muted">—</span>
+                  ) : null}
                 </div>
               </div>
             ))}

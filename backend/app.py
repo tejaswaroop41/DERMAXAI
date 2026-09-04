@@ -236,6 +236,8 @@ def login(request: Request, req: LoginRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == email).first()
     if not user or not verify_password(req.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
+    if not user.is_active:
+        raise HTTPException(status_code=403, detail="This account has been deactivated")
     token = create_token({"sub": user.id, "role": user.role})
     return {
         "access_token": token,
@@ -601,7 +603,14 @@ def submit_review(
 def admin_users(db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
     users = db.query(User).order_by(User.id.asc()).all()
     return [
-        {"id": user.id, "name": user.name, "email": user.email, "role": user.role}
+        {
+            "id": user.id,
+            "name": user.name,
+            "email": user.email,
+            "role": user.role,
+            "is_active": user.is_active,
+            "created_at": user.created_at.isoformat() if user.created_at else None,
+        }
         for user in users
     ]
 
@@ -620,6 +629,36 @@ def promote_doctor(
     user.role = "doctor"
     db.commit()
     return {"message": "User promoted to doctor", "user": {"id": user.id, "role": user.role}}
+
+
+@app.post("/api/admin/users/{user_id:int}/deactivate")
+def deactivate_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    if user_id == current_user.id:
+        raise HTTPException(status_code=400, detail="You cannot deactivate your own account")
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    user.is_active = False
+    db.commit()
+    return {"message": "User deactivated", "user": {"id": user.id, "is_active": user.is_active}}
+
+
+@app.post("/api/admin/users/{user_id:int}/reactivate")
+def reactivate_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    user.is_active = True
+    db.commit()
+    return {"message": "User reactivated", "user": {"id": user.id, "is_active": user.is_active}}
 
 
 @app.get("/api/admin/stats")

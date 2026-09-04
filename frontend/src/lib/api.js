@@ -103,8 +103,10 @@ export const patientApi = {
 }
 
 export const adminApi = {
-  stats:     () => api.get('/admin/stats'),
-  users:     () => api.get('/admin/users'),
-  promote:   (id, data = { role: 'doctor' }) => api.post(`/admin/users/${id}/promote`, data),
-  diagnoses: () => api.get('/admin/diagnoses'),
+  stats:      () => api.get('/admin/stats'),
+  users:      () => api.get('/admin/users'),
+  promote:    (id) => api.post(`/admin/users/${id}/promote-doctor`),
+  deactivate: (id) => api.post(`/admin/users/${id}/deactivate`),
+  reactivate: (id) => api.post(`/admin/users/${id}/reactivate`),
+  diagnoses:  () => api.get('/admin/diagnoses'),
 }
