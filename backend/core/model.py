@@ -1,4 +1,4 @@
-"""
+﻿"""
 DERMAXAI — Model Architecture
 Rewritten to match the DERMAXAI_NOVA training notebook exactly:
 EfficientNet-B3 backbone (timm) -> CBAM (channel + spatial attention)
@@ -6,6 +6,7 @@ EfficientNet-B3 backbone (timm) -> CBAM (channel + spatial attention)
 MLP head.
 """
 import os
+import pickle
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -151,7 +152,7 @@ def load_model(model_path: str, device: torch.device) -> DERMAXAIClassifier:
     try:
         try:
             ckpt = torch.load(model_path, map_location=device, weights_only=True)
-        except (TypeError, RuntimeError, ValueError) as exc:
+        except (TypeError, RuntimeError, ValueError, pickle.UnpicklingError) as exc:
             print(f"[WARNING] weights_only=True could not read checkpoint ({exc}); "
                   "falling back to legacy checkpoint loading.")
             ckpt = torch.load(model_path, map_location=device, weights_only=False)
