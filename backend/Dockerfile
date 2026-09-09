@@ -18,11 +18,12 @@ RUN python -m pip install --upgrade pip \
 
 COPY . .
 
-RUN mkdir -p uploads heatmaps generated_reports models logs knowledge
+RUN chmod +x entrypoint.sh \
+    && mkdir -p uploads heatmaps generated_reports models logs knowledge
 
 EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
   CMD curl -f http://localhost:${PORT}/api/health || exit 1
 
-CMD ["/bin/sh", "-c", "exec uvicorn app:app --host 0.0.0.0 --port ${PORT}"]
+ENTRYPOINT ["/app/entrypoint.sh"]
