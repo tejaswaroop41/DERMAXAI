@@ -5,6 +5,8 @@ import './index.css'
 
 import Login      from './pages/Login'
 import Register   from './pages/Register'
+import ForgotPassword from './pages/ForgotPassword'
+import ResetPassword  from './pages/ResetPassword'
 import Dashboard  from './pages/Dashboard'
 import Diagnose   from './pages/Diagnose'
 import History    from './pages/History'
@@ -48,8 +50,6 @@ function AuthProvider({ children }) {
         setUser(data)
       })
       .catch(err => {
-        // Keep a cached session during temporary API/network failures.
-        // The API interceptor already clears credentials for HTTP 401 responses.
         const status = err.response?.status
         if (status === 401 || status === 403) logout()
       })
@@ -97,6 +97,8 @@ export default function App() {
         <Route path="/"         element={<Landing />} />
         <Route path="/login"    element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
 
         <Route path="/dashboard" element={<Protected roles={['patient', 'doctor']}><Dashboard /></Protected>} />
         <Route path="/diagnose"  element={<Protected roles={['patient']}><Diagnose /></Protected>} />
