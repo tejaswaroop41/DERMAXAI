@@ -41,15 +41,18 @@ export default function Login() {
               <label className="text-xs text-muted mb-1.5 block font-medium">Email</label>
               <div className="relative">
                 <Mail size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
-                <input type="email" required placeholder="you@example.com" className="input-glass pl-9"
+                <input type="email" required autoComplete="email" placeholder="you@example.com" className="input-glass pl-9"
                   value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} />
               </div>
             </div>
             <div>
-              <label className="text-xs text-muted mb-1.5 block font-medium">Password</label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-xs text-muted font-medium">Password</label>
+                <Link to="/forgot-password" className="text-xs text-teal-500 hover:text-teal-600 font-medium">Forgot password?</Link>
+              </div>
               <div className="relative">
                 <Lock size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
-                <input type={show ? 'text' : 'password'} required placeholder="••••••••" className="input-glass pl-9 pr-10"
+                <input type={show ? 'text' : 'password'} required autoComplete="current-password" placeholder="••••••••" className="input-glass pl-9 pr-10"
                   value={form.password} onChange={e => setForm(p => ({ ...p, password: e.target.value }))} />
                 <button type="button" onClick={() => setShow(s => !s)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-ink">
