@@ -47,7 +47,10 @@ api.interceptors.response.use(
   err => {
     if (err.response?.status === 401) {
       const url = err.config?.url || ''
-      const isAuthEndpoint = url.includes('/auth/login') || url.includes('/auth/register')
+      const isAuthEndpoint = url.includes('/auth/login') ||
+        url.includes('/auth/register') ||
+        url.includes('/auth/forgot-password') ||
+        url.includes('/auth/reset-password')
       if (!isAuthEndpoint) {
         localStorage.removeItem('token')
         localStorage.removeItem('user')
@@ -72,9 +75,11 @@ export const setAuthToken = (token)  => {
 export default api
 
 export const authApi = {
-  login:    d => api.post('/auth/login', d),
+  login: d => api.post('/auth/login', d),
   register: d => api.post('/auth/register', d),
-  me:       () => api.get('/auth/me'),
+  me: () => api.get('/auth/me'),
+  forgotPassword: email => api.post('/auth/forgot-password', { email }),
+  resetPassword: (token, new_password) => api.post('/auth/reset-password', { token, new_password }),
 }
 
 export const diagnoseApi = {
