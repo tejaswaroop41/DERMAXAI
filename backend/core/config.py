@@ -50,6 +50,16 @@ class Settings:
     ALGORITHM   = "HS256"
     TOKEN_EXPIRE_MINUTES = 60 * 24
 
+    # ── Password reset ───────────────────────────────────
+    FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173").rstrip("/")
+    PASSWORD_RESET_TOKEN_MINUTES = int(os.getenv("PASSWORD_RESET_TOKEN_MINUTES", "30"))
+    SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
+    SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+    SMTP_USER = os.getenv("SMTP_USER", "")
+    SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
+    SMTP_FROM = os.getenv("SMTP_FROM", SMTP_USER)
+    SMTP_STARTTLS = os.getenv("SMTP_STARTTLS", "true").lower() == "true"
+
     # ── Model architecture (must match training) ──────────
     MODEL_NAME  = "efficientnet_b3"
     IMG_SIZE    = 300

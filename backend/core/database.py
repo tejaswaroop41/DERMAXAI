@@ -54,6 +54,7 @@ class User(Base):
     role = Column(String, default="patient")
     created_at = Column(DateTime, default=datetime.utcnow)
     is_active = Column(Boolean, default=True)
+    password_reset_nonce_hash = Column(String(64), nullable=True)
     diagnoses = relationship("Diagnosis", back_populates="user")
     patient = relationship(
         "Patient",
@@ -171,7 +172,6 @@ def create_tables():
         existing_indexes = {idx.get("name") for idx in inspector.get_indexes(patient_table.name)}
         invariant_name = "uq_patients_user_id"
         if invariant_name not in existing_uniques and invariant_name not in existing_indexes:
-            # Do not create the invariant blindly when legacy duplicate rows exist.
             with engine.begin() as conn:
                 duplicates = conn.execute(
                     text(

@@ -5,6 +5,7 @@ Wires together all AI engines into a single diagnostic pipeline exposed through 
 import os
 import json
 import uuid
+import secrets
 from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import Optional
@@ -13,7 +14,6 @@ from fastapi import FastAPI, Depends, UploadFile, File, Form, HTTPException, Req
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
-from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from pydantic import BaseModel, Field, field_validator
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -22,8 +22,12 @@ from slowapi.util import get_remote_address
 
 from core.config import settings
 from core.database import create_tables, get_db, User, Patient, Diagnosis, DoctorReview
-from core.auth import (hash_password, verify_password, create_token,
-                       get_current_user, require_admin, require_doctor)
+from core.auth import (
+    hash_password, verify_password, create_token,
+    create_password_reset_token, decode_password_reset_token,
+    hash_reset_nonce, reset_nonce_matches,
+    get_current_user, require_admin, require_doctor,
+)
 from ai.predictor import predictor
 from ai.uncertainty import UncertaintyEngine
 from ai.gradcam import GradCAMEngine
@@ -34,6 +38,7 @@ from ai.recommendation_engine import recommendation_engine
 from ai.abcd_engine import extract_abcd_features
 from reports.report_generator import generate_report
 from utils.logger import get_logger
+from utils.email import EmailDeliveryError, send_password_reset_email
 from utils.validators import (validate_image_extension, validate_image_size,
                               sanitize_filename, validate_age, validate_email,
                               validate_password_strength, normalize_email)
@@ -117,6 +122,30 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+    @field_validator("email")
+    @classmethod
+    def validate_email_field(cls, value: str) -> str:
+        if not validate_email(value):
+            raise ValueError("Invalid email address")
+        return normalize_email(value)
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str = Field(..., min_length=8, max_length=128)
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_new_password(cls, value: str) -> str:
+        result = validate_password_strength(value)
+        if not result["is_valid"]:
+            raise ValueError("; ".join(result["issues"]))
+        return value
+
+
 class PatientUpdate(BaseModel):
     age: Optional[int] = None
     gender: Optional[str] = None
@@ -141,13 +170,7 @@ VALID_VERDICTS = {"confirmed", "revised", "dismissed"}
 
 
 def _can_view_diagnosis(diag: Diagnosis, current_user: User) -> bool:
-    """Allow the patient owner or any doctor to view a diagnosis.
-
-    Viewing is intentionally separate from review actions: doctors may inspect
-    unclaimed cases, including the report and Grad-CAM, before deciding whether
-    to claim them. Claiming/submitting a review remains restricted to the doctor
-    who owns the case review.
-    """
+    """Allow the patient owner or any doctor to view a diagnosis."""
     if diag.user_id == current_user.id:
         return True
     return current_user.role == "doctor"
@@ -244,6 +267,63 @@ def login(request: Request, req: LoginRequest, db: Session = Depends(get_db)):
         "token_type": "bearer",
         "user": {"id": user.id, "name": user.name, "email": user.email, "role": user.role},
     }
+
+
+@app.post("/api/auth/forgot-password")
+@limiter.limit("3/minute")
+def forgot_password(request: Request, req: ForgotPasswordRequest, db: Session = Depends(get_db)):
+    """Request a reset link without revealing whether an email is registered."""
+    generic_response = {
+        "message": "If that email is registered, a password reset link has been sent."
+    }
+    email = req.email.strip().lower()
+    user = db.query(User).filter(User.email == email).first()
+    if not user or not user.is_active:
+        return generic_response
+
+    nonce = secrets.token_urlsafe(32)
+    token = create_password_reset_token(user.id, nonce)
+    reset_link = f"{settings.FRONTEND_URL}/reset-password?token={token}"
+
+    try:
+        send_password_reset_email(user.email, reset_link)
+        user.password_reset_nonce_hash = hash_reset_nonce(nonce)
+        db.commit()
+    except EmailDeliveryError as exc:
+        db.rollback()
+        logger.warning("Password reset email delivery failed: %s", exc)
+    except Exception:
+        db.rollback()
+        logger.exception("Unexpected password reset error")
+
+    return generic_response
+
+
+@app.post("/api/auth/reset-password")
+@limiter.limit("5/minute")
+def reset_password(request: Request, req: ResetPasswordRequest, db: Session = Depends(get_db)):
+    user_id, nonce = decode_password_reset_token(req.token)
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user or not user.is_active or not reset_nonce_matches(user.password_reset_nonce_hash, nonce):
+        raise HTTPException(status_code=400, detail="Invalid or expired reset link")
+
+    new_password_hash = hash_password(req.new_password)
+    updated = (
+        db.query(User)
+        .filter(User.id == user_id, User.password_reset_nonce_hash == hash_reset_nonce(nonce))
+        .update(
+            {
+                User.hashed_password: new_password_hash,
+                User.password_reset_nonce_hash: None,
+            },
+            synchronize_session=False,
+        )
+    )
+    if updated != 1:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Invalid or expired reset link")
+    db.commit()
+    return {"message": "Password has been reset. You can now log in with your new password."}
 
 
 @app.get("/api/auth/me")
