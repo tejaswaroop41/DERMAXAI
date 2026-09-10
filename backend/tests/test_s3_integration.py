@@ -58,9 +58,9 @@ def test_store_diagnosis_artifacts_uploads_all_local_artifacts(tmp_path, monkeyp
 
     s3_integration._store_diagnosis_artifacts(diag)
 
-    assert diag.image_path == "s3://private/dermaxai/diagnoses/42/image.png"
-    assert diag.gradcam_path == "s3://private/dermaxai/diagnoses/42/gradcam.jpg"
-    assert diag.report_path == "s3://private/dermaxai/diagnoses/42/report.pdf"
+    assert diag.image_path == "s3://private/diagnoses/42/image.png"
+    assert diag.gradcam_path == "s3://private/diagnoses/42/gradcam.jpg"
+    assert diag.report_path == "s3://private/diagnoses/42/report.pdf"
     assert fake_db.merged is diag
     assert fake_db.committed is True
     assert fake_db.rolled_back is False
