@@ -157,7 +157,9 @@ def test_missing_local_file_is_reported_without_db_change(tmp_path, monkeypatch)
     assert session.commits == 0
 
 
-def test_delete_requires_verification():
+def test_delete_requires_verification(monkeypatch):
+    monkeypatch.setattr(migration, "storage", FakeStorage())
+
     with pytest.raises(ValueError, match="requires --verify"):
         migration.migrate(
             dry_run=False,
