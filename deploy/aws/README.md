@@ -89,6 +89,7 @@ At minimum set:
 - `CORS_ORIGINS` and `FRONTEND_URL` to the exact HTTPS application origin.
 - SMTP credentials for password-reset email delivery.
 - `ALLOW_RANDOM_WEIGHTS=false`.
+- Keep `STORAGE_BACKEND=local` until the S3 integration phase is merged and verified.
 
 ## 4. Initialize PostgreSQL schema
 
@@ -143,9 +144,9 @@ Do not store private TLS keys in the Git repository.
 
 The current production Compose file keeps uploads, Grad-CAM heatmaps and generated reports in the Docker `backend_data` volume. This is suitable for a single-instance first deployment but is **not** durable across loss/replacement of the EC2 host.
 
-For production resilience, migrate these assets to Amazon S3 and give the EC2 instance an IAM role with least-privilege access to the specific bucket/prefix. AWS recommends IAM roles/instance profiles for EC2 applications instead of embedding AWS credentials on the instance.
+The repository now contains the S3 storage foundation in `backend/core/storage.py`, production environment variables, and the least-privilege IAM/storage setup in `deploy/aws/S3_STORAGE.md`. The API integration that changes database artifact references from local paths to private S3 objects is intentionally a separate phase so it can be tested independently.
 
-Until S3 storage is implemented, back up `/var/lib/docker/volumes/.../backend_data/_data` or attach a dedicated EBS volume and include it in the recovery plan.
+For the current release, keep `STORAGE_BACKEND=local` and back up `/var/lib/docker/volumes/.../backend_data/_data` or attach a dedicated EBS volume and include it in the recovery plan.
 
 ## 8. Operational checks
 
@@ -188,4 +189,4 @@ Do **not** roll back an application release by manually reversing an Alembic mig
 
 ## 10. What this PR does not do
 
-This change prepares the repository for AWS deployment; it does not provision AWS resources because no AWS account/credentials are connected to this development workflow. The actual VPC, EC2, RDS, security groups, DNS, TLS, backups and IAM resources must be created in the AWS account.
+This change prepares the repository for durable S3 artifact storage; it does not provision AWS resources or switch the live application to S3. No AWS account/credentials are connected to this development workflow. The actual VPC, EC2, RDS, security groups, DNS, TLS, backups, bucket and IAM resources must be created in the AWS account.
