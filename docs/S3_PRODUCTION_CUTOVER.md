@@ -19,6 +19,14 @@ From the EC2 host, use the instance role credentials and the configured bucket. 
 
 Do not grant `s3:*` or bucket-wide object permissions to the application role.
 
+Before migration, run the repository's S3 access check from the backend environment:
+
+```bash
+python backend/scripts/validate_s3_access.py
+```
+
+A successful check creates one temporary object under `dermaxai/_healthcheck/`, verifies its metadata and contents, and removes it again. Treat any failure as a cutover blocker; do not make the bucket public to troubleshoot it.
+
 ## 2. Inventory first
 
 Keep production on `STORAGE_BACKEND=local` initially. Run the migration utility in dry-run mode against the production database/filesystem:
