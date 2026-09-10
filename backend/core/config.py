@@ -41,6 +41,13 @@ class Settings:
     REPORTS_DIR     = os.getenv("REPORTS_DIR", str(BASE_DIR / "generated_reports"))
     KNOWLEDGE_DIR   = os.getenv("KNOWLEDGE_DIR", str(BASE_DIR / "knowledge"))
 
+    # ── Artifact storage ─────────────────────────────────
+    STORAGE_BACKEND = os.getenv("STORAGE_BACKEND", "local").lower().strip()
+    S3_BUCKET = os.getenv("S3_BUCKET", "").strip()
+    S3_PREFIX = os.getenv("S3_PREFIX", "dermaxai").strip("/")
+    AWS_REGION = os.getenv("AWS_REGION", "").strip()
+    S3_ENDPOINT_URL = os.getenv("S3_ENDPOINT_URL", "").strip()
+
     # ── Database ─────────────────────────────────────────
     DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{BASE_DIR}/dermaxai.db")
 

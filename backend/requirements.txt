@@ -17,6 +17,9 @@ bcrypt==3.2.2
 # Environment
 python-dotenv==1.0.0
 
+# AWS / object storage
+boto3==1.35.99
+
 # AI / Deep Learning
 --extra-index-url https://download.pytorch.org/whl/cpu
 torch==2.6.0+cpu
