@@ -60,3 +60,13 @@ def test_s3_uri_parser_rejects_invalid_uri(monkeypatch):
         "bucket",
         "path/to/file",
     )
+
+
+def test_s3_open_rejects_unexpected_bucket(monkeypatch):
+    monkeypatch.setenv("STORAGE_BACKEND", "s3")
+    monkeypatch.setenv("S3_BUCKET", "dermaxai-private")
+    storage = ArtifactStorage()
+    storage._client = FakeS3Client()
+
+    with pytest.raises(ValueError, match="unexpected bucket"):
+        storage.open("s3://another-bucket/dermaxai/object.pdf")

@@ -59,8 +59,10 @@ class ArtifactStorage:
         return f"s3://{self.bucket}/{object_key}"
 
     def open(self, uri: str):
-        """Return an open S3 StreamingBody for an s3:// URI."""
+        """Return an open S3 StreamingBody for a configured-bucket URI."""
         bucket, key = self._parse_uri(uri)
+        if bucket != self.bucket:
+            raise ValueError("S3 artifact URI references an unexpected bucket")
         return self._s3_client().get_object(Bucket=bucket, Key=key)["Body"]
 
     def delete_local(self, local_path: str) -> None:
