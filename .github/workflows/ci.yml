@@ -172,8 +172,23 @@ jobs:
 
       - name: Verify frontend health and API proxy
         run: |
-          curl --fail --silent http://localhost:5173/healthz
-          curl --fail --silent http://localhost:5173/api/health
+          set -eu
+          echo "Checking frontend health endpoint..."
+          curl --fail --silent --show-error --retry 5 --retry-delay 2 http://localhost:5173/healthz
+          echo
+          echo "Checking frontend -> backend API proxy..."
+          if ! curl --fail --silent --show-error --retry 5 --retry-delay 2 http://localhost:5173/api/health; then
+            echo "Frontend proxy check failed. Collecting container diagnostics..."
+            docker compose ps
+            echo "--- frontend logs ---"
+            docker compose logs --no-color frontend
+            echo "--- rendered nginx configuration ---"
+            docker compose exec -T frontend nginx -T || true
+            echo "--- backend logs ---"
+            docker compose logs --no-color backend
+            exit 1
+          fi
+          echo
 
       - name: Stop integrated stack
         if: always()
