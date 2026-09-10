@@ -13,6 +13,11 @@ services:
       UPLOADS_DIR: /data/uploads
       HEATMAPS_DIR: /data/heatmaps
       REPORTS_DIR: /data/generated_reports
+      STORAGE_BACKEND: ${STORAGE_BACKEND:-local}
+      S3_BUCKET: ${S3_BUCKET:-}
+      S3_PREFIX: ${S3_PREFIX:-dermaxai}
+      AWS_REGION: ${AWS_REGION:-}
+      S3_ENDPOINT_URL: ${S3_ENDPOINT_URL:-}
       CORS_ORIGINS: ${CORS_ORIGINS:?CORS_ORIGINS is required}
       FRONTEND_URL: ${FRONTEND_URL:?FRONTEND_URL is required}
       PASSWORD_RESET_TOKEN_MINUTES: ${PASSWORD_RESET_TOKEN_MINUTES:-30}
