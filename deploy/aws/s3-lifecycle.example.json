@@ -1,0 +1,16 @@
+{
+  "Rules": [
+    {
+      "ID": "AbortIncompleteMultipartUploads",
+      "Status": "Enabled",
+      "Filter": {"Prefix": "dermaxai/"},
+      "AbortIncompleteMultipartUpload": {"DaysAfterInitiation": 7}
+    },
+    {
+      "ID": "CleanupExpiredDeleteMarkers",
+      "Status": "Enabled",
+      "Filter": {"Prefix": "dermaxai/"},
+      "Expiration": {"ExpiredObjectDeleteMarker": true}
+    }
+  ]
+}

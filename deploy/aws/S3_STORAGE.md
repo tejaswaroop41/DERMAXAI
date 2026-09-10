@@ -1,10 +1,6 @@
 # Private S3 artifact storage
 
-This document prepares DERMAXAI for durable artifact storage on AWS. The application currently uses local filesystem paths for inference and report generation, so this change adds the storage abstraction and production configuration without changing the existing local behavior.
-
-## Why S3
-
-The EC2 Docker volume in the production Compose stack is persistent only for that EC2 host. Replacing the host can lose uploaded images, Grad-CAM heatmaps, and generated PDF reports. A private S3 bucket removes that single-host dependency.
+DERMAXAI supports durable artifact storage in a private Amazon S3 bucket. New diagnosis artifacts can be uploaded to S3 and historical local artifacts can be migrated with the controlled migration utility.
 
 ## Target layout
 
@@ -15,44 +11,21 @@ s3://<private-bucket>/dermaxai/
   diagnoses/<diagnosis-id>/report.pdf
 ```
 
-Keep the bucket private. Do not add `public-read`, website hosting, or browser-direct public object URLs.
+Keep the bucket private. Do not enable public-read access, static website hosting, or browser-direct public object URLs.
 
-## EC2 IAM policy
+## IAM
 
-Attach an EC2 instance role rather than static AWS keys. Scope the application role to the single bucket and the `dermaxai/*` prefix.
+Attach an EC2 instance role, not static AWS credentials. The repository includes `deploy/aws/iam-s3-policy.example.json`, which limits the application to the configured bucket and `dermaxai/` prefix.
 
-Example policy (replace the bucket name):
+If the application does not need object deletion, remove `s3:DeleteObject` from that policy. Enable S3 Block Public Access, default encryption, and preferably versioning for production recovery.
 
-```json
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Sid": "ListApplicationPrefix",
-      "Effect": "Allow",
-      "Action": ["s3:ListBucket"],
-      "Resource": "arn:aws:s3:::REPLACE_WITH_PRIVATE_BUCKET",
-      "Condition": {
-        "StringLike": {
-          "s3:prefix": ["dermaxai", "dermaxai/*"]
-        }
-      }
-    },
-    {
-      "Sid": "ApplicationObjects",
-      "Effect": "Allow",
-      "Action": ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"],
-      "Resource": "arn:aws:s3:::REPLACE_WITH_PRIVATE_BUCKET/dermaxai/*"
-    }
-  ]
-}
-```
+## Lifecycle
 
-If the application never deletes objects, remove `s3:DeleteObject` from the role. Enable S3 server-side encryption and block all public access on the bucket.
+`deploy/aws/s3-lifecycle.example.json` provides a conservative baseline that aborts incomplete multipart uploads after seven days and cleans expired delete markers. Do not add automatic object expiration without first confirming the application's approved data-retention requirements.
 
 ## Production configuration
 
-Set these in `/opt/dermaxai/.env.production`:
+Set these in `/opt/dermaxai/.env.production` only after the bucket and IAM role are ready:
 
 ```dotenv
 STORAGE_BACKEND=s3
@@ -63,26 +36,39 @@ AWS_REGION=ap-south-1
 
 Do not put `AWS_ACCESS_KEY_ID` or `AWS_SECRET_ACCESS_KEY` in the application environment on EC2. The AWS SDK should obtain temporary credentials from the EC2 instance profile.
 
-## Current implementation boundary
+## Application behavior
 
-`backend/core/storage.py` provides:
+`backend/core/storage.py` provides local and S3 backends, canonical `s3://bucket/key` references, private S3 reads, and an optional S3-compatible endpoint for tests.
 
-- local filesystem mode for development and existing deployments;
-- S3 object upload using the EC2 role credentials;
-- canonical `s3://bucket/key` artifact references;
-- S3 object reads for the future API download path;
-- optional `S3_ENDPOINT_URL` for S3-compatible test environments.
+The production application integration uploads newly generated diagnosis images, Grad-CAM heatmaps, and PDF reports when `STORAGE_BACKEND=s3`, then serves migrated S3 artifacts through the existing authenticated API routes. Local mode remains the default repository configuration.
 
-The existing API still records and serves local filesystem paths. The next integration step should update the diagnosis pipeline to upload the image, Grad-CAM, and report after local generation, store the returned `s3://...` URI in the database, and stream private S3 objects through authenticated API endpoints. Until that integration is merged, leave `STORAGE_BACKEND=local` in production.
+## Historical migration
 
-## Migration sequence
+Use `backend/scripts/migrate_artifacts_to_s3.py` for existing local artifacts. Start with:
 
-1. Create the private S3 bucket with public access blocked and encryption enabled.
-2. Create the least-privilege EC2 instance role above.
-3. Test the role from the EC2 host with a scoped `aws s3` operation.
-4. Deploy the storage integration with `STORAGE_BACKEND=s3` only after its CI and runtime checks are green.
-5. Migrate existing artifact files into the documented key layout.
-6. Verify diagnosis history, Grad-CAM, and PDF report downloads through authenticated API routes.
-7. Only then remove the dependency on the EC2 `backend_data` artifact directories.
+```bash
+python backend/scripts/migrate_artifacts_to_s3.py --dry-run
+```
 
-Never delete the existing EC2 artifacts until migration and restore validation are complete.
+Then migrate with verification while retaining local files:
+
+```bash
+python backend/scripts/migrate_artifacts_to_s3.py --verify
+```
+
+The utility is idempotent for existing S3 references and does not permit local deletion unless verification is explicitly enabled.
+
+## Safe production sequence
+
+1. Create the private bucket with Block Public Access, encryption, and versioning as appropriate.
+2. Attach the least-privilege EC2 instance role.
+3. Validate bucket access from EC2 using the instance role.
+4. Run the historical migration in dry-run mode.
+5. Migrate with S3 verification and keep local artifacts.
+6. Validate authenticated diagnosis, Grad-CAM, and PDF retrieval.
+7. Perform restore/recovery validation.
+8. Switch `STORAGE_BACKEND=s3` for production.
+9. Validate newly created artifacts after the switch.
+10. Only after successful recovery validation consider removing local historical copies according to the approved retention policy.
+
+See `docs/S3_PRODUCTION_CUTOVER.md` for the detailed cutover, restore, and rollback procedure.
