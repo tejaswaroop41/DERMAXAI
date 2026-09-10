@@ -9,13 +9,14 @@ from scripts import migrate_artifacts_to_s3 as migration
 class FakeStorage:
     is_s3 = True
     bucket = "private"
+    prefix = "dermaxai"
 
     def __init__(self):
         self.uploads = []
         self.heads = []
 
     def uri_for(self, key):
-        return f"s3://private/{key}"
+        return f"s3://private/{self.prefix}/{key}"
 
     def store_file(self, local_path, key):
         self.uploads.append((local_path, key))
@@ -23,7 +24,7 @@ class FakeStorage:
 
     @staticmethod
     def _parse_uri(uri):
-        prefix = "s3://private/"
+        prefix = "s3://private/dermaxai/"
         assert uri.startswith(prefix)
         return "private", uri[len(prefix) :]
 
