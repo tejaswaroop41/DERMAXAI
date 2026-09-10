@@ -51,7 +51,7 @@ jobs:
         working-directory: backend
         run: |
           python -m py_compile app.py
-          find core ai reports tests -name "*.py" -exec python -m py_compile {} +
+          find core ai reports tests scripts -name "*.py" -exec python -m py_compile {} +
 
       - name: Run Alembic migration against PostgreSQL
         working-directory: backend
