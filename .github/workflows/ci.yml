@@ -93,9 +93,16 @@ jobs:
                       f"Alembic reported success but required tables are missing: {sorted(missing)}"
                   )
           engine.dispose()
+          PY
+
+      - name: Run PostgreSQL regression tests
+        working-directory: backend
+        run: python -m pytest -q tests/test_postgres_regression.py
 
       - name: Run backend regression tests
         working-directory: backend
+        env:
+          DATABASE_URL: sqlite:////tmp/dermaxai_ci.db
         run: python -m pytest -q tests
 
       - name: Run smoke test (auth -> diagnose -> doctor review)
