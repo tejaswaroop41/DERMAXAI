@@ -1,0 +1,52 @@
+services:
+  backend:
+    build:
+      context: ../..
+      dockerfile: backend/Dockerfile
+    environment:
+      PORT: 8000
+      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
+      DEBUG: ${DEBUG:-false}
+      ALLOW_RANDOM_WEIGHTS: ${ALLOW_RANDOM_WEIGHTS:-false}
+      MODEL_PATH: /data/models/best.pth
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      UPLOADS_DIR: /data/uploads
+      HEATMAPS_DIR: /data/heatmaps
+      REPORTS_DIR: /data/generated_reports
+      CORS_ORIGINS: ${CORS_ORIGINS:?CORS_ORIGINS is required}
+      FRONTEND_URL: ${FRONTEND_URL:?FRONTEND_URL is required}
+      PASSWORD_RESET_TOKEN_MINUTES: ${PASSWORD_RESET_TOKEN_MINUTES:-30}
+      SMTP_HOST: ${SMTP_HOST:?SMTP_HOST is required}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:?SMTP_USER is required}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:?SMTP_PASSWORD is required}
+      SMTP_FROM: ${SMTP_FROM:?SMTP_FROM is required}
+      SMTP_STARTTLS: ${SMTP_STARTTLS:-true}
+    volumes:
+      - backend_data:/data
+      - /opt/dermaxai/models:/data/models:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+
+  frontend:
+    build:
+      context: ../..
+      dockerfile: frontend/Dockerfile
+      args:
+        VITE_API_URL: /api
+    environment:
+      BACKEND_URL: http://backend:8000
+    ports:
+      - "80:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  backend_data:

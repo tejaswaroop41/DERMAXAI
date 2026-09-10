@@ -194,6 +194,42 @@ jobs:
         if: always()
         run: docker compose down -v
 
+  aws-production-config:
+    name: AWS — validate production Compose configuration
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Validate production Compose file
+        env:
+          SECRET_KEY: ci-production-secret
+          DATABASE_URL: postgresql+psycopg2://dermaxai:ci-password@db.example.internal:5432/dermaxai?sslmode=require
+          CORS_ORIGINS: https://example.com
+          FRONTEND_URL: https://example.com
+          SMTP_HOST: smtp.example.com
+          SMTP_USER: ci@example.com
+          SMTP_PASSWORD: ci-password
+          SMTP_FROM: ci@example.com
+        run: docker compose -f deploy/aws/docker-compose.prod.yml config --quiet
+
+      - name: Verify backend is not published to the host
+        env:
+          SECRET_KEY: ci-production-secret
+          DATABASE_URL: postgresql+psycopg2://dermaxai:ci-password@db.example.internal:5432/dermaxai?sslmode=require
+          CORS_ORIGINS: https://example.com
+          FRONTEND_URL: https://example.com
+          SMTP_HOST: smtp.example.com
+          SMTP_USER: ci@example.com
+          SMTP_PASSWORD: ci-password
+          SMTP_FROM: ci@example.com
+        run: |
+          config="$(docker compose -f deploy/aws/docker-compose.prod.yml config)"
+          printf '%s\n' "$config"
+          if printf '%s\n' "$config" | grep -A20 '^  backend:' | grep -q '^    ports:'; then
+            echo "Backend must remain private behind the frontend proxy."
+            exit 1
+          fi
+
   deploy:
     name: Deploy to Railway
     runs-on: ubuntu-latest
