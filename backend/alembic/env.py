@@ -41,6 +41,10 @@ def run_migrations_online() -> None:
         )
         with context.begin_transaction():
             context.run_migrations()
+        # SQLAlchemy 2.x can leave an implicit transaction open after
+        # Alembic's version-table bookkeeping. Explicitly commit here so
+        # PostgreSQL schema changes are visible to the next process.
+        connection.commit()
 
 
 if context.is_offline_mode():
