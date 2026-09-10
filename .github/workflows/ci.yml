@@ -16,6 +16,22 @@ jobs:
     env:
       PYTHONPATH: ${{ github.workspace }}/backend
       SECRET_KEY: ci-test-secret
+      DATABASE_URL: postgresql://dermaxai:dermaxai@localhost:5432/dermaxai_test
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: dermaxai
+          POSTGRES_PASSWORD: dermaxai
+          POSTGRES_DB: dermaxai_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U dermaxai -d dermaxai_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
     steps:
       - uses: actions/checkout@v6
 
@@ -36,6 +52,10 @@ jobs:
         run: |
           python -m py_compile app.py
           find core ai reports tests -name "*.py" -exec python -m py_compile {} +
+
+      - name: Run Alembic migration against PostgreSQL
+        working-directory: backend
+        run: python -m alembic upgrade head
 
       - name: Run backend regression tests
         working-directory: backend
