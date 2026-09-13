@@ -31,16 +31,19 @@ class NormalizedEmail(TypeDecorator):
 
 
 DATABASE_URL = settings.DATABASE_URL
-if DATABASE_URL.startswith("postgres://"):
-    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
-if DATABASE_URL.startswith("sqlite:///"):
-    db_path = DATABASE_URL.replace("sqlite:///", "", 1)
-    if db_path and db_path != ":memory:":
-        Path(db_path).expanduser().resolve().parent.mkdir(parents=True, exist_ok=True)
+if not DATABASE_URL.startswith("sqlite:///"):
+    raise RuntimeError("DERMAXAI requires a SQLite DATABASE_URL")
 
-connect_args = {"check_same_thread": False} if "sqlite" in DATABASE_URL else {}
-engine = create_engine(DATABASE_URL, connect_args=connect_args, pool_pre_ping=True)
+db_path = DATABASE_URL.replace("sqlite:///", "", 1)
+if db_path and db_path != ":memory:":
+    Path(db_path).expanduser().resolve().parent.mkdir(parents=True, exist_ok=True)
+
+engine = create_engine(
+    DATABASE_URL,
+    connect_args={"check_same_thread": False},
+    pool_pre_ping=True,
+)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
