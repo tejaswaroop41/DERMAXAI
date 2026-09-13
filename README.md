@@ -68,7 +68,7 @@ Dermoscopic Image
 | XAI | Grad-CAM |
 | Reports | ReportLab PDF |
 | Frontend | React 18 + Vite + TailwindCSS |
-| Deployment | Railway.app / Docker |
+| Runtime | Docker Compose |
 
 ## Project Structure
 
@@ -100,16 +100,15 @@ DERMAXAI/
 │   ├── requirements.txt
 │   └── Dockerfile
 ├── frontend/
-│   ├── Dockerfile               ← Production static frontend image
-│   ├── nginx.conf.template      ← SPA + /api reverse proxy template
+│   ├── Dockerfile               ← Static frontend image
+│   ├── nginx.conf.template      ← SPA + /api reverse proxy
 │   └── src/
-├── docker-compose.yml           ← Docker Compose stack
-├── .env.example                 ← Docker/local environment template
-├── railway.toml
+├── docker-compose.yml           ← Local Docker Compose stack
+├── .env.example                 ← Local Docker environment template
 └── README.md
 ```
 
-## Quick Start (Local)
+## Quick Start (Local Docker)
 
 ```bash
 # 1. Clone the repo
@@ -123,22 +122,18 @@ cp /path/to/best.pth backend/models/best.pth
 cp .env.example .env
 # set a non-default SECRET_KEY for local development
 
-# 4. Keep the trained weights at backend/models/best.pth
-# Docker Compose mounts backend/models read-only at /data/models.
-
-# 5. Run the production-style Docker stack
+# 4. Run the Docker stack
 docker compose up --build
-
-# App  → http://localhost:5173
-# API  → http://localhost:8000
-# Docs → http://localhost:8000/docs when DEBUG=true
 ```
+
+App: http://localhost:5173  
+API: http://localhost:8000  
+Docs: http://localhost:8000/docs when `DEBUG=true`
 
 ## Docker Notes
 
-The default Docker Compose stack is production-style:
-
 - `backend` runs FastAPI/Uvicorn on port `8000`.
-- `frontend` builds the Vite app into static files and serves them from Nginx on port `5173`.
-- Nginx proxies `/api/*` requests to the backend service, so the frontend can use `VITE_API_URL=/api`.
-- The frontend Nginx upload limit is set above the backend 10 MB image limit to allow multipart form overhead through the proxy.
+- `frontend` builds the Vite app and serves it from Nginx on port `5173`.
+- Nginx proxies `/api/*` requests to the backend service.
+- SQLite, uploads, Grad-CAM heatmaps, and generated reports are stored in the persistent Docker `backend_data` volume.
+- The project is intended to be run and demonstrated locally with Docker Compose; no cloud deployment configuration is required.
