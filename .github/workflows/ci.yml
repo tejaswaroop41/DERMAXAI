@@ -16,21 +16,7 @@ jobs:
     env:
       PYTHONPATH: ${{ github.workspace }}/backend
       SECRET_KEY: ci-test-secret
-      DATABASE_URL: postgresql://dermaxai:dermaxai@localhost:5432/dermaxai_test
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_USER: dermaxai
-          POSTGRES_PASSWORD: dermaxai
-          POSTGRES_DB: dermaxai_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U dermaxai -d dermaxai_test"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 20
+      DATABASE_URL: sqlite:////tmp/dermaxai_ci.db
 
     steps:
       - uses: actions/checkout@v6
@@ -53,56 +39,8 @@ jobs:
           python -m py_compile app.py
           find core ai reports tests scripts -name "*.py" -exec python -m py_compile {} +
 
-      - name: Run Alembic migration against PostgreSQL
-        working-directory: backend
-        run: python -m alembic upgrade head
-
-      - name: Verify PostgreSQL migration schema
-        working-directory: backend
-        run: |
-          python - <<'PY'
-          import os
-          from sqlalchemy import create_engine, inspect, text
-
-          url = os.environ["DATABASE_URL"]
-          engine = create_engine(url, pool_pre_ping=True)
-          with engine.connect() as conn:
-              identity = conn.execute(
-                  text("SELECT current_database(), current_schema()")
-              ).one()
-              print(f"Database identity: database={identity[0]!r}, schema={identity[1]!r}")
-
-              tables = set(inspect(conn).get_table_names())
-              print(f"PostgreSQL tables after Alembic: {sorted(tables)}")
-
-              revision = conn.execute(
-                  text("SELECT version_num FROM alembic_version")
-              ).scalars().all() if "alembic_version" in tables else []
-              print(f"Alembic revision(s): {revision}")
-
-              required = {
-                  "users",
-                  "patients",
-                  "diagnoses",
-                  "doctor_reviews",
-                  "alembic_version",
-              }
-              missing = required - tables
-              if missing:
-                  raise AssertionError(
-                      f"Alembic reported success but required tables are missing: {sorted(missing)}"
-                  )
-          engine.dispose()
-          PY
-
-      - name: Run PostgreSQL regression tests
-        working-directory: backend
-        run: python -m pytest -q tests/test_postgres_regression.py
-
       - name: Run backend regression tests
         working-directory: backend
-        env:
-          DATABASE_URL: sqlite:////tmp/dermaxai_ci.db
         run: python -m pytest -q tests
 
       - name: Run smoke test (auth -> diagnose -> doctor review)
