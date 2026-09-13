@@ -1,6 +1,6 @@
 # SQLite → PostgreSQL migration runbook
 
-DERMAXAI now treats Alembic as the PostgreSQL schema manager. The application data can be moved from the existing SQLite database with `backend/scripts/migrate_sqlite_to_postgres.py`.
+DERMAXAI uses SQLite by default for the local Docker deployment. If PostgreSQL is ever needed for a separate environment, the application data can be moved from the existing SQLite database with `backend/scripts/migrate_sqlite_to_postgres.py`.
 
 ## 1. Back up the SQLite database
 
@@ -14,9 +14,7 @@ Keep the original backup until the PostgreSQL deployment has been validated.
 
 ## 2. Create the PostgreSQL database
 
-For AWS, use an RDS PostgreSQL instance in the same VPC as the application host. Do not expose PostgreSQL publicly unless there is a documented operational requirement.
-
-Set the PostgreSQL connection string through the deployment secret/environment configuration; do not commit credentials.
+Create a PostgreSQL database and set its connection string through the environment configuration; do not commit credentials.
 
 ## 3. Create the PostgreSQL schema
 
@@ -82,8 +80,6 @@ Also verify that migrated row counts match the source.
 ## 7. Migrate filesystem assets separately
 
 The database stores paths such as `image_path`, `gradcam_path`, and `report_path`; it does not contain the referenced files. Copy those assets separately and preserve the paths expected by the application.
-
-For AWS production, object storage such as S3 is preferable to relying on ephemeral EC2/container filesystems. That storage migration is intentionally separate from the relational-data migration.
 
 ## Rollback
 
