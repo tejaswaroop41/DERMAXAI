@@ -62,7 +62,7 @@ api.interceptors.response.use(
   }
 )
 
-export const setAuthToken = (token)  => {
+export const setAuthToken = (token) => {
   if (token) {
     localStorage.setItem('token', token)
     api.defaults.headers.common.Authorization = `Bearer ${token}`
@@ -92,9 +92,18 @@ export const diagnoseApi = {
   markReviewsSeen: () => api.post('/diagnose/notifications/mark-seen'),
 }
 
+export const lesionApi = {
+  list: () => api.get('/lesions'),
+  get: id => api.get(`/lesions/${id}`),
+  create: data => api.post('/lesions', data),
+  update: (id, data) => api.patch(`/lesions/${id}`, data),
+  remove: id => api.delete(`/lesions/${id}`),
+  attachDiagnosis: (lesionId, diagnosisId) => api.post(`/lesions/${lesionId}/diagnoses/${diagnosisId}`),
+}
+
 export const doctorApi = {
-  queue:  () => api.get('/doctor/queue'),
-  claim:  id => api.post(`/doctor/diagnoses/${id}/claim`),
+  queue: () => api.get('/doctor/queue'),
+  claim: id => api.post(`/doctor/diagnoses/${id}/claim`),
   review: (id, data) => api.post(`/doctor/diagnoses/${id}/review`, data),
 }
 
@@ -103,15 +112,15 @@ export const reportApi = {
 }
 
 export const patientApi = {
-  getProfile:    () => api.get('/patients/profile'),
+  getProfile: () => api.get('/patients/profile'),
   updateProfile: d => api.put('/patients/profile', d),
 }
 
 export const adminApi = {
-  stats:      () => api.get('/admin/stats'),
-  users:      () => api.get('/admin/users'),
-  promote:    (id) => api.post(`/admin/users/${id}/promote-doctor`),
-  deactivate: (id) => api.post(`/admin/users/${id}/deactivate`),
-  reactivate: (id) => api.post(`/admin/users/${id}/reactivate`),
-  diagnoses:  () => api.get('/admin/diagnoses'),
+  stats: () => api.get('/admin/stats'),
+  performance: () => api.get('/admin/performance'),
+  users: () => api.get('/admin/users'),
+  promote: id => api.post(`/admin/users/${id}/promote-doctor`),
+  deactivate: id => api.post(`/admin/users/${id}/deactivate`),
+  reactivate: id => api.post(`/admin/users/${id}/reactivate`),
 }
