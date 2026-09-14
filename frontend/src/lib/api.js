@@ -120,7 +120,7 @@ export const adminApi = {
   stats: () => api.get('/admin/stats'),
   performance: () => api.get('/admin/performance'),
   users: () => api.get('/admin/users'),
-  promote: id => api.post(`/admin/users/${id}/promote-doctor`),
-  deactivate: id => api.post(`/admin/users/${id}/deactivate`),
-  reactivate: id => api.post(`/admin/users/${id}/reactivate`),
+  promote: (id) => api.post(`/admin/users/${id}/promote-doctor`),
+  deactivate: (id) => api.post(`/admin/users/${id}/deactivate`),
+  reactivate: (id) => api.post(`/admin/users/${id}/reactivate`),
 }
