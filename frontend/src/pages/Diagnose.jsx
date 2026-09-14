@@ -1,31 +1,74 @@
-import { useState, useCallback, useEffect } from 'react'
-import Layout from '../components/layout/Layout'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useDropzone } from 'react-dropzone'
-import { diagnoseApi, reportApi } from '../lib/api'
+import { Link } from 'react-router-dom'
+import Layout from '../components/layout/Layout'
+import { diagnoseApi, lesionApi, reportApi } from '../lib/api'
 import toast from 'react-hot-toast'
-import { Upload, Microscope, AlertTriangle, CheckCircle, Download, RotateCcw, Info } from 'lucide-react'
+import {
+  Activity,
+  AlertTriangle,
+  CheckCircle2,
+  ChevronDown,
+  Download,
+  ImagePlus,
+  Info,
+  Microscope,
+  RotateCcw,
+  ShieldCheck,
+  Sparkles,
+  Upload,
+} from 'lucide-react'
 
-const CLASS_NAMES  = { mel:'Melanoma', bcc:'Basal Cell Carcinoma', akiec:'Actinic Keratoses', bkl:'Benign Keratosis', nv:'Melanocytic Nevi', df:'Dermatofibroma', vasc:'Vascular Lesions' }
+const CLASS_NAMES = { mel:'Melanoma', bcc:'Basal Cell Carcinoma', akiec:'Actinic Keratoses', bkl:'Benign Keratosis', nv:'Melanocytic Nevi', df:'Dermatofibroma', vasc:'Vascular Lesions' }
 const CLASS_COLORS = { mel:'#B4413A', bcc:'#C17A3D', akiec:'#B08135', bkl:'#4F7A52', nv:'#3D6B94', df:'#6B5B95', vasc:'#3D8B94' }
 
-export default function Diagnose() {
-  const [file, setFile]         = useState(null)
-  const [preview, setPreview]   = useState(null)
-  const [symptoms, setSymptoms] = useState('')
-  const [age, setAge]           = useState('')
-  const [gender, setGender]     = useState('')
-  const [skinType, setSkinType] = useState('')
-  const [result, setResult]     = useState(null)
-  const [loading, setLoading]   = useState(false)
-  const [gradcam, setGradcam]   = useState(null)
+function Section({ title, eyebrow, children, action }) {
+  return <section className="glass p-5 sm:p-6">
+    <div className="flex items-start justify-between gap-4 mb-5">
+      <div><div className="text-[10px] uppercase tracking-[0.14em] text-muted">{eyebrow}</div><h2 className="section-card-title mt-1">{title}</h2></div>
+      {action}
+    </div>
+    {children}
+  </section>
+}
 
-  const onDrop = useCallback(files => {
-    const f = files[0]; if (!f) return
-    setFile(f); setPreview(URL.createObjectURL(f)); setResult(null); setGradcam(null)
+export default function Diagnose() {
+  const [file, setFile] = useState(null)
+  const [preview, setPreview] = useState(null)
+  const [symptoms, setSymptoms] = useState('')
+  const [age, setAge] = useState('')
+  const [gender, setGender] = useState('')
+  const [skinType, setSkinType] = useState('')
+  const [sunExposure, setSunExposure] = useState('')
+  const [lesions, setLesions] = useState([])
+  const [lesionId, setLesionId] = useState('')
+  const [result, setResult] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [gradcam, setGradcam] = useState(null)
+  const [showContext, setShowContext] = useState(true)
+
+  useEffect(() => {
+    lesionApi.list().then(r => setLesions(r.data || [])).catch(() => {})
   }, [])
 
+  useEffect(() => () => { if (preview) URL.revokeObjectURL(preview) }, [preview])
+  useEffect(() => () => { if (gradcam) URL.revokeObjectURL(gradcam) }, [gradcam])
+
+  const onDrop = useCallback(files => {
+    const f = files[0]
+    if (!f) return
+    setFile(f)
+    setPreview(URL.createObjectURL(f))
+    setResult(null)
+    if (gradcam) URL.revokeObjectURL(gradcam)
+    setGradcam(null)
+  }, [gradcam])
+
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop, accept: { 'image/*': ['.jpg','.jpeg','.png','.bmp'] }, maxFiles: 1, maxSize: 10*1024*1024
+    onDrop,
+    accept: { 'image/*': ['.jpg', '.jpeg', '.png', '.bmp'] },
+    maxFiles: 1,
+    maxSize: 10 * 1024 * 1024,
   })
 
   const submit = async () => {
@@ -35,248 +78,157 @@ export default function Diagnose() {
       const fd = new FormData()
       fd.append('image', file)
       fd.append('symptoms', symptoms)
-      if (age)      fd.append('age', age)
-      if (gender)   fd.append('gender', gender)
+      if (age) fd.append('age', age)
+      if (gender) fd.append('gender', gender)
       if (skinType) fd.append('skin_type', skinType)
+      if (sunExposure) fd.append('sun_exposure', sunExposure)
 
       const { data } = await diagnoseApi.diagnose(fd)
       setResult(data)
 
-      if (data.gradcam_url) {
-        const gradcamUrl = await diagnoseApi.gradcam(data.gradcam_url)
-        setGradcam(gradcamUrl)
+      if (lesionId && data.diagnosis_id) {
+        try {
+          await lesionApi.attachDiagnosis(Number(lesionId), data.diagnosis_id)
+          toast.success('Diagnosis added to lesion timeline')
+        } catch {
+          toast.error('Diagnosis completed, but lesion tracking could not be updated')
+        }
+      } else {
+        toast.success('Diagnosis complete')
       }
 
-      toast.success('Diagnosis complete!')
-      if (data.decision.is_malignant) toast.error('Malignant lesion detected — clinical review advised', { duration: 6000 })
+      if (data.gradcam_url) {
+        const url = await diagnoseApi.gradcam(data.gradcam_url)
+        setGradcam(url)
+      }
+      if (data.decision?.is_malignant) toast.error('Malignant finding — clinical review advised', { duration: 6000 })
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Diagnosis failed. Please try again.')
-    } finally { setLoading(false) }
+    } finally {
+      setLoading(false)
+    }
   }
-
-  useEffect(() => () => { if (preview) URL.revokeObjectURL(preview) }, [preview])
-  useEffect(() => () => { if (gradcam) URL.revokeObjectURL(gradcam) }, [gradcam])
 
   const reset = () => {
     if (preview) URL.revokeObjectURL(preview)
     if (gradcam) URL.revokeObjectURL(gradcam)
     setFile(null); setPreview(null); setResult(null); setGradcam(null)
-    setSymptoms(''); setAge(''); setGender(''); setSkinType('')
+    setSymptoms(''); setAge(''); setGender(''); setSkinType(''); setSunExposure('')
   }
 
-  const probs = result ? Object.entries(result.decision.class_probabilities).sort((a,b) => b[1]-a[1]) : []
+  const probs = useMemo(() => result ? Object.entries(result.decision.class_probabilities).sort((a, b) => b[1] - a[1]) : [], [result])
+  const selectedLesion = lesions.find(l => String(l.id) === String(lesionId))
 
   return (
     <Layout>
-      <div className="p-8 max-w-6xl">
-        <div className="mb-8">
-          <h1 className="text-2xl font-serif font-semibold text-ink">New Diagnosis</h1>
-          <p className="text-muted text-sm mt-1">Upload a dermoscopic image for AI-powered analysis</p>
+      <div className="page-pad max-w-7xl mx-auto">
+        <div className="page-heading">
+          <div>
+            <div className="eyebrow"><Microscope size={13} /> Diagnostic workspace</div>
+            <h1 className="page-title">New diagnosis</h1>
+            <p className="page-subtitle">Upload a dermoscopic image, add clinical context and inspect the model's explanation before deciding what to do next.</p>
+          </div>
+          <Link to="/lesions" className="btn-ghost inline-flex items-center gap-2 text-xs"><Activity size={14} /> Lesion tracking</Link>
         </div>
-        <div className="grid grid-cols-2 gap-6">
-          {/* LEFT — Input */}
+
+        <div className="grid xl:grid-cols-[.88fr_1.12fr] gap-5 items-start">
           <div className="space-y-5">
-            <div className="glass p-5">
-              <div {...getRootProps()} className="relative cursor-pointer rounded-xl border-2 border-dashed transition-colors overflow-hidden"
-                style={{ borderColor: isDragActive ? '#3D7068' : file ? '#B8C5C2' : '#E4E7E4',
-                         background: isDragActive ? '#EEF4F3' : '#FAFBFA', minHeight: preview ? 'auto' : '200px' }}>
+            <Section title="Image" eyebrow="Primary input">
+              <div {...getRootProps()} className="relative rounded-2xl border-2 border-dashed overflow-hidden cursor-pointer transition-colors"
+                style={{ minHeight: preview ? 'auto' : 300, borderColor: isDragActive ? '#3D7068' : file ? '#B8C5C2' : '#DDE5E2', background: isDragActive ? '#EEF5F3' : '#FAFBFA' }}>
                 <input {...getInputProps()} />
                 {preview ? (
-                  <div className="relative">
-                    <img src={preview} alt="uploaded" className="w-full rounded-xl object-contain max-h-64" />
-                    <div className="absolute top-2 right-2">
-                      <button onClick={e => { e.stopPropagation(); reset() }}
-                        className="w-7 h-7 rounded-full bg-white flex items-center justify-center border border-line hover:border-clinical-red transition-colors">
-                        <RotateCcw size={12} className="text-muted" />
-                      </button>
+                  <div className="relative bg-[#F2F5F3]">
+                    <img src={preview} alt="Selected dermoscopic image" className="w-full max-h-[460px] object-contain" />
+                    <div className="absolute inset-x-3 top-3 flex justify-between items-start">
+                      <div className="rounded-lg bg-white/90 border border-line px-2.5 py-1.5 text-[10px] text-muted">{file?.name}</div>
+                      <button type="button" onClick={e => { e.stopPropagation(); reset() }} className="w-8 h-8 rounded-lg bg-white border border-line flex items-center justify-center text-muted hover:text-ink"><RotateCcw size={13} /></button>
                     </div>
                   </div>
                 ) : (
-                  <div className="flex flex-col items-center justify-center py-16 gap-3">
-                    <div className="w-14 h-14 rounded-xl flex items-center justify-center bg-teal-50 border border-teal-100">
-                      <Upload size={22} className="text-teal-500" />
-                    </div>
-                    <div className="text-center">
-                      <p className="text-sm font-medium text-ink">Drop dermoscopic image here</p>
-                      <p className="text-xs text-muted mt-1">JPG, PNG, BMP · Max 10MB</p>
-                    </div>
+                  <div className="min-h-[300px] flex flex-col items-center justify-center text-center px-8">
+                    <div className="w-14 h-14 rounded-2xl flex items-center justify-center bg-white border border-[#DCEAE6] text-teal-700 shadow-sm"><ImagePlus size={22} /></div>
+                    <div className="text-sm font-semibold text-ink mt-4">Drop a dermoscopic image here</div>
+                    <div className="text-xs text-muted mt-1.5">or click to browse · JPG, PNG, BMP · up to 10 MB</div>
                   </div>
                 )}
               </div>
-            </div>
-            <div className="glass p-5 space-y-4">
-              <h3 className="text-sm font-semibold text-ink flex items-center gap-2">
-                <Info size={14} className="text-teal-500" /> Patient Context
-                <span className="text-xs text-muted font-normal">(improves accuracy)</span>
-              </h3>
-              <div>
-                <label className="text-xs text-muted mb-1.5 block">Symptoms / Description</label>
-                <textarea className="input-glass resize-none" rows={3}
-                  placeholder="Describe symptoms: size, duration, bleeding, itching, recent changes..."
-                  value={symptoms} onChange={e => setSymptoms(e.target.value)} />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs text-muted mb-1.5 block">Age</label>
-                  <input type="number" className="input-glass" placeholder="Years" min="1" max="120" value={age} onChange={e => setAge(e.target.value)} />
+            </Section>
+
+            <Section title="Clinical context" eyebrow="Optional, but useful" action={<button onClick={() => setShowContext(v => !v)} className="text-xs text-teal-700 inline-flex items-center gap-1">{showContext ? 'Collapse' : 'Expand'} <ChevronDown size={13} style={{ transform: showContext ? 'rotate(180deg)' : 'none' }} /></button>}>
+              {showContext && <div className="space-y-4">
+                <div><label className="field-label">Symptoms / description</label><textarea className="input-glass resize-none" rows={4} placeholder="Itching, bleeding, recent growth, duration, color change…" value={symptoms} onChange={e => setSymptoms(e.target.value)} /></div>
+                <div className="grid sm:grid-cols-2 gap-3">
+                  <div><label className="field-label">Age</label><input type="number" min="1" max="120" className="input-glass" placeholder="Years" value={age} onChange={e => setAge(e.target.value)} /></div>
+                  <div><label className="field-label">Gender</label><select className="input-glass" value={gender} onChange={e => setGender(e.target.value)}><option value="">Select</option><option>Male</option><option>Female</option><option>Other</option></select></div>
+                  <div><label className="field-label">Fitzpatrick skin type</label><select className="input-glass" value={skinType} onChange={e => setSkinType(e.target.value)}><option value="">Select</option>{['Type I','Type II','Type III','Type IV','Type V','Type VI'].map(s => <option key={s}>{s}</option>)}</select></div>
+                  <div><label className="field-label">Sun exposure</label><select className="input-glass" value={sunExposure} onChange={e => setSunExposure(e.target.value)}><option value="">Select</option><option>Low</option><option>Moderate</option><option>High</option></select></div>
                 </div>
-                <div>
-                  <label className="text-xs text-muted mb-1.5 block">Gender</label>
-                  <select className="input-glass" value={gender} onChange={e => setGender(e.target.value)}>
-                    <option value="">Select</option>
-                    {['Male','Female','Other'].map(g => <option key={g}>{g}</option>)}
-                  </select>
-                </div>
-              </div>
-              <div>
-                <label className="text-xs text-muted mb-1.5 block">Skin Type (Fitzpatrick)</label>
-                <select className="input-glass" value={skinType} onChange={e => setSkinType(e.target.value)}>
-                  <option value="">Select skin type</option>
-                  {['Type I','Type II','Type III','Type IV','Type V','Type VI'].map(s => <option key={s}>{s}</option>)}
+                <div className="rounded-xl border border-line bg-paper p-3 flex gap-3 items-start"><Info size={15} className="text-teal-700 mt-0.5 flex-shrink-0" /><p className="text-xs text-muted leading-5">Context affects supporting risk signals. The image model remains the source of lesion class prediction.</p></div>
+              </div>}
+            </Section>
+
+            <Section title="Longitudinal tracking" eyebrow="Optional">
+              <div className="flex flex-col sm:flex-row gap-3">
+                <select className="input-glass" value={lesionId} onChange={e => setLesionId(e.target.value)}>
+                  <option value="">Don't attach to a lesion</option>
+                  {lesions.map(l => <option key={l.id} value={l.id}>{l.name}{l.body_site ? ` · ${l.body_site}` : ''}</option>)}
                 </select>
+                <Link to="/lesions" className="btn-ghost whitespace-nowrap inline-flex items-center justify-center gap-2 text-xs"><PlusIcon /> Manage trackers</Link>
               </div>
-            </div>
-            <button onClick={submit} disabled={loading || !file} className="btn-primary w-full py-3.5 flex items-center justify-center gap-2 text-sm">
-              {loading ? (
-                <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Analyzing...</>
-              ) : (
-                <><Microscope size={16} /> Run Diagnosis</>
-              )}
+              {selectedLesion && <p className="text-xs text-muted mt-2">This result will be added to <span className="text-ink font-medium">{selectedLesion.name}</span> after analysis.</p>}
+              {!lesions.length && <p className="text-xs text-muted mt-2">No trackers yet. Create one from the Lesion tracking page.</p>}
+            </Section>
+
+            <button onClick={submit} disabled={loading || !file} className="btn-primary w-full py-3.5 inline-flex items-center justify-center gap-2 text-sm">
+              {loading ? <><span className="loading-mark loading-mark-light" /> Analyzing image and context…</> : <><Sparkles size={16} /> Run diagnostic assessment</>}
             </button>
           </div>
 
-          {/* RIGHT — Results */}
-          <div className="space-y-5">
+          <div className="space-y-5 xl:sticky xl:top-5">
             {!result ? (
-              <div className="glass h-full flex items-center justify-center min-h-96">
-                <div className="text-center">
-                  <div className="w-16 h-16 rounded-xl flex items-center justify-center mx-auto mb-4 bg-teal-50 border border-teal-100">
-                    <Microscope size={28} className="text-teal-500/60" />
-                  </div>
-                  <p className="text-muted text-sm">Results will appear here</p>
-                  <p className="text-muted/70 text-xs mt-1">Upload an image and click Run Diagnosis</p>
+              <div className="glass p-8 min-h-[520px] flex items-center justify-center">
+                <div className="max-w-sm text-center">
+                  <div className="w-16 h-16 rounded-2xl mx-auto flex items-center justify-center bg-[#EEF5F3] border border-[#DCEAE6] text-teal-700"><ShieldCheck size={28} /></div>
+                  <h2 className="font-serif text-2xl font-semibold text-ink mt-5">Your assessment will appear here</h2>
+                  <p className="text-sm text-muted leading-6 mt-2">The result panel keeps the prediction, uncertainty, probabilities and explanation in one reviewable surface.</p>
+                  <div className="mt-6 grid grid-cols-3 gap-2 text-xs text-muted"><div className="rounded-lg border border-line p-3">Prediction</div><div className="rounded-lg border border-line p-3">Uncertainty</div><div className="rounded-lg border border-line p-3">Grad-CAM</div></div>
                 </div>
               </div>
             ) : (
               <>
-                <div className="glass p-5" style={{ borderColor: result.decision.is_malignant ? '#EFCAC6' : '#C9DBC9' }}>
-                  <div className="flex items-start justify-between mb-4">
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        {result.decision.is_malignant ? <AlertTriangle size={16} style={{ color: '#B4413A' }} /> : <CheckCircle size={16} style={{ color: '#4F7A52' }} />}
-                        <span className="text-xs font-medium" style={{ color: result.decision.is_malignant ? '#963530' : '#3F6242' }}>
-                          {result.decision.is_malignant ? 'MALIGNANT' : 'BENIGN'}
-                        </span>
-                        {result.decision.requires_review && <span className="badge-review">Review Required</span>}
-                      </div>
-                      <h2 className="text-xl font-serif font-semibold text-ink">{result.decision.class_name}</h2>
-                      <p className="text-xs text-muted font-mono mt-0.5">{result.decision.predicted_class.toUpperCase()}</p>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-3xl font-serif font-semibold" style={{ color: CLASS_COLORS[result.decision.predicted_class] || '#3D7068' }}>
-                        {(result.decision.fused_confidence * 100).toFixed(1)}%
-                      </div>
-                      <div className="text-xs text-muted">fused confidence</div>
-                    </div>
+                <Section title={result.decision.class_name} eyebrow={result.decision.is_malignant ? 'Clinical attention' : 'AI assessment'} action={result.decision.requires_review && <span className="badge-review">Review required</span>}>
+                  <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-5">
+                    <div><div className="flex items-center gap-2 mb-2">{result.decision.is_malignant ? <AlertTriangle size={16} className="text-red-700" /> : <CheckCircle2 size={16} className="text-emerald-700" />}<span className="text-xs font-semibold uppercase tracking-wide" style={{ color: result.decision.is_malignant ? '#963530' : '#3F6242' }}>{result.decision.is_malignant ? 'Malignant signal' : 'Benign signal'}</span></div><div className="text-xs text-muted font-mono">{result.decision.predicted_class.toUpperCase()}</div></div>
+                    <div className="text-left sm:text-right"><div className="font-mono text-4xl font-semibold" style={{ color: CLASS_COLORS[result.decision.predicted_class] || '#3D7068' }}>{(result.decision.fused_confidence * 100).toFixed(1)}%</div><div className="text-xs text-muted">fused confidence</div></div>
                   </div>
-                  <div className="p-3 rounded-lg mb-3" style={{ background: result.uncertainty.requires_review ? '#FBF3E4' : '#F5F7F6' }}>
-                    <div className="flex justify-between text-xs mb-1.5">
-                      <span className="text-muted">Uncertainty ({result.uncertainty.confidence_level})</span>
-                      <span className="font-mono" style={{ color: result.uncertainty.requires_review ? '#8C6825' : '#3F6242' }}>
-                        {result.uncertainty.composite_uncertainty.toFixed(4)}
-                      </span>
-                    </div>
-                    <div className="confidence-bar">
-                      <div className="confidence-fill" style={{ width: `${result.uncertainty.composite_uncertainty * 100}%`,
-                        background: result.uncertainty.requires_review ? '#B08135' : '#4F7A52' }} />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-3 gap-2 text-center mb-3">
-                    {[
-                      { label: 'Image', val: result.decision.modality_weights.image },
-                      { label: 'Symptoms', val: result.decision.modality_weights.symptoms },
-                      { label: 'Demographics', val: result.decision.modality_weights.demographics },
-                    ].map(m => (
-                      <div key={m.label} className="p-2 rounded-lg bg-paper border border-line">
-                        <div className="text-sm font-semibold text-teal-500 font-mono">{(m.val*100).toFixed(0)}%</div>
-                        <div className="text-xs text-muted">{m.label}</div>
-                      </div>
-                    ))}
-                  </div>
-                  {result.decision.is_malignant && (
-                    <div className="p-3 rounded-lg text-xs flex gap-2" style={{ background: '#FBEAE8', border: '1px solid #EFCAC6', color: '#963530' }}>
-                      <AlertTriangle size={14} className="flex-shrink-0 mt-0.5" />
-                      <span>Malignant lesion detected. Please consult a qualified dermatologist immediately.</span>
-                    </div>
-                  )}
-                </div>
+                  <div className="mt-5"><div className="flex justify-between text-xs text-muted mb-1.5"><span>Confidence</span><span className="font-mono">{(result.decision.fused_confidence * 100).toFixed(1)}%</span></div><div className="confidence-bar h-2"><div className="confidence-fill h-2" style={{ width: `${result.decision.fused_confidence * 100}%` }} /></div></div>
+                  <div className="grid grid-cols-3 gap-2 mt-4">{Object.entries(result.decision.modality_weights).map(([key, value]) => <div key={key} className="rounded-xl bg-paper border border-line p-3"><div className="font-mono text-sm font-semibold text-teal-700">{(value * 100).toFixed(0)}%</div><div className="text-[10px] text-muted capitalize mt-1">{key}</div></div>)}</div>
+                  {result.decision.is_malignant && <div className="mt-4 p-3 rounded-xl bg-[#FBEAE8] border border-[#EFCAC6] text-xs text-[#963530] flex gap-2"><AlertTriangle size={14} className="flex-shrink-0 mt-0.5" />This is decision-support output, not a diagnosis. Seek qualified dermatology review for concerning findings.</div>}
+                </Section>
 
-                <div className="glass p-5">
-                  <h3 className="text-sm font-semibold text-ink mb-4">Class Probabilities</h3>
-                  <div className="space-y-2.5">
-                    {probs.map(([cls, prob]) => (
-                      <div key={cls}>
-                        <div className="flex justify-between text-xs mb-1">
-                          <span className="text-muted">{CLASS_NAMES[cls] || cls}</span>
-                          <span className="font-mono" style={{ color: CLASS_COLORS[cls] || '#5B6764' }}>{(prob * 100).toFixed(2)}%</span>
-                        </div>
-                        <div className="confidence-bar">
-                          <div className="confidence-fill" style={{ width: `${prob * 100}%`, background: CLASS_COLORS[cls] || '#3D7068' }} />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                <Section title="Uncertainty" eyebrow="Model confidence boundary">
+                  <div className="flex items-center justify-between gap-4"><div><div className="text-lg font-serif font-semibold text-ink">{result.uncertainty.confidence_level}</div><div className="text-xs text-muted mt-1">Composite uncertainty score</div></div><div className="font-mono text-xl font-semibold" style={{ color: result.uncertainty.requires_review ? '#8C6825' : '#3F6242' }}>{result.uncertainty.composite_uncertainty.toFixed(4)}</div></div>
+                  <div className="confidence-bar mt-4"><div className="confidence-fill" style={{ width: `${Math.min(result.uncertainty.composite_uncertainty * 100, 100)}%`, background: result.uncertainty.requires_review ? '#B08135' : '#4F7A52' }} /></div>
+                  {result.uncertainty.requires_review && <div className="text-xs text-[#8C6825] mt-3">This case crosses the application's review threshold and should be examined by a clinician.</div>}
+                </Section>
 
-                {gradcam && (
-                  <div className="glass p-5">
-                    <h3 className="text-sm font-semibold text-ink mb-3">
-                      Grad-CAM Explanation <span className="text-xs text-muted font-normal ml-2">Red = high importance</span>
-                    </h3>
-                    <img src={gradcam} alt="Grad-CAM" className="w-full rounded-xl border border-line" />
-                  </div>
-                )}
+                <Section title="Class probabilities" eyebrow="Full model distribution">
+                  <div className="space-y-3">{probs.map(([cls, prob]) => <div key={cls}><div className="flex justify-between text-xs mb-1"><span className="text-muted">{CLASS_NAMES[cls] || cls}</span><span className="font-mono" style={{ color: CLASS_COLORS[cls] || '#5B6764' }}>{(prob * 100).toFixed(2)}%</span></div><div className="confidence-bar"><div className="confidence-fill" style={{ width: `${prob * 100}%`, background: CLASS_COLORS[cls] || '#3D7068' }} /></div></div>)}</div>
+                </Section>
 
-                {result.abcd_features?.segmentation_ok && (
-                  <div className="glass p-5">
-                    <h3 className="text-sm font-semibold text-ink mb-1">ABCD Dermoscopy Features</h3>
-                    <p className="text-xs text-muted mb-4">Descriptive only — not used by the model's prediction</p>
-                    <div className="grid grid-cols-2 gap-3">
-                      {[
-                        { label: 'Asymmetry', val: result.abcd_features.asymmetry, fmt: v => (v*100).toFixed(1)+'%' },
-                        { label: 'Border Irregularity', val: result.abcd_features.border_irregularity, fmt: v => (v*100).toFixed(1)+'%' },
-                        { label: 'Color Variation', val: result.abcd_features.color_variation, fmt: v => (v*100).toFixed(1)+'%' },
-                        { label: 'Diameter', val: result.abcd_features.diameter_px, fmt: v => v.toFixed(0)+' px' },
-                      ].map(m => (
-                        <div key={m.label} className="p-3 rounded-lg bg-paper border border-line">
-                          <div className="text-lg font-serif font-semibold text-ink">{m.val != null ? m.fmt(m.val) : '—'}</div>
-                          <div className="text-xs text-muted mt-0.5">{m.label}</div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                {gradcam && <Section title="Grad-CAM explanation" eyebrow="Visual evidence"><img src={gradcam} alt="Grad-CAM explanation" className="w-full rounded-xl border border-line" /><p className="text-xs text-muted mt-3">Highlighted regions show where the model's gradient-based explanation concentrated. This is supporting evidence, not a clinical finding.</p></Section>}
 
-                <div className="glass p-5">
-                  <h3 className="text-sm font-semibold text-ink mb-2">Recommendations</h3>
-                  <p className="text-xs text-muted mb-3">{result.recommendation.class_description}</p>
-                  <ul className="space-y-1.5">
-                    {result.recommendation.recommendations.map((r,i) => (
-                      <li key={i} className="text-xs text-ink/80 flex gap-2">
-                        <span className="text-teal-500">•</span><span>{r}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+                {result.abcd_features?.segmentation_ok && <Section title="ABCD features" eyebrow="Descriptive image analysis"><div className="grid grid-cols-2 gap-3">{[
+                  ['Asymmetry', result.abcd_features.asymmetry, v => `${(v * 100).toFixed(1)}%`],
+                  ['Border irregularity', result.abcd_features.border_irregularity, v => `${(v * 100).toFixed(1)}%`],
+                  ['Color variation', result.abcd_features.color_variation, v => `${(v * 100).toFixed(1)}%`],
+                  ['Diameter', result.abcd_features.diameter_px, v => `${v.toFixed(0)} px`],
+                ].map(([label, value, fmt]) => <div key={label} className="rounded-xl bg-paper border border-line p-4"><div className="font-serif text-lg font-semibold text-ink">{value == null ? '—' : fmt(value)}</div><div className="text-xs text-muted mt-1">{label}</div></div>)}</div><p className="text-[10px] text-muted mt-3">Descriptive only — not used by the model's prediction.</p></Section>}
 
-                <div className="flex gap-3">
-                  {result.report_url && (
-                    <button type="button" onClick={() => reportApi.download(result.report_url)} className="btn-primary flex-1 py-2.5 text-sm flex items-center justify-center gap-2">
-                      <Download size={14} /> Download PDF
-                    </button>
-                  )}
-                  <button onClick={reset} className="btn-ghost flex-1 py-2.5 text-sm">New Diagnosis</button>
-                </div>
+                <Section title="Recommendations" eyebrow="Decision support"><p className="text-sm text-muted leading-6">{result.recommendation.class_description}</p><ul className="mt-4 space-y-2">{result.recommendation.recommendations.map((r, i) => <li key={i} className="text-sm text-ink/85 flex gap-2"><span className="text-teal-700">•</span><span>{r}</span></li>)}</ul></Section>
+
+                <div className="grid sm:grid-cols-2 gap-3"><button type="button" onClick={() => reportApi.download(result.report_url, `DERMAXAI_Report_${result.diagnosis_id}.pdf`)} disabled={!result.report_url} className="btn-primary inline-flex items-center justify-center gap-2 py-3 text-sm"><Download size={15} /> Download report</button><button type="button" onClick={reset} className="btn-ghost inline-flex items-center justify-center gap-2 py-3 text-sm"><RotateCcw size={15} /> New assessment</button></div>
               </>
             )}
           </div>
@@ -285,3 +237,5 @@ export default function Diagnose() {
     </Layout>
   )
 }
+
+function PlusIcon() { return <span className="text-base leading-none">+</span> }
