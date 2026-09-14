@@ -1,20 +1,21 @@
+import { lazy, Suspense, useState, createContext, useContext, useEffect } from 'react'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
-import { useState, createContext, useContext, useEffect } from 'react'
 import './index.css'
-
-import Login      from './pages/Login'
-import Register   from './pages/Register'
-import ForgotPassword from './pages/ForgotPassword'
-import ResetPassword  from './pages/ResetPassword'
-import Dashboard  from './pages/Dashboard'
-import Diagnose   from './pages/Diagnose'
-import History    from './pages/History'
-import Profile    from './pages/Profile'
-import Admin      from './pages/Admin'
-import Doctor     from './pages/Doctor'
-import Landing    from './pages/Landing'
 import { authApi } from './lib/api'
+
+const Login = lazy(() => import('./pages/Login'))
+const Register = lazy(() => import('./pages/Register'))
+const ForgotPassword = lazy(() => import('./pages/ForgotPassword'))
+const ResetPassword = lazy(() => import('./pages/ResetPassword'))
+const Dashboard = lazy(() => import('./pages/Dashboard'))
+const Diagnose = lazy(() => import('./pages/Diagnose'))
+const History = lazy(() => import('./pages/History'))
+const Profile = lazy(() => import('./pages/Profile'))
+const Admin = lazy(() => import('./pages/Admin'))
+const Doctor = lazy(() => import('./pages/Doctor'))
+const Landing = lazy(() => import('./pages/Landing'))
+const Lesions = lazy(() => import('./pages/Lesions'))
 
 export const AuthCtx = createContext(null)
 export const useAuth = () => useContext(AuthCtx)
@@ -43,7 +44,6 @@ function AuthProvider({ children }) {
       setInitializing(false)
       return
     }
-
     authApi.me()
       .then(({ data }) => {
         localStorage.setItem('user', JSON.stringify(data))
@@ -83,32 +83,43 @@ function Protected({ children, roles }) {
   return children
 }
 
+function PageFallback() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-paper">
+      <div className="loading-shell">
+        <div className="loading-mark" />
+        <span>Loading workspace…</span>
+      </div>
+    </div>
+  )
+}
+
 export default function App() {
   return (
     <AuthProvider>
-      <div className="bg-mesh" />
       <Toaster position="top-right" toastOptions={{
         style: {
-          background: 'rgba(15,23,42,0.95)', border: '1px solid rgba(14,165,233,0.3)',
-          color: '#e2e8f0', fontFamily: 'Syne, sans-serif', borderRadius: '12px'
+          background: '#FFFFFF', border: '1px solid #DDE5E2',
+          color: '#1C2321', fontFamily: 'IBM Plex Sans, sans-serif', borderRadius: '12px'
         }
       }} />
-      <Routes>
-        <Route path="/"         element={<Landing />} />
-        <Route path="/login"    element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
-        <Route path="/reset-password" element={<ResetPassword />} />
-
-        <Route path="/dashboard" element={<Protected roles={['patient', 'doctor']}><Dashboard /></Protected>} />
-        <Route path="/diagnose"  element={<Protected roles={['patient']}><Diagnose /></Protected>} />
-        <Route path="/history"   element={<Protected roles={['patient']}><History /></Protected>} />
-        <Route path="/profile"   element={<Protected roles={['patient']}><Profile /></Protected>} />
-        <Route path="/admin"     element={<Protected roles={['admin']}><Admin /></Protected>} />
-        <Route path="/doctor"    element={<Protected roles={['doctor']}><Doctor /></Protected>} />
-
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+      <Suspense fallback={<PageFallback />}>
+        <Routes>
+          <Route path="/" element={<Landing />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/dashboard" element={<Protected roles={['patient', 'doctor']}><Dashboard /></Protected>} />
+          <Route path="/diagnose" element={<Protected roles={['patient']}><Diagnose /></Protected>} />
+          <Route path="/history" element={<Protected roles={['patient']}><History /></Protected>} />
+          <Route path="/lesions" element={<Protected roles={['patient']}><Lesions /></Protected>} />
+          <Route path="/profile" element={<Protected roles={['patient']}><Profile /></Protected>} />
+          <Route path="/admin" element={<Protected roles={['admin']}><Admin /></Protected>} />
+          <Route path="/doctor" element={<Protected roles={['doctor']}><Doctor /></Protected>} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Suspense>
     </AuthProvider>
   )
 }
