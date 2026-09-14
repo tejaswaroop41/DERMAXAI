@@ -4,6 +4,7 @@ SQLAlchemy ORM models for users, patients, diagnoses, reviews and tracked lesion
 """
 from datetime import datetime
 from pathlib import Path
+import sys
 
 from sqlalchemy import (
     Boolean, Column, DateTime, Float, ForeignKey, Integer,
@@ -233,11 +234,12 @@ def create_tables():
                 )
             conn.execute(text('UPDATE "users" SET email = LOWER(TRIM(email))'))
 
-    try:
+    # Only mount feature routes when FastAPI is already importing/running app.py.
+    # Database-only tests and scripts should not pull the full AI application stack.
+    app_module = sys.modules.get("app")
+    if app_module is not None and hasattr(app_module, "app"):
         from features.routes import mount_feature_routes
         mount_feature_routes()
-    except ImportError:
-        pass
 
 
 def get_db():
