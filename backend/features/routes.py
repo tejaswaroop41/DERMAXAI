@@ -31,6 +31,7 @@ class LesionUpdate(BaseModel):
 def _diagnosis_payload(d: Diagnosis) -> dict:
     return {
         "id": d.id,
+        "lesion_id": d.lesion_id,
         "predicted_class": d.predicted_class,
         "class_name": settings.CLASS_FULL_NAMES.get(d.predicted_class, d.predicted_class),
         "fused_confidence": d.fused_confidence,
@@ -38,6 +39,7 @@ def _diagnosis_payload(d: Diagnosis) -> dict:
         "is_malignant": d.is_malignant,
         "requires_review": d.requires_review,
         "urgency_escalated": d.urgency_escalated,
+        "symptoms": d.symptoms,
         "created_at": d.created_at,
         "gradcam_url": f"/api/diagnose/{d.id}/gradcam" if d.gradcam_path else None,
         "report_url": f"/api/reports/{d.id}" if d.report_path else None,
@@ -151,6 +153,8 @@ def attach_diagnosis(lesion_id: int, diagnosis_id: int, db: Session = Depends(ge
     diagnosis = db.query(Diagnosis).filter(Diagnosis.id == diagnosis_id, Diagnosis.user_id == current_user.id).first()
     if not lesion or not diagnosis:
         raise HTTPException(status_code=404, detail="Lesion or diagnosis not found")
+    if diagnosis.lesion_id is not None and diagnosis.lesion_id != lesion.id:
+        raise HTTPException(status_code=409, detail="Diagnosis is already assigned to another lesion")
     diagnosis.lesion_id = lesion.id
     lesion.updated_at = datetime.utcnow()
     db.commit()
