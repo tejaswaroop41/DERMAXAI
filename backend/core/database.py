@@ -1,6 +1,6 @@
 """
 DERMAXAI v6 — Database Models
-SQLAlchemy ORM models for users, patients, and diagnoses.
+SQLAlchemy ORM models for users, patients, diagnoses, reviews and tracked lesions.
 """
 from datetime import datetime
 from pathlib import Path
@@ -65,6 +65,11 @@ class User(Base):
         uselist=False,
         cascade="all, delete-orphan",
     )
+    lesions = relationship(
+        "Lesion",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
 
 
 class Patient(Base):
@@ -83,12 +88,30 @@ class Patient(Base):
     user = relationship("User", back_populates="patient")
 
 
+class Lesion(Base):
+    """Patient-owned tracked lesion used to group serial diagnoses over time."""
+
+    __tablename__ = "lesions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    name = Column(String(100), nullable=False)
+    body_site = Column(String(120), nullable=True)
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User", back_populates="lesions")
+    diagnoses = relationship("Diagnosis", back_populates="lesion")
+
+
 class Diagnosis(Base):
     __tablename__ = "diagnoses"
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"))
     patient_id = Column(Integer, ForeignKey("patients.id"))
+    lesion_id = Column(Integer, ForeignKey("lesions.id"), nullable=True, index=True)
     image_path = Column(String)
     symptoms = Column(Text)
 
@@ -117,6 +140,7 @@ class Diagnosis(Base):
 
     user = relationship("User", back_populates="diagnoses")
     patient = relationship("Patient", back_populates="diagnoses")
+    lesion = relationship("Lesion", back_populates="diagnoses")
     review = relationship(
         "DoctorReview",
         back_populates="diagnosis",
@@ -208,6 +232,12 @@ def create_tables():
                     "Cannot normalize user emails because case-insensitive duplicates exist: " + values
                 )
             conn.execute(text('UPDATE "users" SET email = LOWER(TRIM(email))'))
+
+    try:
+        from features.routes import mount_feature_routes
+        mount_feature_routes()
+    except ImportError:
+        pass
 
 
 def get_db():
