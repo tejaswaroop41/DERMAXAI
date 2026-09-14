@@ -59,24 +59,24 @@ export default function Admin() {
 
   useEffect(() => { load() }, [])
 
-  const filteredUsers = useMemo(() => users.filter(u => {
+  const filteredUsers = useMemo(() => users.filter(user => {
     const q = search.trim().toLowerCase()
-    return !q || u.name?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q) || u.role?.toLowerCase().includes(q)
+    return !q || user.name?.toLowerCase().includes(q) || user.email?.toLowerCase().includes(q) || user.role?.toLowerCase().includes(q)
   }), [users, search])
 
-  const promoteToDoctor = async (u) => {
-    if (u.role !== 'patient') return
-    setPromoting(u.id)
-    try { await adminApi.promote(u.id); toast.success(`${u.name} is now a doctor`); await load() }
+  const promoteToDoctor = async (user) => {
+    if (user.role !== 'patient') return
+    setPromoting(user.id)
+    try { await adminApi.promote(user.id); toast.success(`${user.name} is now a doctor`); await load() }
     catch (err) { toast.error(err.response?.data?.detail || 'Unable to promote user') }
     finally { setPromoting(null) }
   }
 
-  const toggleActive = async (u) => {
-    setTogglingActive(u.id)
+  const toggleActive = async (user) => {
+    setTogglingActive(user.id)
     try {
-      if (u.is_active) { await adminApi.deactivate(u.id); toast.success(`${u.name} has been deactivated`) }
-      else { await adminApi.reactivate(u.id); toast.success(`${u.name} has been reactivated`) }
+      if (user.is_active) { await adminApi.deactivate(user.id); toast.success(`${user.name} has been deactivated`) }
+      else { await adminApi.reactivate(user.id); toast.success(`${user.name} has been reactivated`) }
       await load()
     } catch (err) { toast.error(err.response?.data?.detail || 'Unable to update user status') }
     finally { setTogglingActive(null) }
@@ -162,7 +162,7 @@ export default function Admin() {
               <div className="glass overflow-hidden">
                 <div className="p-5 border-b border-line flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between"><div><h2 className="section-card-title">User directory</h2><p className="text-xs text-muted mt-1">{filteredUsers.length} visible accounts</p></div><input className="input-glass sm:max-w-xs" placeholder="Search name, email or role…" value={search} onChange={e => setSearch(e.target.value)} /></div>
                 <div className="hidden lg:grid text-[10px] uppercase tracking-[0.12em] text-muted px-5 py-3 border-b border-line" style={{ gridTemplateColumns: '1.2fr 2fr .8fr .9fr 1fr 1.5fr' }}><span>Name</span><span>Email</span><span>Role</span><span>Status</span><span>Joined</span><span>Actions</span></div>
-                {filteredUsers.map(u => <div key={u.id} className="px-5 py-4 border-b border-line hover:bg-paper transition-colors lg:grid lg:items-center" style={{ gridTemplateColumns: '1.2fr 2fr .8fr .9fr 1fr 1.5fr' }}><div><div className="text-sm font-medium text-ink">{u.name}</div><div className="text-xs text-muted lg:hidden mt-1">{u.email}</div></div><span className="hidden lg:block text-sm text-muted truncate pr-3">{u.email}</span><span className="text-xs text-teal-700 capitalize font-mono mt-2 lg:mt-0 block">{u.role}</span><span className={`text-xs font-mono block mt-1 lg:mt-0 ${u.is_active ? 'text-teal-600' : 'text-red-600'}`}>{u.is_active ? 'Active' : 'Deactivated'}</span><span className="text-xs text-muted block mt-1 lg:mt-0">{new Date(u.created_at).toLocaleDateString()}</span><div className="flex flex-wrap gap-2 mt-3 lg:mt-0">{u.role === 'patient' && <button aria-label="Promote to doctor" disabled={promoting === u.id} onClick={() => promoteToDoctor(u)} className="btn-ghost text-xs py-1.5 px-2.5">{promoting === u.id ? 'Promoting…' : 'Promote doctor'}</button>}{u.role !== 'admin' && u.id !== currentUser?.id && <button disabled={togglingActive === u.id} onClick={() => toggleActive(u)} className="btn-ghost text-xs py-1.5 px-2.5">{togglingActive === u.id ? 'Updating…' : u.is_active ? 'Deactivate' : 'Reactivate'}</button>}</div></div>)}
+                {filteredUsers.map(user => <div key={user.id} className="px-5 py-4 border-b border-line hover:bg-paper transition-colors lg:grid lg:items-center" style={{ gridTemplateColumns: '1.2fr 2fr .8fr .9fr 1fr 1.5fr' }}><div><div className="text-sm font-medium text-ink">{user.name}</div><div className="text-xs text-muted lg:hidden mt-1">{user.email}</div></div><span className="hidden lg:block text-sm text-muted truncate pr-3">{user.email}</span><span className="text-xs text-teal-700 capitalize font-mono mt-2 lg:mt-0 block">{user.role}</span><span className={`text-xs font-mono block mt-1 lg:mt-0 ${user.is_active ? 'text-teal-600' : 'text-red-600'}`}>{user.is_active ? 'Active' : 'Deactivated'}</span><span className="text-xs text-muted block mt-1 lg:mt-0">{new Date(user.created_at).toLocaleDateString()}</span><div className="flex flex-wrap gap-2 mt-3 lg:mt-0">{user.role === 'patient' && <button aria-label="Promote to doctor" disabled={promoting === user.id} onClick={() => promoteToDoctor(user)} className="btn-ghost text-xs py-1.5 px-2.5">{promoting === user.id ? 'Promoting…' : 'Promote to doctor'}</button>}{user.role !== 'admin' && user.id !== currentUser?.id && <button disabled={togglingActive === user.id} onClick={() => toggleActive(user)} className="btn-ghost text-xs py-1.5 px-2.5">{togglingActive === user.id ? 'Updating…' : user.is_active ? 'Deactivate' : 'Reactivate'}</button>}</div></div>)}
                 {filteredUsers.length === 0 && <div className="p-12 text-center text-sm text-muted">No users match this search.</div>}
               </div>
             )}
