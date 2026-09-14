@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from core.auth import require_admin, get_current_user
+from core.auth import get_current_user, require_admin
 from core.config import settings
 from core.database import Diagnosis, DoctorReview, Lesion, User, get_db
 
@@ -59,127 +59,8 @@ def _lesion_summary(lesion: Lesion) -> dict:
     }
 
 
-@router.post("/api/lesions")
-def create_lesion(
-    req: LesionCreate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    lesion = Lesion(
-        user_id=current_user.id,
-        name=req.name.strip(),
-        body_site=req.body_site.strip() if req.body_site else None,
-        notes=req.notes.strip() if req.notes else None,
-    )
-    db.add(lesion)
-    db.commit()
-    db.refresh(lesion)
-    return _lesion_summary(lesion)
-
-
-@router.get("/api/lesions")
-def list_lesions(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    lesions = (
-        db.query(Lesion)
-        .filter(Lesion.user_id == current_user.id)
-        .order_by(Lesion.updated_at.desc(), Lesion.id.desc())
-        .all()
-    )
-    return [_lesion_summary(lesion) for lesion in lesions]
-
-
-@router.get("/api/lesions/{lesion_id:int}")
-def get_lesion(
-    lesion_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    lesion = db.query(Lesion).filter(
-        Lesion.id == lesion_id,
-        Lesion.user_id == current_user.id,
-    ).first()
-    if not lesion:
-        raise HTTPException(status_code=404, detail="Lesion not found")
-    diagnoses = sorted(lesion.diagnoses, key=lambda d: d.created_at or datetime.min)
-    payload = _lesion_summary(lesion)
-    payload["diagnoses"] = [_diagnosis_payload(d) for d in diagnoses]
-    return payload
-
-
-@router.patch("/api/lesions/{lesion_id:int}")
-def update_lesion(
-    lesion_id: int,
-    req: LesionUpdate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    lesion = db.query(Lesion).filter(
-        Lesion.id == lesion_id,
-        Lesion.user_id == current_user.id,
-    ).first()
-    if not lesion:
-        raise HTTPException(status_code=404, detail="Lesion not found")
-    for field, value in req.model_dump(exclude_unset=True).items():
-        setattr(lesion, field, value.strip() if isinstance(value, str) else value)
-    lesion.updated_at = datetime.utcnow()
-    db.commit()
-    db.refresh(lesion)
-    return _lesion_summary(lesion)
-
-
-@router.delete("/api/lesions/{lesion_id:int}")
-def delete_lesion(
-    lesion_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    lesion = db.query(Lesion).filter(
-        Lesion.id == lesion_id,
-        Lesion.user_id == current_user.id,
-    ).first()
-    if not lesion:
-        raise HTTPException(status_code=404, detail="Lesion not found")
-    for diagnosis in lesion.diagnoses:
-        diagnosis.lesion_id = None
-    db.delete(lesion)
-    db.commit()
-    return {"message": "Lesion tracking removed"}
-
-
-@router.post("/api/lesions/{lesion_id:int}/diagnoses/{diagnosis_id:int}")
-def attach_diagnosis(
-    lesion_id: int,
-    diagnosis_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    lesion = db.query(Lesion).filter(
-        Lesion.id == lesion_id,
-        Lesion.user_id == current_user.id,
-    ).first()
-    diagnosis = db.query(Diagnosis).filter(
-        Diagnosis.id == diagnosis_id,
-        Diagnosis.user_id == current_user.id,
-    ).first()
-    if not lesion or not diagnosis:
-        raise HTTPException(status_code=404, detail="Lesion or diagnosis not found")
-    diagnosis.lesion_id = lesion.id
-    lesion.updated_at = datetime.utcnow()
-    db.commit()
-    return {"message": "Diagnosis added to lesion", "lesion_id": lesion.id, "diagnosis_id": diagnosis.id}
-
-
-@router.get("/api/admin/performance")
-def admin_performance(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
-):
-    diagnoses = db.query(Diagnosis).all()
-    reviews = db.query(DoctorReview).filter(DoctorReview.status == "completed").all()
-
+def compute_admin_performance(diagnoses: list[Diagnosis], reviews: list[DoctorReview]) -> dict:
+    """Compute review/uncertainty metrics without claiming unsupported accuracy."""
     total = len(diagnoses)
     malignant = sum(1 for d in diagnoses if d.is_malignant)
     requires_review = sum(1 for d in diagnoses if d.requires_review)
@@ -192,10 +73,11 @@ def admin_performance(
             uncertainty_values.append(float(d.composite_uncertainty))
 
     revised = sum(1 for r in reviews if r.verdict == "revised")
-    turnaround_hours = []
-    for r in reviews:
-        if r.claimed_at and r.reviewed_at:
-            turnaround_hours.append(max(0.0, (r.reviewed_at - r.claimed_at).total_seconds() / 3600))
+    turnaround_hours = [
+        max(0.0, (r.reviewed_at - r.claimed_at).total_seconds() / 3600)
+        for r in reviews
+        if r.claimed_at and r.reviewed_at
+    ]
 
     return {
         "total_diagnoses": total,
@@ -209,14 +91,85 @@ def admin_performance(
         "average_uncertainty": round(sum(uncertainty_values) / len(uncertainty_values), 4) if uncertainty_values else None,
         "average_review_turnaround_hours": round(sum(turnaround_hours) / len(turnaround_hours), 2) if turnaround_hours else None,
         "class_distribution": distribution,
-        "model_info": {
-            "architecture": settings.MODEL_NAME,
-            "dataset": "ISIC 2018",
-            "classes": settings.CLASSES,
-            "device": str(getattr(__import__('ai.predictor', fromlist=['predictor']).predictor, 'device', 'unknown')),
-        },
-        "note": "Revision rate uses completed doctor reviews marked 'revised'; it is not an accuracy metric because ground-truth labels are not stored.",
     }
+
+
+@router.post("/api/lesions")
+def create_lesion(req: LesionCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    lesion = Lesion(user_id=current_user.id, name=req.name.strip(), body_site=req.body_site.strip() if req.body_site else None, notes=req.notes.strip() if req.notes else None)
+    db.add(lesion)
+    db.commit()
+    db.refresh(lesion)
+    return _lesion_summary(lesion)
+
+
+@router.get("/api/lesions")
+def list_lesions(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    lesions = db.query(Lesion).filter(Lesion.user_id == current_user.id).order_by(Lesion.updated_at.desc(), Lesion.id.desc()).all()
+    return [_lesion_summary(lesion) for lesion in lesions]
+
+
+@router.get("/api/lesions/{lesion_id:int}")
+def get_lesion(lesion_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    lesion = db.query(Lesion).filter(Lesion.id == lesion_id, Lesion.user_id == current_user.id).first()
+    if not lesion:
+        raise HTTPException(status_code=404, detail="Lesion not found")
+    diagnoses = sorted(lesion.diagnoses, key=lambda d: d.created_at or datetime.min)
+    payload = _lesion_summary(lesion)
+    payload["diagnoses"] = [_diagnosis_payload(d) for d in diagnoses]
+    return payload
+
+
+@router.patch("/api/lesions/{lesion_id:int}")
+def update_lesion(lesion_id: int, req: LesionUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    lesion = db.query(Lesion).filter(Lesion.id == lesion_id, Lesion.user_id == current_user.id).first()
+    if not lesion:
+        raise HTTPException(status_code=404, detail="Lesion not found")
+    for field, value in req.model_dump(exclude_unset=True).items():
+        setattr(lesion, field, value.strip() if isinstance(value, str) else value)
+    lesion.updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(lesion)
+    return _lesion_summary(lesion)
+
+
+@router.delete("/api/lesions/{lesion_id:int}")
+def delete_lesion(lesion_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    lesion = db.query(Lesion).filter(Lesion.id == lesion_id, Lesion.user_id == current_user.id).first()
+    if not lesion:
+        raise HTTPException(status_code=404, detail="Lesion not found")
+    for diagnosis in lesion.diagnoses:
+        diagnosis.lesion_id = None
+    db.delete(lesion)
+    db.commit()
+    return {"message": "Lesion tracking removed"}
+
+
+@router.post("/api/lesions/{lesion_id:int}/diagnoses/{diagnosis_id:int}")
+def attach_diagnosis(lesion_id: int, diagnosis_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    lesion = db.query(Lesion).filter(Lesion.id == lesion_id, Lesion.user_id == current_user.id).first()
+    diagnosis = db.query(Diagnosis).filter(Diagnosis.id == diagnosis_id, Diagnosis.user_id == current_user.id).first()
+    if not lesion or not diagnosis:
+        raise HTTPException(status_code=404, detail="Lesion or diagnosis not found")
+    diagnosis.lesion_id = lesion.id
+    lesion.updated_at = datetime.utcnow()
+    db.commit()
+    return {"message": "Diagnosis added to lesion", "lesion_id": lesion.id, "diagnosis_id": diagnosis.id}
+
+
+@router.get("/api/admin/performance")
+def admin_performance(db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+    diagnoses = db.query(Diagnosis).all()
+    reviews = db.query(DoctorReview).filter(DoctorReview.status == "completed").all()
+    payload = compute_admin_performance(diagnoses, reviews)
+    payload["model_info"] = {
+        "architecture": settings.MODEL_NAME,
+        "dataset": "ISIC 2018",
+        "classes": settings.CLASSES,
+        "device": "runtime",
+    }
+    payload["note"] = "Revision rate uses completed doctor reviews marked 'revised'; it is not an accuracy metric because ground-truth labels are not stored."
+    return payload
 
 
 def mount_feature_routes() -> None:
