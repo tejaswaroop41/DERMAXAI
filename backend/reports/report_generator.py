@@ -25,6 +25,16 @@ LIGHT = colors.HexColor("#F8FAFC")
 RED   = colors.HexColor("#EF4444")
 GREEN = colors.HexColor("#22C55E")
 GRAY  = colors.HexColor("#64748B")
+AMBER = colors.HexColor("#F59E0B")
+
+
+def _clinical_classification(decision: dict) -> str:
+    """Return the explicit presentation category for the fused decision."""
+    if decision.get("is_malignant"):
+        return "MALIGNANT"
+    if decision.get("clinical_concern"):
+        return "CLINICAL CONCERN"
+    return "NON-MALIGNANT"
 
 
 def generate_report(decision: dict, uncertainty: dict,
@@ -79,29 +89,38 @@ def generate_report(decision: dict, uncertainty: dict,
     story.append(HRFlowable(width="100%", thickness=1, color=GRAY))
     story.append(Paragraph("Diagnosis Result", h2_style))
 
-    is_mal     = decision["is_malignant"]
+    classification = _clinical_classification(decision)
     req_review = decision["requires_review"]
 
     result_data = [
-        ["Predicted Class",     f"{decision['class_name']} ({decision['predicted_class'].upper()})"],
+        ["Predicted Class", f"{decision['class_name']} ({decision['predicted_class'].upper()})"],
         ["Diagnostic Confidence", f"{decision['fused_confidence']*100:.1f}%"],
         ["Malignant Probability Mass", f"{decision.get('malignancy_mass', 0.0)*100:.1f}%"],
+        ["Clinical-Conconcern Probability Mass", f"{decision.get('clinical_concern_mass', 0.0)*100:.1f}%"],
         ["Normalized Predictive Entropy",
-            f"{uncertainty.get('raw_entropy', 0):.4f}  (calibrated threshold: {uncertainty.get('theta_H', 0):.4f})"],
+            f"{uncertainty.get('normalized_entropy', uncertainty.get('raw_entropy', 0)):.4f}  (calibrated threshold: {uncertainty.get('theta_H', 0):.4f})"],
         ["Uncertainty Level",  f"{uncertainty['composite_uncertainty']:.4f}  ({uncertainty['confidence_level']})"],
-        ["Malignancy Risk",   "\u26a0 MALIGNANT — Urgent Referral Advised" if is_mal else "\u2713 BENIGN"],
+        ["Clinical Classification", classification],
         ["Review Status",     "REQUIRES CLINICAL REVIEW" if req_review else "No Automated Review Escalation"],
         ["Urgency Level",     recommendation["urgency_level"]],
     ]
     r_table = Table(result_data, colWidths=[6*cm, 11*cm])
+
+    if classification == "MALIGNANT":
+        classification_bg, classification_fg = RED, colors.white
+    elif classification == "CLINICAL CONCERN":
+        classification_bg, classification_fg = AMBER, colors.white
+    else:
+        classification_bg, classification_fg = GREEN, colors.white
+
     r_table.setStyle(TableStyle([
         ("FONTNAME", (0,0), (-1,-1), "Helvetica"),
         ("FONTNAME", (0,0), (0,-1), "Helvetica-Bold"),
         ("FONTSIZE", (0,0), (-1,-1), 10),
         ("BACKGROUND", (0,0), (0,-1), LIGHT),
-        ("BACKGROUND", (1,5), (1,5), RED if is_mal else GREEN),
-        ("TEXTCOLOR", (1,5), (1,5), colors.white),
-        ("FONTNAME", (1,5), (1,5), "Helvetica-Bold"),
+        ("BACKGROUND", (1,6), (1,6), classification_bg),
+        ("TEXTCOLOR", (1,6), (1,6), classification_fg),
+        ("FONTNAME", (1,6), (1,6), "Helvetica-Bold"),
         ("GRID", (0,0), (-1,-1), 0.5, colors.white),
         ("PADDING", (0,0), (-1,-1), 8),
         ("ROWBACKGROUNDS", (0,0), (-1,-1), [LIGHT, colors.white]),
@@ -115,7 +134,7 @@ def generate_report(decision: dict, uncertainty: dict,
         "Relative contribution of each input signal to the escalation/review "
         "decision above. This is not a probability fusion across classes — "
         "only the image model predicts the lesion class. Symptom and "
-        "demographic signals influence urgency and review, not the "
+        "demographic signals influence clinical concern and review, not the "
         "confidence figure reported above.", body_style))
     mw = decision["modality_weights"]
 
@@ -123,7 +142,7 @@ def generate_report(decision: dict, uncertainty: dict,
 
     mw_data = [
     ["Signal", "Relative Contribution"],
-    [f"Image ({model_name}) malignancy mass", f"{mw['image']*100:.1f}%"],
+    [f"Image ({model_name}) clinical-concern mass", f"{mw['image']*100:.1f}%"],
     ["Symptom Analysis (Rule-based NLP)", f"{mw['symptoms']*100:.1f}%"],
     ["Demographic Risk Factors", f"{mw['demographics']*100:.1f}%"],
 ]
@@ -144,9 +163,14 @@ def generate_report(decision: dict, uncertainty: dict,
     # ── Class probabilities ───────────────────────────────
     story.append(Paragraph("Class Probability Distribution", h2_style))
     probs = decision["class_probabilities"]
-    prob_data = [["Class", "Probability", "Risk Level"]]
+    prob_data = [["Class", "Probability", "Clinical Category"]]
     for cls, prob in sorted(probs.items(), key=lambda x: -x[1]):
-        risk = "Malignant" if cls in settings.MALIGNANT_CLASSES else "Benign"
+        if cls in settings.MALIGNANT_CLASSES:
+            risk = "Malignant"
+        elif cls in settings.CLINICAL_CONCERN_CLASSES:
+            risk = "Clinical concern"
+        else:
+            risk = "Non-malignant"
         prob_data.append([cls.upper(), f"{prob*100:.2f}%", risk])
     p_table = Table(prob_data, colWidths=[5*cm, 6*cm, 6*cm])
     p_table.setStyle(TableStyle([
@@ -177,7 +201,7 @@ def generate_report(decision: dict, uncertainty: dict,
     story.append(Paragraph("Clinical Recommendations", h2_style))
     story.append(Paragraph(recommendation["class_description"], body_style))
     for rec in recommendation["recommendations"]:
-        story.append(Paragraph(f"\u2022 {rec}", body_style))
+        story.append(Paragraph(f"• {rec}", body_style))
     story.append(Paragraph(
         f"Suggested follow-up window: {recommendation['follow_up_days']} days",
         body_style))
@@ -189,7 +213,7 @@ def generate_report(decision: dict, uncertainty: dict,
     disclaimer = ParagraphStyle("disc", fontSize=8, textColor=GRAY,
                                  alignment=TA_CENTER, leading=12)
     story.append(Paragraph(
-        "\u2695 DISCLAIMER: This report is generated by an AI diagnostic tool "
+        "⚕ DISCLAIMER: This report is generated by an AI diagnostic tool "
         "(DERMAXAI) and is intended for preliminary screening purposes "
         "only. It does not constitute a medical diagnosis. Always consult "
         "a qualified dermatologist for clinical decisions.", disclaimer))
