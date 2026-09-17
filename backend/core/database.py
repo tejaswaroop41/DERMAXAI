@@ -58,6 +58,7 @@ class User(Base):
     role = Column(String, default="patient")
     created_at = Column(DateTime, default=datetime.utcnow)
     is_active = Column(Boolean, default=True)
+    token_version = Column(Integer, nullable=False, default=0, server_default="0")
     password_reset_nonce_hash = Column(String(64), nullable=True)
     diagnoses = relationship("Diagnosis", back_populates="user")
     patient = relationship(
