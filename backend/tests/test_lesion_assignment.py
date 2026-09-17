@@ -12,12 +12,6 @@ from core.database import Base, Diagnosis, Lesion, User
 from features.routes import _attach_diagnosis_atomically
 
 
-def _build_session():
-    engine = create_engine("sqlite:///:memory:")
-    Base.metadata.create_all(engine)
-    return engine, sessionmaker(bind=engine, autoflush=False)
-
-
 def test_unassigned_diagnosis_can_be_claimed_once():
     engine = create_engine("sqlite:///:memory:")
     Base.metadata.create_all(engine)
