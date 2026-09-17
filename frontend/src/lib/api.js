@@ -114,7 +114,8 @@ export const reportApi = {
 }
 
 export const patientApi = {
-  getProfile: () => api.put('/patients/profile', d),
+  getProfile: () => api.get('/patients/profile'),
+  updateProfile: d => api.put('/patients/profile', d),
 }
 
 export const adminApi = {
