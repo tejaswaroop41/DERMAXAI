@@ -87,6 +87,7 @@ export const diagnoseApi = {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
   history: () => api.get('/diagnose/history'),
+  summary: () => api.get('/diagnose/summary'),
   gradcam: path => getAuthenticatedBlobUrl(path),
   unreadReviews: () => api.get('/diagnose/notifications'),
   markReviewsSeen: () => api.post('/diagnose/notifications/mark-seen'),
