@@ -41,6 +41,8 @@ function AuthProvider({ children }) {
   useEffect(() => {
     const token = localStorage.getItem('token')
     if (!token) {
+      localStorage.removeItem('user')
+      setUser(null)
       setInitializing(false)
       return
     }

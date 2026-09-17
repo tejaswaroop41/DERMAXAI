@@ -8,6 +8,7 @@ const register = fs.readFileSync(path.join(root, 'src/pages/Register.jsx'), 'utf
 const admin = fs.readFileSync(path.join(root, 'src/pages/Admin.jsx'), 'utf8')
 const dashboard = fs.readFileSync(path.join(root, 'src/pages/Dashboard.jsx'), 'utf8')
 const api = fs.readFileSync(path.join(root, 'src/lib/api.js'), 'utf8')
+const app = fs.readFileSync(path.join(root, 'src/App.jsx'), 'utf8')
 
 
 test('registration UI is patient-only', () => {
@@ -29,4 +30,11 @@ test('dashboard report downloads use authenticated API helper', () => {
   assert.match(dashboard, /import \{ diagnoseApi, doctorApi, reportApi \} from '..\/lib\/api'/)
   assert.match(dashboard, /reportApi\.download\(d\.report_url, `DERMAXAI_Report_\$\{d\.id\}\.pdf`\)/)
   assert.doesNotMatch(dashboard, /<a href=\{d\.report_url\}/)
+})
+
+
+test('auth provider clears stale user state when no token exists', () => {
+  assert.match(app, /const token = localStorage\.getItem\('token'\)/)
+  assert.match(app, /if \(!token\) \{\s*localStorage\.removeItem\('user'\)\s*setUser\(null\)/s)
+  assert.match(app, /setInitializing\(false\)/)
 })
