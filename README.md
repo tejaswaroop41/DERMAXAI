@@ -14,7 +14,9 @@ Dermoscopic Image
        ▼
 ┌─────────────────────────────────────┐
 │  EfficientNet-B3 Backbone           │
-│  + LayerNorm MLP Head               │
+│  + CBAM Attention                   │
+│  + GeM Pooling                      │
+│  + LayerNorm/GELU/Dropout MLP Head  │
 │  + ACWF-FL Loss (Training)          │
 │  + SAM Optimizer (Phase 2)          │
 │  + SWA (Phase 3)                    │
@@ -26,41 +28,57 @@ Dermoscopic Image
 │                CMCA Fusion Engine                       │
 │  Confidence-weighted clinical-concern aggregation       │
 │                                                        │
-│  Image malignancy mass ──┐                            │
-│  Symptom risk ───────────┼──► Clinical concern score   │
-│  Demographic risk ───────┘                            │
+│  Image clinical-concern mass ──┐                      │
+│  Symptom risk ─────────────────┼──► Clinical concern │
+│  Demographic risk ─────────────┘      score           │
 │                                                        │
 │  Classification label remains image-model-derived       │
+│  Malignant class signal is kept separate from concern  │
 └────────────────────────────────────────────────────────┘
                  │
                  ▼
 ┌────────────────────────────────────────────────────────┐
-│  Outputs                                               │
-│  • Predicted class + image confidence                  │
-│  • CMCA clinical concern score                          │
-│  • MCUE uncertainty score (θ_H deferral)               │
-│  • Grad-CAM heatmap (XAI)                              │
-│  • Clinical recommendations (knowledge base)           │
-│  • PDF clinical report (ReportLab)                     │
+│  Outputs                                                │
+│  • Predicted class + image confidence                   │
+│  • Malignancy mass + clinical-concern mass              │
+│  • CMCA clinical concern score                           │
+│  • MCUE uncertainty score                               │
+│  • Grad-CAM heatmap (XAI)                               │
+│  • Clinical recommendations (knowledge base)            │
+│  • PDF clinical report (ReportLab)                      │
 └────────────────────────────────────────────────────────┘
 ```
+
+### Clinical class semantics
+
+The seven model classes follow the canonical HAM10000 ordering:
+
+`akiec · bcc · bkl · df · mel · nv · vasc`
+
+The application keeps three related concepts separate:
+
+- **Predicted class** — always produced by the image model.
+- **Malignant class signal** — currently `bcc` and `mel` for the binary malignant presentation layer.
+- **Clinical-concern class signal** — `akiec`, `bcc`, and `mel`, allowing AKIEC to trigger review without being presented as simply malignant.
+
+This distinction is important because the HAM10000 AKIEC category combines actinic keratoses with intraepithelial carcinoma/Bowen disease; actinic keratosis itself is a precancerous lesion.
 
 ## Novel Algorithms
 
 | Algorithm | Description |
 |-----------|-------------|
-| **ACWF-FL** | Adaptive Class Weight Function + Focal Loss. Effective-number weighting + 1.5× malignancy amplification + focal γ=2.0 |
-| **CMCA**    | Cross-Modal Confidence Aggregation. Confidence-weighted aggregation of image malignancy mass, symptom risk, and demographic risk into a separate clinical-concern score; it does not relabel the image class. |
-| **MCUE**    | Monte Carlo Uncertainty Estimation. Aleatory uncertainty from expected MC entropy + epistemic uncertainty from mutual information + TTA/MC disagreement. |
-| **SAM**     | Sharpness-Aware Minimization. Finds flat minima → better generalization |
-| **SWA**     | Stochastic Weight Averaging. Averages weights over final epochs for stable, calibrated predictions |
-| **TTA**     | Augmentation ensemble at inference time |
+| **ACWF-FL** | Adaptive Class Weight Function + Focal Loss. Effective-number weighting + 1.5× malignant-class amplification + focal γ=2.0 |
+| **CMCA** | Cross-Modal Confidence Aggregation. Confidence-weighted aggregation of image clinical-concern mass, symptom risk, and demographic risk into a separate clinical-concern score; it does not relabel the image class. |
+| **MCUE** | Monte Carlo Uncertainty Estimation. Aleatory uncertainty from expected MC entropy + epistemic uncertainty from mutual information + TTA/MC disagreement. |
+| **SAM** | Sharpness-Aware Minimization. Finds flat minima → better generalization |
+| **SWA** | Stochastic Weight Averaging. Averages weights over final epochs for stable, calibrated predictions |
+| **TTA** | Augmentation ensemble at inference time |
 
 ## Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
-| ML Model | EfficientNet-B3 + LayerNorm MLP Head |
+| ML Model | EfficientNet-B3 + CBAM + GeM + LayerNorm/GELU/Dropout MLP Head |
 | Loss | ACWF-FL (β=0.9999, γ=2.0) |
 | Optimizer | SAM + AdamW + SWA |
 | Dataset | ISIC 2018 (10,015 images, 7 classes) |
@@ -78,33 +96,34 @@ DERMAXAI/
 │   ├── app.py                    ← FastAPI main app (full pipeline)
 │   ├── core/
 │   │   ├── config.py             ← Centralized settings
-│   │   ├── preprocessing.py      ← TTA transforms + image validation
-│   │   ├── model.py              ← DERMAXAI classifier architecture
-│   │   ├── database.py           ← SQLAlchemy models
-│   │   └── auth.py               ← JWT auth + bcrypt
+│   │   ├── preprocessing.py       ← TTA transforms + image validation
+│   │   ├── model.py               ← EfficientNet-B3 + CBAM + GeM + MLP
+│   │   ├── database.py            ← SQLAlchemy models
+│   │   └── auth.py                ← JWT auth + bcrypt
 │   ├── ai/
-│   │   ├── predictor.py          ← TTA inference engine
-│   │   ├── uncertainty.py        ← MCUE (aleatory+epistemic+disagreement)
-│   │   ├── gradcam.py            ← Grad-CAM heatmap generation
-│   │   ├── biobert_engine.py     ← Symptom NLP (rule-based + optional BioBERT)
-│   │   ├── risk_engine.py        ← Demographic risk scoring
-│   │   ├── decision_engine.py    ← CMCA clinical-concern fusion
+│   │   ├── predictor.py           ← TTA inference engine
+│   │   ├── uncertainty.py         ← MCUE (aleatory+epistemic+disagreement)
+│   │   ├── gradcam.py             ← Grad-CAM heatmap generation
+│   │   ├── biobert_engine.py      ← Symptom NLP (rule-based + optional BioBERT)
+│   │   ├── risk_engine.py         ← Demographic risk scoring
+│   │   ├── decision_engine.py     ← CMCA clinical-concern fusion
 │   │   └── recommendation_engine.py ← Clinical recommendations
-│   ├── knowledge/                ← Per-class clinical JSON files
-│   ├── reports/                  ← PDF report generator
-│   ├── utils/                    ← Logging + validation helpers
-│   ├── models/                   ← Place best.pth here
-│   ├── uploads/                  ← Uploaded images
-│   ├── heatmaps/                 ← Generated Grad-CAM images
-│   ├── generated_reports/        ← Generated PDF reports
+│   ├── features/                  ← Lesion tracking + analytics routes
+│   ├── knowledge/                 ← Per-class clinical JSON files
+│   ├── reports/                   ← PDF report generator
+│   ├── utils/                     ← Logging + validation helpers
+│   ├── models/                    ← Place best.pth here
+│   ├── uploads/                   ← Uploaded images
+│   ├── heatmaps/                  ← Generated Grad-CAM images
+│   ├── generated_reports/         ← Generated PDF reports
 │   ├── requirements.txt
 │   └── Dockerfile
 ├── frontend/
-│   ├── Dockerfile               ← Static frontend image
-│   ├── nginx.conf.template      ← SPA + /api reverse proxy
+│   ├── Dockerfile                ← Static frontend image
+│   ├── nginx.conf.template       ← SPA + /api reverse proxy
 │   └── src/
-├── docker-compose.yml           ← Local Docker Compose stack
-├── .env.example                 ← Local Docker environment template
+├── docker-compose.yml             ← Local Docker Compose stack
+├── .env.example                   ← Local Docker environment template
 └── README.md
 ```
 
@@ -112,8 +131,8 @@ DERMAXAI/
 
 ```bash
 # 1. Clone the repo
-git clone https://github.com/yourusername/dermaxai.git
-cd dermaxai
+git clone https://github.com/tejaswaroop41/DERMAXAI.git
+cd DERMAXAI
 
 # 2. Copy trained model weights from Colab
 cp /path/to/best.pth backend/models/best.pth
