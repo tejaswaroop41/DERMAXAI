@@ -86,11 +86,11 @@ def generate_report(decision: dict, uncertainty: dict,
         ["Predicted Class",     f"{decision['class_name']} ({decision['predicted_class'].upper()})"],
         ["Diagnostic Confidence", f"{decision['fused_confidence']*100:.1f}%"],
         ["Malignant Probability Mass", f"{decision.get('malignancy_mass', 0.0)*100:.1f}%"],
-        ["Predictive Uncertainty (Entropy)",
-            f"{uncertainty.get('raw_entropy', 0):.4f} nats  (calibrated threshold: {uncertainty.get('theta_H', 0):.4f})"],
+        ["Normalized Predictive Entropy",
+            f"{uncertainty.get('raw_entropy', 0):.4f}  (calibrated threshold: {uncertainty.get('theta_H', 0):.4f})"],
         ["Uncertainty Level",  f"{uncertainty['composite_uncertainty']:.4f}  ({uncertainty['confidence_level']})"],
         ["Malignancy Risk",   "\u26a0 MALIGNANT — Urgent Referral Advised" if is_mal else "\u2713 BENIGN"],
-        ["Review Status",     "REQUIRES CLINICAL REVIEW" if req_review else "Auto-Accepted"],
+        ["Review Status",     "REQUIRES CLINICAL REVIEW" if req_review else "No Automated Review Escalation"],
         ["Urgency Level",     recommendation["urgency_level"]],
     ]
     r_table = Table(result_data, colWidths=[6*cm, 11*cm])
@@ -124,7 +124,7 @@ def generate_report(decision: dict, uncertainty: dict,
     mw_data = [
     ["Signal", "Relative Contribution"],
     [f"Image ({model_name}) malignancy mass", f"{mw['image']*100:.1f}%"],
-    ["Symptom Analysis (BioBERT/NLP)", f"{mw['symptoms']*100:.1f}%"],
+    ["Symptom Analysis (Rule-based NLP)", f"{mw['symptoms']*100:.1f}%"],
     ["Demographic Risk Factors", f"{mw['demographics']*100:.1f}%"],
 ]
     mw_table = Table(mw_data, colWidths=[10*cm, 7*cm])
