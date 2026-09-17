@@ -22,6 +22,19 @@ import {
 const CLASS_NAMES = { mel:'Melanoma', bcc:'Basal Cell Carcinoma', akiec:'Actinic Keratoses', bkl:'Benign Keratosis', nv:'Melanocytic Nevi', df:'Dermatofibroma', vasc:'Vascular Lesions' }
 const CLASS_COLORS = { mel:'#B4413A', bcc:'#C17A3D', akiec:'#B08135', bkl:'#4F7A52', nv:'#3D6B94', df:'#6B5B95', vasc:'#3D8B94' }
 
+function resultCategory(decision) {
+  if (decision?.is_malignant) return 'malignant'
+  if (decision?.clinical_concern ?? (['akiec', 'bcc', 'mel'].includes(decision?.predicted_class) || decision?.requires_review)) return 'concern'
+  return 'non-malignant'
+}
+
+function CategoryBadge({ decision }) {
+  const category = resultCategory(decision)
+  if (category === 'malignant') return <span className="badge-malignant">Malignant</span>
+  if (category === 'concern') return <span className="badge-review">Clinical concern</span>
+  return <span className="badge-benign">Non-malignant</span>
+}
+
 function Section({ title, eyebrow, children, action }) {
   return <section className="glass p-5 sm:p-6">
     <div className="flex items-start justify-between gap-4 mb-5">
@@ -101,7 +114,13 @@ export default function Diagnose() {
         const url = await diagnoseApi.gradcam(data.gradcam_url)
         setGradcam(url)
       }
-      if (data.decision?.is_malignant) toast.error('Malignant finding — clinical review advised', { duration: 6000 })
+
+      const category = resultCategory(data.decision)
+      if (category === 'malignant') {
+        toast.error('Malignant finding — clinical review advised', { duration: 6000 })
+      } else if (category === 'concern') {
+        toast('Clinical concern flagged — clinician review advised', { duration: 6000 })
+      }
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Diagnosis failed. Please try again.')
     } finally {
@@ -197,14 +216,15 @@ export default function Diagnose() {
               </div>
             ) : (
               <>
-                <Section title={result.decision.class_name} eyebrow={result.decision.is_malignant ? 'Clinical attention' : 'AI assessment'} action={result.decision.requires_review && <span className="badge-review">Review required</span>}>
+                <Section title={result.decision.class_name} eyebrow={resultCategory(result.decision) === 'malignant' ? 'Malignant finding' : resultCategory(result.decision) === 'concern' ? 'Clinical concern' : 'AI assessment'} action={result.decision.requires_review && <span className="badge-review">Review required</span>}>
                   <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-5">
-                    <div><div className="flex items-center gap-2 mb-2">{result.decision.is_malignant ? <AlertTriangle size={16} className="text-red-700" /> : <CheckCircle2 size={16} className="text-emerald-700" />}<span className="text-xs font-semibold uppercase tracking-wide" style={{ color: result.decision.is_malignant ? '#963530' : '#3F6242' }}>{result.decision.is_malignant ? 'Malignant signal' : 'Benign signal'}</span></div><div className="text-xs text-muted font-mono">{result.decision.predicted_class.toUpperCase()}</div></div>
-                    <div className="text-left sm:text-right"><div className="font-mono text-4xl font-semibold" style={{ color: CLASS_COLORS[result.decision.predicted_class] || '#3D7068' }}>{(result.decision.fused_confidence * 100).toFixed(1)}%</div><div className="text-xs text-muted">fused confidence</div></div>
+                    <div><div className="flex items-center gap-2 mb-2"><CategoryBadge decision={result.decision} /></div><div className="text-xs text-muted font-mono">{result.decision.predicted_class.toUpperCase()}</div></div>
+                    <div className="text-left sm:text-right"><div className="font-mono text-4xl font-semibold" style={{ color: CLASS_COLORS[result.decision.predicted_class] || '#3D7068' }}>{(result.decision.fused_confidence * 100).toFixed(1)}%</div><div className="text-xs text-muted">image-class confidence</div></div>
                   </div>
                   <div className="mt-5"><div className="flex justify-between text-xs text-muted mb-1.5"><span>Confidence</span><span className="font-mono">{(result.decision.fused_confidence * 100).toFixed(1)}%</span></div><div className="confidence-bar h-2"><div className="confidence-fill h-2" style={{ width: `${result.decision.fused_confidence * 100}%` }} /></div></div>
                   <div className="grid grid-cols-3 gap-2 mt-4">{Object.entries(result.decision.modality_weights).map(([key, value]) => <div key={key} className="rounded-xl bg-paper border border-line p-3"><div className="font-mono text-sm font-semibold text-teal-700">{(value * 100).toFixed(0)}%</div><div className="text-[10px] text-muted capitalize mt-1">{key}</div></div>)}</div>
-                  {result.decision.is_malignant && <div className="mt-4 p-3 rounded-xl bg-[#FBEAE8] border border-[#EFCAC6] text-xs text-[#963530] flex gap-2"><AlertTriangle size={14} className="flex-shrink-0 mt-0.5" />This is decision-support output, not a diagnosis. Seek qualified dermatology review for concerning findings.</div>}
+                  {resultCategory(result.decision) === 'malignant' && <div className="mt-4 p-3 rounded-xl bg-[#FBEAE8] border border-[#EFCAC6] text-xs text-[#963530] flex gap-2"><AlertTriangle size={14} className="flex-shrink-0 mt-0.5" />This is decision-support output, not a diagnosis. Seek qualified dermatology review for concerning findings.</div>}
+                  {resultCategory(result.decision) === 'concern' && <div className="mt-4 p-3 rounded-xl bg-[#FBF3E4] border border-[#E9D3A4] text-xs text-[#7B5B1D] flex gap-2"><AlertTriangle size={14} className="flex-shrink-0 mt-0.5" />Clinical concern was flagged by the application's decision-support layer. Clinician review is advised.</div>}
                 </Section>
 
                 <Section title="Uncertainty" eyebrow="Model confidence boundary">
