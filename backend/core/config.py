@@ -67,11 +67,17 @@ class Settings:
     NUM_CLASSES = 7
 
     CLASSES = ['akiec', 'bcc', 'bkl', 'df', 'mel', 'nv', 'vasc']
-    MALIGNANT_CLASSES = ['akiec', 'bcc', 'mel']
+
+    # Only BCC and MEL are treated as malignant classes for the binary
+    # malignant/not-malignant presentation layer. AKIEC is kept as a
+    # separate clinical-concern class because the HAM10000 category combines
+    # actinic keratoses with intraepithelial carcinoma/Bowen disease.
+    MALIGNANT_CLASSES = ['bcc', 'mel']
+    CLINICAL_CONCERN_CLASSES = ['akiec', 'bcc', 'mel']
     MINORITY_CLASSES  = ['df', 'vasc', 'akiec']
 
     CLASS_FULL_NAMES = {
-        'akiec': 'Actinic Keratoses',
+        'akiec': 'Actinic Keratoses / Intraepithelial Carcinoma',
         'bcc':   'Basal Cell Carcinoma',
         'bkl':   'Benign Keratosis',
         'df':    'Dermatofibroma',
