@@ -162,6 +162,18 @@ def attach_diagnosis(lesion_id: int, diagnosis_id: int, db: Session = Depends(ge
     return {"message": "Diagnosis added to lesion", "lesion_id": lesion.id, "diagnosis_id": diagnosis.id}
 
 
+@router.get("/api/diagnose/unassigned")
+def unassigned_diagnoses(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """Return every diagnosis owned by the patient that is not linked to a lesion."""
+    diagnoses = (
+        db.query(Diagnosis)
+        .filter(Diagnosis.user_id == current_user.id, Diagnosis.lesion_id.is_(None))
+        .order_by(Diagnosis.created_at.desc(), Diagnosis.id.desc())
+        .all()
+    )
+    return [_diagnosis_payload(d) for d in diagnoses]
+
+
 @router.get("/api/diagnose/summary")
 def patient_diagnosis_summary(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Return all-time patient metrics without relying on the paginated history endpoint."""
