@@ -33,6 +33,14 @@ test('dashboard report downloads use authenticated API helper', () => {
 })
 
 
+test('dashboard uses database-backed summary metrics', () => {
+  assert.match(api, /summary:\s*\(\) => api\.get\('\/diagnose\/summary'\)/)
+  assert.match(dashboard, /diagnoseApi\.summary\(\)/)
+  assert.match(dashboard, /summary\?\.total_diagnoses/)
+  assert.match(dashboard, /summary\?\.class_distribution/)
+})
+
+
 test('auth provider clears stale user state when no token exists', () => {
   assert.match(app, /const token = localStorage\.getItem\('token'\)/)
   assert.match(app, /if \(!token\) \{\s*localStorage\.removeItem\('user'\)\s*setUser\(null\)/s)
