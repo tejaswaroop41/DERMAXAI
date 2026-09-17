@@ -17,7 +17,7 @@ def _image_result(predicted_class="nv", confidence=0.80):
         "class_name": predicted_class,
         "confidence": classes[predicted_class],
         "class_probabilities": classes,
-        "is_malignant": predicted_class in {"akiec", "bcc", "mel"},
+        "is_malignant": predicted_class in {"bcc", "mel"},
     }
 
 
@@ -29,7 +29,7 @@ def _risk(symptoms=0.0, demographics=0.0, urgent=False):
     }
 
 
-def test_urgent_symptoms_do_not_turn_benign_prediction_malignant():
+def test_urgent_symptoms_do_not_turn_non_malignant_prediction_malignant():
     engine = DecisionEngine()
     result = engine.fuse(
         image_result=_image_result("nv", 0.80),
@@ -58,6 +58,24 @@ def test_malignant_image_prediction_remains_malignant():
     assert result["predicted_class"] == "mel"
     assert result["is_malignant"] is True
     assert result["predicted_malignant"] is True
+    assert result["predicted_clinical_concern"] is True
+
+
+def test_akiec_is_clinical_concern_but_not_malignant():
+    engine = DecisionEngine()
+    result = engine.fuse(
+        image_result=_image_result("akiec", 0.80),
+        symptom_risk=_risk(),
+        demographic_risk={"demographic_risk_score": 0.0},
+        uncertainty={"requires_review": False},
+    )
+
+    assert result["predicted_class"] == "akiec"
+    assert result["is_malignant"] is False
+    assert result["predicted_malignant"] is False
+    assert result["predicted_clinical_concern"] is True
+    assert result["clinical_concern"] is True
+    assert result["clinical_concern_mass"] > 0.0
 
 
 def test_cmca_score_changes_when_non_image_modalities_change():
