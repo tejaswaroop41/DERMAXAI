@@ -29,6 +29,20 @@ const CLASS_NAMES = {
   df: 'Dermatofibroma',
   vasc: 'Vascular Lesions',
 }
+const CLINICAL_CONCERN_CLASSES = ['akiec', 'bcc', 'mel']
+
+function clinicalCategory(diagnosis) {
+  if (diagnosis.is_malignant) return 'malignant'
+  if (diagnosis.clinical_concern ?? (CLINICAL_CONCERN_CLASSES.includes(diagnosis.predicted_class) || diagnosis.requires_review)) return 'concern'
+  return 'non-malignant'
+}
+
+function ClinicalBadge({ diagnosis }) {
+  const category = clinicalCategory(diagnosis)
+  if (category === 'malignant') return <span className="badge-malignant">Malignant</span>
+  if (category === 'concern') return <span className="badge-review">Clinical concern</span>
+  return <span className="badge-benign">Non-malignant</span>
+}
 
 function StatCard({ icon: Icon, label, value, detail, tone = 'teal' }) {
   const tones = {
@@ -83,7 +97,8 @@ function PatientDashboard({ user }) {
   }, [])
 
   const total = summary?.total_diagnoses ?? history.length
-  const malignant = summary?.malignant_count ?? history.filter(d => d.is_malignant).length
+  const malignant = summary?.malignant_count ?? history.filter(d => clinicalCategory(d) === 'malignant').length
+  const clinicalConcern = summary?.clinical_concern_count ?? history.filter(d => clinicalCategory(d) === 'concern').length
   const review = summary?.review_required ?? history.filter(d => d.requires_review).length
   const avgConf = summary
     ? (summary.average_confidence * 100).toFixed(1)
@@ -134,11 +149,12 @@ function PatientDashboard({ user }) {
           </Link>
         )}
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-10">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4 mb-10">
           <StatCard icon={Microscope} label="Total diagnoses" value={total} detail="All recorded assessments" />
           <StatCard icon={AlertTriangle} label="Malignant flags" value={malignant} detail={total ? `${((malignant / total) * 100).toFixed(0)}% of your assessments` : 'No malignant flags'} tone="red" />
+          <StatCard icon={ShieldCheck} label="Clinical concern" value={clinicalConcern} detail="Malignant or review-concerning cases" tone="amber" />
           <StatCard icon={Clock3} label="Needs review" value={review} detail="Cases marked for attention" tone="amber" />
-          <StatCard icon={TrendingUp} label="Average confidence" value={`${avgConf}%`} detail="Fused CMCA confidence" tone="green" />
+          <StatCard icon={TrendingUp} label="Average confidence" value={`${avgConf}%`} detail="Image-class confidence" tone="green" />
         </div>
 
         <div className="grid lg:grid-cols-[1.55fr_.95fr] gap-6">
@@ -171,7 +187,7 @@ function PatientDashboard({ user }) {
                       <div className="flex-1 min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="text-sm font-semibold text-ink truncate">{CLASS_NAMES[d.predicted_class] || d.predicted_class}</span>
-                          {d.is_malignant ? <span className="badge-malignant">Malignant</span> : <span className="badge-benign">Benign</span>}
+                          <ClinicalBadge diagnosis={d} />
                           {d.requires_review && <span className="badge-review">Review</span>}
                         </div>
                         <div className="text-xs text-muted mt-1">
@@ -280,7 +296,7 @@ function DoctorDashboard({ user }) {
                     <div className="flex-1 min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="text-sm font-semibold text-ink truncate">{c.class_name}</span>
-                        {c.is_malignant && <span className="badge-malignant">Malignant</span>}
+                        <ClinicalBadge diagnosis={c} />
                         {c.urgency_escalated && <span className="badge-review">Urgent</span>}
                       </div>
                       <div className="text-xs text-muted mt-1">{c.patient_name} <span className="mx-1">·</span> {(c.fused_confidence * 100).toFixed(1)}% confidence</div>
