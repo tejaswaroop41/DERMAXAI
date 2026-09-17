@@ -7,6 +7,7 @@ const root = path.resolve(import.meta.dirname, '..')
 const register = fs.readFileSync(path.join(root, 'src/pages/Register.jsx'), 'utf8')
 const admin = fs.readFileSync(path.join(root, 'src/pages/Admin.jsx'), 'utf8')
 const dashboard = fs.readFileSync(path.join(root, 'src/pages/Dashboard.jsx'), 'utf8')
+const lesions = fs.readFileSync(path.join(root, 'src/pages/Lesions.jsx'), 'utf8')
 const api = fs.readFileSync(path.join(root, 'src/lib/api.js'), 'utf8')
 const app = fs.readFileSync(path.join(root, 'src/App.jsx'), 'utf8')
 
@@ -38,6 +39,14 @@ test('dashboard uses database-backed summary metrics', () => {
   assert.match(dashboard, /diagnoseApi\.summary\(\)/)
   assert.match(dashboard, /summary\?\.total_diagnoses/)
   assert.match(dashboard, /summary\?\.class_distribution/)
+})
+
+
+test('lesion tracker uses server-defined unassigned diagnoses', () => {
+  assert.match(api, /unassigned:\s*\(\) => api\.get\('\/diagnose\/unassigned'\)/)
+  assert.match(lesions, /diagnoseApi\.unassigned\(\)/)
+  assert.match(lesions, /setUnassigned\(unassignedResponse\.data \|\| \[\]\)/)
+  assert.doesNotMatch(lesions, /const assigned = new Set\(lesions\.flatMap/)
 })
 
 
