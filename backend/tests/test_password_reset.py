@@ -18,13 +18,13 @@ from core.auth import (
     hash_reset_nonce,
     reset_nonce_matches,
 )
-from core.database import Base, User, engine
+from core.database import Base, User, create_tables, engine
 
 
 class PasswordResetTokenTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        Base.metadata.create_all(bind=engine)
+        create_tables()
 
     @classmethod
     def tearDownClass(cls):
