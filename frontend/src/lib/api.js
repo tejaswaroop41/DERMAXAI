@@ -113,7 +113,7 @@ export const reportApi = {
 
 export const patientApi = {
   getProfile: () => api.get('/patients/profile'),
-  updateProfile: d => api.put('/patients/profile', d),
+  updateProfile: d => api.patch('/patients/profile', d),
 }
 
 export const adminApi = {
