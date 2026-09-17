@@ -15,13 +15,17 @@ export default function Profile() {
     patientApi.getProfile().then(r => setForm(r.data)).catch(() => {}).finally(() => setLoading(false))
   }, [])
 
+  const emptyToNull = value => value === '' || value == null ? null : value
+
   const save = async () => {
     setSaving(true)
     try {
       await patientApi.updateProfile({
-        age: form.age === '' || form.age == null ? null : Number(form.age),
-        gender: form.gender, skin_type: form.skin_type,
-        medical_history: form.medical_history, sun_exposure: form.sun_exposure
+        age: emptyToNull(form.age) === null ? null : Number(form.age),
+        gender: emptyToNull(form.gender),
+        skin_type: emptyToNull(form.skin_type),
+        medical_history: emptyToNull(form.medical_history),
+        sun_exposure: emptyToNull(form.sun_exposure)
       })
       toast.success('Profile updated!')
     } catch { toast.error('Update failed') }
@@ -52,7 +56,7 @@ export default function Profile() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-xs text-muted mb-1.5 block">Age</label>
-                <input type="number" className="input-glass" placeholder="Your age" value={form.age || ''} onChange={e => setForm(p => ({ ...p, age: e.target.value }))} />
+                <input type="number" className="input-glass" placeholder="Your age" value={form.age ?? ''} onChange={e => setForm(p => ({ ...p, age: e.target.value }))} />
               </div>
               <div>
                 <label className="text-xs text-muted mb-1.5 block">Gender</label>

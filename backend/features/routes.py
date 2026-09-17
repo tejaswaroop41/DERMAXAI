@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 
 from core.auth import get_current_user, require_admin
 from core.config import settings
-from core.database import Diagnosis, DoctorReview, Lesion, User, get_db
+from core.database import Diagnosis, DoctorReview, Lesion, Patient, User, get_db
 
 router = APIRouter()
 _mounted = False
@@ -29,6 +29,16 @@ class LesionUpdate(BaseModel):
     name: Optional[str] = Field(default=None, min_length=1, max_length=100)
     body_site: Optional[str] = Field(default=None, max_length=120)
     notes: Optional[str] = Field(default=None, max_length=2000)
+
+
+class PatientProfilePatch(BaseModel):
+    """Partial patient profile update; explicit null values clear fields."""
+
+    age: Optional[int] = Field(default=None, ge=0, le=120)
+    gender: Optional[str] = Field(default=None, max_length=30)
+    skin_type: Optional[str] = Field(default=None, max_length=30)
+    medical_history: Optional[str] = Field(default=None, max_length=5000)
+    sun_exposure: Optional[str] = Field(default=None, max_length=30)
 
 
 def _diagnosis_payload(d: Diagnosis) -> dict:
@@ -176,6 +186,31 @@ def attach_diagnosis(lesion_id: int, diagnosis_id: int, db: Session = Depends(ge
     lesion.updated_at = datetime.utcnow()
     db.commit()
     return {"message": "Diagnosis added to lesion", "lesion_id": lesion.id, "diagnosis_id": diagnosis.id}
+
+
+@router.patch("/api/patients/profile")
+def patch_patient_profile(req: PatientProfilePatch, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """Partially update a patient profile while preserving explicit nulls."""
+    patient = db.query(Patient).filter(Patient.user_id == current_user.id).first()
+    if not patient:
+        raise HTTPException(status_code=404, detail="Profile not found")
+
+    for field, value in req.model_dump(exclude_unset=True).items():
+        setattr(patient, field, value.strip() if isinstance(value, str) else value)
+
+    db.commit()
+    db.refresh(patient)
+    return {
+        "message": "Profile updated successfully",
+        "profile": {
+            "id": patient.id,
+            "age": patient.age,
+            "gender": patient.gender,
+            "skin_type": patient.skin_type,
+            "medical_history": patient.medical_history,
+            "sun_exposure": patient.sun_exposure,
+        },
+    }
 
 
 @router.get("/api/diagnose/unassigned")
