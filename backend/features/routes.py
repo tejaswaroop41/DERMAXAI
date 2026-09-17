@@ -4,9 +4,11 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from core.auth import get_current_user, require_admin
@@ -95,6 +97,20 @@ def compute_admin_performance(diagnoses: list[Diagnosis], reviews: list[DoctorRe
         "average_review_turnaround_hours": round(sum(turnaround_hours) / len(turnaround_hours), 2) if turnaround_hours else None,
         "class_distribution": distribution,
     }
+
+
+def doctor_claim_integrity_error_handler(request: Request, exc: IntegrityError):
+    """Turn the doctor-review uniqueness race into a stable 409 response."""
+    message = str(getattr(exc, "orig", exc))
+    if "doctor_reviews" in message and "diagnosis_id" in message:
+        return JSONResponse(
+            status_code=409,
+            content={"detail": "Diagnosis already claimed by another doctor"},
+        )
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Database integrity error"},
+    )
 
 
 @router.post("/api/lesions")
@@ -225,4 +241,5 @@ def mount_feature_routes() -> None:
     except Exception:
         return
     fastapi_app.include_router(router)
+    fastapi_app.add_exception_handler(IntegrityError, doctor_claim_integrity_error_handler)
     _mounted = True
