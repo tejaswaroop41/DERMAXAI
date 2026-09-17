@@ -17,29 +17,29 @@ from ai.text_negation import is_negated
 # High-risk clinical keywords associated with malignant transformation
 URGENT_KEYWORDS = {
     "bleeding":        0.25,
-    "bleeds":           0.25,
-    "ulcer":            0.25,
-    "ulcerated":        0.25,
-    "rapid growth":     0.30,
-    "rapidly growing":  0.30,
-    "growing fast":     0.30,
-    "irregular border":  0.20,
-    "irregular shape":  0.20,
-    "color change":     0.20,
-    "changed color":    0.20,
-    "asymmetric":       0.15,
-    "itching":          0.10,
-    "itchy":            0.10,
-    "painful":          0.15,
-    "pain":             0.15,
-    "crusting":         0.15,
-    "oozing":           0.20,
-    "new mole":         0.10,
-    "darkening":        0.15,
+    "bleeds":          0.25,
+    "ulcer":           0.25,
+    "ulcerated":       0.25,
+    "rapid growth":    0.30,
+    "rapidly growing": 0.30,
+    "growing fast":    0.30,
+    "irregular border": 0.20,
+    "irregular shape": 0.20,
+    "color change":    0.20,
+    "changed color":   0.20,
+    "asymmetric":      0.15,
+    "itching":         0.10,
+    "itchy":           0.10,
+    "painful":         0.15,
+    "pain":            0.15,
+    "crusting":        0.15,
+    "oozing":          0.20,
+    "new mole":        0.10,
+    "darkening":       0.15,
 }
 
 DURATION_PATTERNS = [
-    (r'(\d+)\s*(day|days)',   'days'),
+    (r'(\d+)\s*(day|days)', 'days'),
     (r'(\d+)\s*(week|weeks)', 'weeks'),
     (r'(\d+)\s*(month|months)', 'months'),
     (r'(\d+)\s*(year|years)', 'years'),
@@ -75,7 +75,7 @@ class BioBERTEngine:
             match = re.search(pattern, text_lower)
             if match:
                 value = int(match.group(1))
-                days  = {"days": 1, "weeks": 7, "months": 30, "years": 365}[unit]
+                days = {"days": 1, "weeks": 7, "months": 30, "years": 365}[unit]
                 return {"value": value, "unit": unit, "days_approx": value * days}
         return None
 
@@ -94,11 +94,14 @@ class BioBERTEngine:
 
         text_lower = text.lower()
         matched = []
+        seen_keywords = set()
         risk_score = 0.0
         matched_spans = []
 
         # Evaluate longer phrases first and prevent overlapping spans from
         # contributing twice (e.g. "painful" must not also count as "pain").
+        # Repeated occurrences of the same clinical keyword also count only
+        # once so narrative repetition cannot inflate the risk score.
         keyword_matches = []
         for kw, weight in URGENT_KEYWORDS.items():
             for match in re.finditer(re.escape(kw), text_lower):
@@ -106,11 +109,14 @@ class BioBERTEngine:
 
         keyword_matches.sort(key=lambda item: (-(item[1] - item[0]), item[0]))
         for start, end, kw, weight in keyword_matches:
+            if kw in seen_keywords:
+                continue
             if any(start < used_end and end > used_start for used_start, used_end in matched_spans):
                 continue
             if is_negated(text_lower, start):
                 continue
             matched.append(kw)
+            seen_keywords.add(kw)
             risk_score += weight
             matched_spans.append((start, end))
 
