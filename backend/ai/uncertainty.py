@@ -82,9 +82,9 @@ class UncertaintyEngine:
         samples = np.vstack([self._normalize_distribution(row) for row in samples])
 
         mc_mean = samples.mean(axis=0)
-        predictive_entropy = self.predictive_entropy(mc_mean)
+        normalized_entropy = self.predictive_entropy(mc_mean)
         expected_entropy = float(np.mean([self.predictive_entropy(row) for row in samples]))
-        epistemic = float(np.clip(predictive_entropy - expected_entropy, 0.0, 1.0))
+        epistemic = float(np.clip(normalized_entropy - expected_entropy, 0.0, 1.0))
         aleatory = float(np.clip(expected_entropy, 0.0, 1.0))
         fusion = self.jensen_shannon_divergence(tta_probs, mc_mean)
 
@@ -98,7 +98,9 @@ class UncertaintyEngine:
             "epistemic_uncertainty": round(epistemic, 4),
             "fusion_uncertainty": round(fusion, 4),
             "composite_uncertainty": round(composite, 4),
-            "raw_entropy": round(predictive_entropy, 4),
+            "normalized_entropy": round(normalized_entropy, 4),
+            # Backward-compatible alias for older clients.
+            "raw_entropy": round(normalized_entropy, 4),
             "theta_H": round(self.theta_H, 4),
             "requires_review": bool(requires_review),
             "confidence_level": self._confidence_label(composite),
