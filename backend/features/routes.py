@@ -1,4 +1,4 @@
-"""Additive feature routes: lesion tracking and admin analytics."""
+"""Additive feature routes: lesion tracking and admin/patient analytics."""
 from __future__ import annotations
 
 from datetime import datetime
@@ -6,6 +6,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from core.auth import get_current_user, require_admin
@@ -159,6 +160,33 @@ def attach_diagnosis(lesion_id: int, diagnosis_id: int, db: Session = Depends(ge
     lesion.updated_at = datetime.utcnow()
     db.commit()
     return {"message": "Diagnosis added to lesion", "lesion_id": lesion.id, "diagnosis_id": diagnosis.id}
+
+
+@router.get("/api/diagnose/summary")
+def patient_diagnosis_summary(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """Return all-time patient metrics without relying on the paginated history endpoint."""
+    base_filter = Diagnosis.user_id == current_user.id
+    total = db.query(func.count(Diagnosis.id)).filter(base_filter).scalar() or 0
+    malignant = db.query(func.count(Diagnosis.id)).filter(base_filter, Diagnosis.is_malignant.is_(True)).scalar() or 0
+    needs_review = db.query(func.count(Diagnosis.id)).filter(base_filter, Diagnosis.requires_review.is_(True)).scalar() or 0
+    average_confidence = db.query(func.avg(Diagnosis.fused_confidence)).filter(base_filter).scalar()
+
+    distribution_rows = (
+        db.query(Diagnosis.predicted_class, func.count(Diagnosis.id))
+        .filter(base_filter)
+        .group_by(Diagnosis.predicted_class)
+        .all()
+    )
+
+    return {
+        "total_diagnoses": int(total),
+        "malignant_count": int(malignant),
+        "review_required": int(needs_review),
+        "average_confidence": round(float(average_confidence), 4) if average_confidence is not None else 0.0,
+        "class_distribution": {
+            class_code or "unknown": int(count) for class_code, count in distribution_rows
+        },
+    }
 
 
 @router.get("/api/admin/performance")
