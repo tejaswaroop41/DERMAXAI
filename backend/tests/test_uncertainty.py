@@ -21,7 +21,9 @@ def test_mc_dropout_decomposes_aleatory_and_epistemic_uncertainty():
     assert 0.0 < result["epistemic_uncertainty"] <= 1.0
     assert 0.0 <= result["fusion_uncertainty"] <= 1.0
     assert 0.0 <= result["composite_uncertainty"] <= 1.0
-    assert result["raw_entropy"] >= result["aleatory_uncertainty"]
+    assert 0.0 <= result["normalized_entropy"] <= 1.0
+    assert result["normalized_entropy"] == result["raw_entropy"]
+    assert result["normalized_entropy"] >= result["aleatory_uncertainty"]
 
 
 def test_identical_mc_samples_have_zero_epistemic_uncertainty():
@@ -32,7 +34,8 @@ def test_identical_mc_samples_have_zero_epistemic_uncertainty():
     result = engine.composite_uncertainty(raw_probs=probs, mc_probs=mc_samples)
 
     assert result["epistemic_uncertainty"] == 0.0
-    assert result["aleatory_uncertainty"] == result["raw_entropy"]
+    assert result["aleatory_uncertainty"] == result["normalized_entropy"]
+    assert result["normalized_entropy"] == result["raw_entropy"]
 
 
 def test_uncertainty_requires_mc_probabilities():
