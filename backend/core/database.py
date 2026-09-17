@@ -168,6 +168,39 @@ class DoctorReview(Base):
     doctor = relationship("User")
 
 
+def _ensure_security_triggers():
+    """Create idempotent SQLite triggers used by legacy/dev/test database setup."""
+    from sqlalchemy import text
+
+    with engine.begin() as conn:
+        conn.execute(text(
+            """
+            CREATE TRIGGER IF NOT EXISTS trg_users_password_change_revoke_tokens
+            AFTER UPDATE OF hashed_password ON users
+            FOR EACH ROW
+            WHEN OLD.hashed_password IS NOT NEW.hashed_password
+            BEGIN
+                UPDATE users
+                SET token_version = COALESCE(token_version, 0) + 1
+                WHERE id = NEW.id;
+            END;
+            """
+        ))
+        conn.execute(text(
+            """
+            CREATE TRIGGER IF NOT EXISTS trg_users_deactivation_revoke_tokens
+            AFTER UPDATE OF is_active ON users
+            FOR EACH ROW
+            WHEN OLD.is_active IS NOT NEW.is_active AND NEW.is_active = 0
+            BEGIN
+                UPDATE users
+                SET token_version = COALESCE(token_version, 0) + 1
+                WHERE id = NEW.id;
+            END;
+            """
+        ))
+
+
 def create_tables():
     """
     Create missing tables and apply additive SQLite-compatible column/index migrations.
@@ -186,10 +219,11 @@ def create_tables():
             if col.name in existing_cols:
                 continue
             col_type = col.type.compile(engine.dialect)
+            default_sql = " DEFAULT 0" if table.name == "users" and col.name == "token_version" else ""
             with engine.begin() as conn:
                 conn.execute(
                     text(
-                        f'ALTER TABLE "{table.name}" ADD COLUMN "{col.name}" {col_type}'
+                        f'ALTER TABLE "{table.name}" ADD COLUMN "{col.name}" {col_type}{default_sql}'
                     )
                 )
             print(f"[INFO] Auto-migration: added missing column {table.name}.{col.name}")
@@ -234,6 +268,9 @@ def create_tables():
                     "Cannot normalize user emails because case-insensitive duplicates exist: " + values
                 )
             conn.execute(text('UPDATE "users" SET email = LOWER(TRIM(email))'))
+            conn.execute(text('UPDATE "users" SET token_version = COALESCE(token_version, 0)'))
+
+    _ensure_security_triggers()
 
     # Only mount feature routes when FastAPI is already importing/running app.py.
     # Database-only tests and scripts should not pull the full AI application stack.
