@@ -176,6 +176,14 @@ def _can_view_diagnosis(diag: Diagnosis, current_user: User) -> bool:
     return current_user.role == "doctor"
 
 
+def _clinical_concern_for_diagnosis(diag: Diagnosis) -> bool:
+    """Reconstruct the current clinical-concern decision for stored diagnoses."""
+    return bool(
+        diag.predicted_class in settings.CLINICAL_CONCERN_CLASSES
+        or diag.requires_review
+    )
+
+
 def _review_payload(diag: Diagnosis) -> Optional[dict]:
     if not diag.review:
         return None
@@ -523,6 +531,7 @@ def get_history(db: Session = Depends(get_db), current_user: User = Depends(get_
             "fused_confidence": d.fused_confidence,
             "composite_uncertainty": d.composite_uncertainty,
             "is_malignant": d.is_malignant,
+            "clinical_concern": _clinical_concern_for_diagnosis(d),
             "requires_review": d.requires_review,
             "created_at": d.created_at,
             "report_url": f"/api/reports/{d.id}" if d.report_path else None,
@@ -613,6 +622,7 @@ def doctor_queue(db: Session = Depends(get_db), current_user: User = Depends(req
             "fused_confidence": d.fused_confidence,
             "composite_uncertainty": d.composite_uncertainty,
             "is_malignant": d.is_malignant,
+            "clinical_concern": _clinical_concern_for_diagnosis(d),
             "requires_review": d.requires_review,
             "urgency_escalated": d.urgency_escalated,
             "symptoms": d.symptoms,
