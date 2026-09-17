@@ -72,25 +72,32 @@ function SectionHeader({ eyebrow, title, action, to }) {
 
 function PatientDashboard({ user }) {
   const [history, setHistory] = useState([])
+  const [summary, setSummary] = useState(null)
   const [loading, setLoading] = useState(true)
   const [unread, setUnread] = useState(0)
 
   useEffect(() => {
     diagnoseApi.history().then(r => setHistory(r.data)).catch(() => {}).finally(() => setLoading(false))
+    diagnoseApi.summary().then(r => setSummary(r.data)).catch(() => {})
     diagnoseApi.unreadReviews().then(r => setUnread(r.data.unread_reviews)).catch(() => {})
   }, [])
 
-  const total = history.length
-  const malignant = history.filter(d => d.is_malignant).length
-  const review = history.filter(d => d.requires_review).length
-  const avgConf = total ? (history.reduce((s, d) => s + d.fused_confidence, 0) / total * 100).toFixed(1) : '0.0'
+  const total = summary?.total_diagnoses ?? history.length
+  const malignant = summary?.malignant_count ?? history.filter(d => d.is_malignant).length
+  const review = summary?.review_required ?? history.filter(d => d.requires_review).length
+  const avgConf = summary
+    ? (summary.average_confidence * 100).toFixed(1)
+    : total
+      ? (history.reduce((s, d) => s + d.fused_confidence, 0) / total * 100).toFixed(1)
+      : '0.0'
 
-  const classDist = useMemo(() => Object.entries(
-    history.reduce((acc, d) => {
+  const classDist = useMemo(() => {
+    const source = summary?.class_distribution || history.reduce((acc, d) => {
       acc[d.predicted_class] = (acc[d.predicted_class] || 0) + 1
       return acc
     }, {})
-  ).map(([cls, count]) => ({ cls, count, name: cls.toUpperCase() })), [history])
+    return Object.entries(source).map(([cls, count]) => ({ cls, count, name: cls.toUpperCase() }))
+  }, [summary, history])
 
   const recent = history.slice(0, 5)
   const firstName = user?.name?.trim()?.split(/\s+/)[0] || 'there'
