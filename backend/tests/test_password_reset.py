@@ -1,9 +1,18 @@
+import atexit
 import os
+import tempfile
 import unittest
 
 os.environ.setdefault("DEBUG", "true")
 os.environ.setdefault("SECRET_KEY", "test-secret-key-for-password-reset")
-os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
+TEST_DB_PATH = os.path.join(
+    tempfile.gettempdir(), f"dermaxai_password_reset_{os.getpid()}.db"
+)
+try:
+    os.remove(TEST_DB_PATH)
+except FileNotFoundError:
+    pass
+os.environ.setdefault("DATABASE_URL", f"sqlite:///{TEST_DB_PATH}")
 
 from fastapi import HTTPException
 from fastapi.security import HTTPAuthorizationCredentials
@@ -21,6 +30,17 @@ from core.auth import (
 from core.database import Base, User, create_tables, engine
 
 
+def _cleanup_test_db():
+    engine.dispose()
+    try:
+        os.remove(TEST_DB_PATH)
+    except FileNotFoundError:
+        pass
+
+
+atexit.register(_cleanup_test_db)
+
+
 class PasswordResetTokenTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -29,6 +49,7 @@ class PasswordResetTokenTests(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         Base.metadata.drop_all(bind=engine)
+        _cleanup_test_db()
 
     def test_token_contains_password_reset_purpose_and_nonce(self):
         nonce = "nonce-123"
