@@ -16,3 +16,11 @@ def test_separate_pain_and_painful_mentions_count_independently_when_non_overlap
     assert "painful" in result["matched_keywords"]
     assert "pain" in result["matched_keywords"]
     assert result["symptom_risk_score"] == 0.30
+
+
+def test_repeated_same_keyword_is_counted_once():
+    engine = BioBERTEngine(use_transformer=False)
+    result = engine.compute_symptom_risk("The lesion is bleeding and keeps bleeding.")
+
+    assert result["matched_keywords"] == ["bleeding"]
+    assert result["symptom_risk_score"] == 0.25
