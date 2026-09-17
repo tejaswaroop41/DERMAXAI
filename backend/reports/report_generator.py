@@ -25,6 +25,7 @@ LIGHT = colors.HexColor("#F8FAFC")
 RED   = colors.HexColor("#EF4444")
 GREEN = colors.HexColor("#22C55E")
 GRAY  = colors.HexColor("#64748B")
+AMBER = colors.HexColor("#B08135")
 
 
 def generate_report(decision: dict, uncertainty: dict,
@@ -77,20 +78,36 @@ def generate_report(decision: dict, uncertainty: dict,
 
     # ── Diagnosis result ─────────────────────────────────
     story.append(HRFlowable(width="100%", thickness=1, color=GRAY))
-    story.append(Paragraph("Diagnosis Result", h2_style))
+    story.append(Paragraph("Diagnostic Output", h2_style))
 
-    is_mal     = decision["is_malignant"]
-    req_review = decision["requires_review"]
+    is_mal = bool(decision.get("is_malignant", False))
+    clinical_concern = bool(decision.get("clinical_concern", False))
+    req_review = bool(decision.get("requires_review", False))
+
+    classification_label = (
+        "MALIGNANT" if is_mal
+        else "CLINICAL CONCERN" if clinical_concern
+        else "NON-MALIGNANT"
+    )
+    classification_note = (
+        "Clinical review is advised for this malignant class prediction."
+        if is_mal else
+        "The predicted class is not presented as malignant, but the multimodal workflow indicates clinical concern/review."
+        if clinical_concern else
+        "No automated malignant classification or clinical-concern escalation was generated."
+    )
 
     result_data = [
         ["Predicted Class",     f"{decision['class_name']} ({decision['predicted_class'].upper()})"],
         ["Diagnostic Confidence", f"{decision['fused_confidence']*100:.1f}%"],
         ["Malignant Probability Mass", f"{decision.get('malignancy_mass', 0.0)*100:.1f}%"],
-        ["Predictive Uncertainty (Entropy)",
-            f"{uncertainty.get('raw_entropy', 0):.4f} nats  (calibrated threshold: {uncertainty.get('theta_H', 0):.4f})"],
+        ["Clinical Concern Mass", f"{decision.get('clinical_concern_mass', 0.0)*100:.1f}%"],
+        ["Normalized Predictive Entropy",
+            f"{uncertainty.get('raw_entropy', 0):.4f}  (calibrated threshold: {uncertainty.get('theta_H', 0):.4f})"],
         ["Uncertainty Level",  f"{uncertainty['composite_uncertainty']:.4f}  ({uncertainty['confidence_level']})"],
-        ["Malignancy Risk",   "\u26a0 MALIGNANT — Urgent Referral Advised" if is_mal else "\u2713 BENIGN"],
-        ["Review Status",     "REQUIRES CLINICAL REVIEW" if req_review else "Auto-Accepted"],
+        ["Clinical Classification", classification_label],
+        ["Classification Note", classification_note],
+        ["Review Status",     "REQUIRES CLINICAL REVIEW" if req_review else "No Automated Review Escalation"],
         ["Urgency Level",     recommendation["urgency_level"]],
     ]
     r_table = Table(result_data, colWidths=[6*cm, 11*cm])
@@ -99,11 +116,12 @@ def generate_report(decision: dict, uncertainty: dict,
         ("FONTNAME", (0,0), (0,-1), "Helvetica-Bold"),
         ("FONTSIZE", (0,0), (-1,-1), 10),
         ("BACKGROUND", (0,0), (0,-1), LIGHT),
-        ("BACKGROUND", (1,5), (1,5), RED if is_mal else GREEN),
-        ("TEXTCOLOR", (1,5), (1,5), colors.white),
-        ("FONTNAME", (1,5), (1,5), "Helvetica-Bold"),
+        ("BACKGROUND", (1,6), (1,6), RED if is_mal else AMBER if clinical_concern else GREEN),
+        ("TEXTCOLOR", (1,6), (1,6), colors.white),
+        ("FONTNAME", (1,6), (1,6), "Helvetica-Bold"),
         ("GRID", (0,0), (-1,-1), 0.5, colors.white),
         ("PADDING", (0,0), (-1,-1), 8),
+        ("VALIGN", (0,0), (-1,-1), "TOP"),
         ("ROWBACKGROUNDS", (0,0), (-1,-1), [LIGHT, colors.white]),
     ]))
     story.append(r_table)
@@ -123,8 +141,8 @@ def generate_report(decision: dict, uncertainty: dict,
 
     mw_data = [
     ["Signal", "Relative Contribution"],
-    [f"Image ({model_name}) malignancy mass", f"{mw['image']*100:.1f}%"],
-    ["Symptom Analysis (BioBERT/NLP)", f"{mw['symptoms']*100:.1f}%"],
+    [f"Image ({model_name}) clinical-concern mass", f"{mw['image']*100:.1f}%"],
+    ["Symptom Analysis (Rule-based NLP)", f"{mw['symptoms']*100:.1f}%"],
     ["Demographic Risk Factors", f"{mw['demographics']*100:.1f}%"],
 ]
     mw_table = Table(mw_data, colWidths=[10*cm, 7*cm])
@@ -144,9 +162,14 @@ def generate_report(decision: dict, uncertainty: dict,
     # ── Class probabilities ───────────────────────────────
     story.append(Paragraph("Class Probability Distribution", h2_style))
     probs = decision["class_probabilities"]
-    prob_data = [["Class", "Probability", "Risk Level"]]
+    prob_data = [["Class", "Probability", "Risk Category"]]
     for cls, prob in sorted(probs.items(), key=lambda x: -x[1]):
-        risk = "Malignant" if cls in settings.MALIGNANT_CLASSES else "Benign"
+        if cls in settings.MALIGNANT_CLASSES:
+            risk = "Malignant"
+        elif cls in settings.CLINICAL_CONCERN_CLASSES:
+            risk = "Clinical concern"
+        else:
+            risk = "Non-malignant"
         prob_data.append([cls.upper(), f"{prob*100:.2f}%", risk])
     p_table = Table(prob_data, colWidths=[5*cm, 6*cm, 6*cm])
     p_table.setStyle(TableStyle([
