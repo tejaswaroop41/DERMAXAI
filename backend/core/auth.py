@@ -13,7 +13,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 
 from core.config import settings
-from core.database import get_db, User
+from core.database import get_db, SessionLocal, User
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 bearer = HTTPBearer()
@@ -27,8 +27,17 @@ def verify_password(plain: str, hashed: str) -> bool:
     return pwd_context.verify(plain, hashed)
 
 
+def _current_token_version(user_id: int) -> int:
+    """Read the current session generation when issuing a normal access token."""
+    with SessionLocal() as db:
+        user = db.query(User).filter(User.id == int(user_id)).first()
+        return int(user.token_version or 0) if user else 0
+
+
 def create_token(data: dict) -> str:
     to_encode = data.copy()
+    if "sub" in to_encode and "token_version" not in to_encode:
+        to_encode["token_version"] = _current_token_version(int(to_encode["sub"]))
     to_encode["exp"] = datetime.utcnow() + timedelta(minutes=settings.TOKEN_EXPIRE_MINUTES)
     if "sub" in to_encode:
         to_encode["sub"] = str(to_encode["sub"])
@@ -95,9 +104,18 @@ def get_current_user(
         user_id = int(payload.get("sub"))
     except (TypeError, ValueError):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+
     user = db.query(User).filter(User.id == user_id).first()
     if not user or not user.is_active:
         raise HTTPException(status_code=401, detail="User not found or inactive")
+
+    try:
+        token_version = int(payload["token_version"])
+    except (KeyError, TypeError, ValueError):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+    if token_version != int(user.token_version or 0):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token has been revoked")
+
     return user
 
 
