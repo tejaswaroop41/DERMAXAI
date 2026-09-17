@@ -9,7 +9,6 @@ import {
   ClipboardPlus,
   MapPin,
   Plus,
-  RefreshCw,
   ShieldCheck,
   Trash2,
   TrendingUp,
@@ -53,7 +52,7 @@ function MiniMetric({ label, value, tone = 'neutral' }) {
 
 export default function Lesions() {
   const [lesions, setLesions] = useState([])
-  const [history, setHistory] = useState([])
+  const [unassigned, setUnassigned] = useState([])
   const [selectedId, setSelectedId] = useState(null)
   const [detail, setDetail] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -68,10 +67,13 @@ export default function Lesions() {
   const load = async (preferredId = null) => {
     setLoading(true)
     try {
-      const [lesionResponse, historyResponse] = await Promise.all([lesionApi.list(), diagnoseApi.history()])
+      const [lesionResponse, unassignedResponse] = await Promise.all([
+        lesionApi.list(),
+        diagnoseApi.unassigned(),
+      ])
       const next = lesionResponse.data || []
       setLesions(next)
-      setHistory(historyResponse.data || [])
+      setUnassigned(unassignedResponse.data || [])
       const nextId = preferredId ?? selectedId ?? next[0]?.id ?? null
       setSelectedId(nextId)
       if (nextId) {
@@ -90,12 +92,6 @@ export default function Lesions() {
   }
 
   useEffect(() => { load() }, [])
-
-  const unassigned = useMemo(() => {
-    const assigned = new Set(lesions.flatMap(l => l.latest ? [] : []))
-    if (detail?.diagnoses) detail.diagnoses.forEach(d => assigned.add(d.id))
-    return history.filter(d => !assigned.has(d.id))
-  }, [history, lesions, detail])
 
   const chartData = useMemo(() => (
     (detail?.diagnoses || []).map((d, index) => ({
