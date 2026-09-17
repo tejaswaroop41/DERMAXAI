@@ -32,6 +32,20 @@ const CLASS_NAMES = {
   df: 'Dermatofibroma',
   vasc: 'Vascular Lesions',
 }
+const CLINICAL_CONCERN_CLASSES = ['akiec', 'bcc', 'mel']
+
+function clinicalCategory(diagnosis) {
+  if (diagnosis.is_malignant) return 'malignant'
+  if (diagnosis.clinical_concern ?? (CLINICAL_CONCERN_CLASSES.includes(diagnosis.predicted_class) || diagnosis.requires_review)) return 'concern'
+  return 'non-malignant'
+}
+
+function ClinicalBadge({ diagnosis }) {
+  const category = clinicalCategory(diagnosis)
+  if (category === 'malignant') return <span className="badge-malignant">Malignant</span>
+  if (category === 'concern') return <span className="badge-review">Clinical concern</span>
+  return <span className="badge-benign">Non-malignant</span>
+}
 
 function formatDate(value) {
   if (!value) return '—'
@@ -291,7 +305,7 @@ export default function Lesions() {
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 flex-wrap">
                                 <span className="font-medium text-sm text-ink">{CLASS_NAMES[d.predicted_class] || d.predicted_class}</span>
-                                {d.is_malignant && <span className="badge-malignant">Malignant</span>}
+                                <ClinicalBadge diagnosis={d} />
                                 {d.requires_review && <span className="badge-review">Review</span>}
                               </div>
                               <div className="text-xs text-muted mt-1">{formatDate(d.created_at)} · {(d.fused_confidence * 100).toFixed(1)}% confidence · {d.composite_uncertainty?.toFixed(3)} uncertainty</div>
