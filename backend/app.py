@@ -292,16 +292,49 @@ def forgot_password(request: Request, req: ForgotPasswordRequest, db: Session = 
     nonce = secrets.token_urlsafe(32)
     token = create_password_reset_token(user.id, nonce)
     reset_link = f"{settings.FRONTEND_URL}/reset-password?token={token}"
+    nonce_hash = hash_reset_nonce(nonce)
+
+    # Persist the nonce before sending the link. An email containing a token
+    # must never be delivered before the matching database state is committed.
+    try:
+        user.password_reset_nonce_hash = nonce_hash
+        db.commit()
+    except Exception:
+        db.rollback()
+        logger.exception("Could not persist password reset nonce")
+        return generic_response
 
     try:
         send_password_reset_email(user.email, reset_link)
-        user.password_reset_nonce_hash = hash_reset_nonce(nonce)
-        db.commit()
     except EmailDeliveryError as exc:
-        db.rollback()
+        # Invalidate only the nonce generated for this request. A newer reset
+        # request may already have installed a different nonce in the meantime.
+        try:
+            db.query(User).filter(
+                User.id == user.id,
+                User.password_reset_nonce_hash == nonce_hash,
+            ).update(
+                {User.password_reset_nonce_hash: None},
+                synchronize_session=False,
+            )
+            db.commit()
+        except Exception:
+            db.rollback()
+            logger.exception("Could not clear failed password reset nonce")
         logger.warning("Password reset email delivery failed: %s", exc)
     except Exception:
-        db.rollback()
+        try:
+            db.query(User).filter(
+                User.id == user.id,
+                User.password_reset_nonce_hash == nonce_hash,
+            ).update(
+                {User.password_reset_nonce_hash: None},
+                synchronize_session=False,
+            )
+            db.commit()
+        except Exception:
+            db.rollback()
+            logger.exception("Could not clear failed password reset nonce")
         logger.exception("Unexpected password reset error")
 
     return generic_response
