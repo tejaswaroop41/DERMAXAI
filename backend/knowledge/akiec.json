@@ -1,7 +1,9 @@
 {
-  "name": "Actinic Keratoses",
+  "name": "Actinic Keratoses / Intraepithelial Carcinoma",
   "code": "akiec",
-  "is_malignant": true,
+  "is_malignant": false,
+  "clinical_concern": true,
+  "classification_note": "The HAM10000 AKIEC category combines actinic keratoses with intraepithelial carcinoma/Bowen disease. Actinic keratosis is a precancerous lesion; this class should therefore be treated as a clinical-concern category rather than a simple malignant/non-malignant binary label.",
 
   "overview": "Actinic Keratoses (AK) are precancerous skin lesions caused by long-term ultraviolet (UV) radiation exposure. They represent abnormal growth of keratinocytes within the epidermis. Although many lesions remain stable for years, some can progress into invasive squamous cell carcinoma if left untreated. Early recognition and treatment significantly reduce the risk of malignant transformation.",
 
