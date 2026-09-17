@@ -202,11 +202,13 @@ def _ensure_security_triggers():
 
 
 def _mount_feature_routes():
-    """Mount optional feature routes without coupling schema setup to imports."""
-    app_module = sys.modules.get("app")
-    if app_module is not None and hasattr(app_module, "app"):
-        from features.routes import mount_feature_routes
-        mount_feature_routes()
+    """Mount feature routes regardless of whether Uvicorn uses app:app or backend.app:app."""
+    for module_name in ("app", "backend.app"):
+        app_module = sys.modules.get(module_name)
+        if app_module is not None and hasattr(app_module, "app"):
+            from features.routes import mount_feature_routes
+            mount_feature_routes()
+            return
 
 
 def create_tables():
