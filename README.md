@@ -4,128 +4,145 @@
 > Final Year BE Project — Dr. AIT, Bengaluru | Course: 22CSP605 | 2025–26  
 > Guide: Dr. Suresha D, Assoc. Prof., CSE Programme
 
-DERMAXAI is a multimodal dermatology screening and clinical-review support system. This README is organized around one question: **which algorithm is used at which step of the DERMAXAI pipeline?**
+DERMAXAI is a multimodal dermatology screening and clinical-review support system. This README is intentionally focused on **which algorithm is used at which step** of the system and where that algorithm is implemented.
 
-## 1. Algorithm-to-Pipeline Mapping
+## Algorithm-to-Pipeline Mapping
 
-| Step | Algorithm / method | Implementation file | Purpose |
+| Step | Algorithm / method | Implementation | Purpose |
 |---|---|---|---|
-| 1 | Image/file validation | `backend/ai/predictor.py` | Verify extension and actual encoded image |
-| 2 | Laplacian variance + brightness + resolution checks | `backend/core/preprocessing.py` | Flag low-quality input |
-| 3 | Resize + ImageNet normalization | `backend/core/preprocessing.py` | Prepare the 300×300 model input |
-| 4 | **TTA** — 8 deterministic full-image views | `backend/core/preprocessing.py` | Improve inference robustness through view averaging |
-| 5 | **EfficientNet-B3** | `backend/core/model.py` | Extract deep image features |
-| 6 | **CBAM** | `backend/core/model.py` | Refine features with channel and spatial attention |
-| 7 | **GeM** | `backend/core/model.py` | Convert feature maps into a feature vector |
-| 8 | LayerNorm/GELU/Dropout MLP | `backend/core/model.py` | Produce 7-class logits |
-| 9 | Mel-only logit adjustment | `backend/ai/predictor.py` | Apply the configured targeted mel adjustment |
-| 10 | Softmax + TTA probability averaging | `backend/ai/predictor.py` | Produce class probabilities, class and confidence |
-| 11 | **MC Dropout** | `backend/ai/predictor.py` | Generate stochastic predictions |
-| 12 | **MCUE** | `backend/ai/uncertainty.py` | Estimate aleatory, epistemic, fusion and composite uncertainty |
-| 13 | Rule-based clinical NLP + negation; optional BioBERT | `backend/ai/biobert_engine.py` | Convert symptom text into risk/urgency information |
-| 14 | Demographic risk rules | `backend/ai/risk_engine.py` | Compute risk from patient/profile factors |
+| 1 | Image/file validation | `backend/ai/predictor.py` | Validate extension and actual image encoding |
+| 2 | Laplacian variance + brightness + resolution checks | `backend/core/preprocessing.py` | Flag low-quality images |
+| 3 | Resize + ImageNet normalization | `backend/core/preprocessing.py` | Prepare model input at 300×300 |
+| 4 | **TTA** | `backend/core/preprocessing.py` | Generate 8 deterministic full-image views |
+| 5 | **EfficientNet-B3** | `backend/core/model.py` | Extract spatial image features |
+| 6 | **CBAM** | `backend/core/model.py` | Apply channel and spatial attention |
+| 7 | **GeM** | `backend/core/model.py` | Pool feature maps into a feature vector |
+| 8 | LayerNorm/GELU/Dropout MLP | `backend/core/model.py` | Produce logits for 7 classes |
+| 9 | Mel-only logit adjustment | `backend/ai/predictor.py` | Apply targeted adjustment before softmax |
+| 10 | Softmax + TTA probability averaging | `backend/ai/predictor.py` | Produce probabilities, predicted class and image confidence |
+| 11 | **MC Dropout** | `backend/ai/predictor.py` | Generate stochastic probability samples |
+| 12 | **MCUE** | `backend/ai/uncertainty.py` | Calculate aleatory, epistemic, fusion and composite uncertainty |
+| 13 | Rule-based clinical NLP + negation; optional BioBERT | `backend/ai/biobert_engine.py` | Convert symptoms to risk, duration and urgency information |
+| 14 | Demographic risk rules | `backend/ai/risk_engine.py` | Compute risk contribution from patient factors |
 | 15 | **CMCA** | `backend/ai/decision_engine.py` | Combine image concern, symptom risk and demographic risk |
-| 16 | **Grad-CAM** | `backend/ai/gradcam.py` | Explain image regions that influenced the selected class |
-| 17 | Otsu segmentation + ABCD features | `backend/ai/abcd_engine.py` | Generate additional contextual lesion measurements |
-| 18 | Knowledge-base recommendation rules | `backend/ai/recommendation_engine.py` | Produce recommendations, urgency and follow-up |
-| 19 | SQLAlchemy + SQLite | `backend/core/database.py` | Persist the diagnostic case |
-| 20 | ReportLab | `backend/reports/report_generator.py` | Generate the PDF report |
-| 21 | Atomic diagnosis assignment | `backend/features/routes.py` | Attach diagnosis safely to a tracked lesion |
+| 16 | **Grad-CAM** | `backend/ai/gradcam.py` | Explain image regions influencing the selected class |
+| 17 | Otsu segmentation + ABCD features | `backend/ai/abcd_engine.py` | Produce additional lesion-context measurements |
+| 18 | Knowledge-base recommendation rules | `backend/ai/recommendation_engine.py` | Generate recommendations, urgency and follow-up |
+| 19 | SQLAlchemy + SQLite | `backend/core/database.py` | Persist the diagnosis and derived outputs |
+| 20 | ReportLab | `backend/reports/report_generator.py` | Generate the clinical PDF report |
+| 21 | Atomic DB update | `backend/features/routes.py` | Attach diagnoses safely to tracked lesions |
 | 22 | Doctor review workflow | `backend/app.py`, `backend/features/routes.py` | Queue, claim and review cases |
 
-## 2. Complete System Flow
+## Complete End-to-End Flow
 
 ```text
-Image + Symptoms + Patient Profile
-              │
-              ▼
-      1. Image validation
-              ▼
-      2. Quality checks
-              ▼
-   3. Resize + normalization
-              ▼
-          4. TTA
-              ▼
-   ┌─────────────────────────┐
-   │ 5. EfficientNet-B3      │
-   │          ↓              │
-   │ 6. CBAM                 │
-   │          ↓              │
-   │ 7. GeM                  │
-   │          ↓              │
-   │ 8. MLP Head             │
-   │          ↓              │
-   │ 9. Mel logit adjustment │
-   │          ↓              │
-   │ 10. Softmax + TTA mean  │
-   └────────────┬────────────┘
-                │
-         Class + confidence
-                │
-       ┌────────┴────────┐
-       ▼                 ▼
-11. MC Dropout      TTA distribution
-       │                 │
-       └────────┬────────┘
-                ▼
-             12. MCUE
-                │
-       ┌────────┼────────┐
-       ▼        ▼        ▼
- Image concern  13. NLP  14. Demographic
-       │        risk     risk
-       └────────┼────────┘
-                ▼
-             15. CMCA
-                │
-                ▼
-       Clinical concern /
-        review decision
-          │      │      │
-          ▼      ▼      ▼
-      16.Grad 17.ABCD 18.Recommendation
-          │      │      │
-          └──────┼──────┘
-                 ▼
-          19. Database record
-            │           │
-            ▼           ▼
-      20. PDF report 21. Lesion tracking
-                            │
-                            ▼
-                     22. Doctor review
+Dermoscopic image + optional symptoms + patient profile
+                         │
+                         ▼
+                1. File validation
+                         ↓
+                2. Quality checks
+                         ↓
+             3. Resize + normalization
+                         ↓
+                 4. TTA (8 views)
+                         ↓
+        ┌─────────────────────────────────┐
+        │ 5. EfficientNet-B3              │
+        │            ↓                    │
+        │ 6. CBAM                        │
+        │            ↓                    │
+        │ 7. GeM                         │
+        │            ↓                    │
+        │ 8. LayerNorm/GELU/Dropout MLP  │
+        │            ↓                    │
+        │ 9. Mel-only logit adjustment   │
+        │            ↓                    │
+        │ 10. Softmax + TTA mean         │
+        └───────────────┬─────────────────┘
+                        │
+                 Class + confidence
+                        │
+              ┌─────────┴─────────┐
+              ▼                   ▼
+       11. MC Dropout        TTA distribution
+              │                   │
+              └─────────┬─────────┘
+                        ▼
+                    12. MCUE
+                        │
+          ┌─────────────┼─────────────┐
+          ▼             ▼             ▼
+      image concern   13. NLP     14. demographic
+          mass         risk           risk
+          │             │             │
+          └─────────────┼─────────────┘
+                        ▼
+                    15. CMCA
+                        │
+              Clinical-concern decision
+                        │
+           ┌────────────┼────────────┐
+           ▼            ▼            ▼
+      16. Grad-CAM  17. ABCD   18. Recommendation
+           │            │            │
+           └────────────┼────────────┘
+                        ▼
+                  19. Database
+                    │        │
+                    ▼        ▼
+              20. PDF      21. Lesion tracking
+                                  │
+                                  ▼
+                          22. Doctor review
 ```
 
-## 3. Training vs Inference
+## Training Algorithms
 
-### Training-time methods
+These methods are used to train the checkpoint that the deployed application loads.
 
-| Method | Stage | Purpose |
+| Algorithm | Training stage | What it does |
 |---|---|---|
-| **ACWF-FL** | Training loss | Effective-number class weighting + focal loss (`β=0.9999`, `γ=2.0`) and `1.5×` malignant-class loss amplification |
-| **SAM** | Training phase 2 | Sharpness-Aware Minimization |
-| **SWA** | Training phase 3 | Stochastic Weight Averaging |
+| **ACWF-FL** | Loss function | Effective-number class weighting + focal loss (`β=0.9999`, `γ=2.0`) with `1.5×` malignant-class loss amplification |
+| **SAM** | Phase 2 | Sharpness-Aware Minimization |
+| **SWA** | Phase 3 | Stochastic Weight Averaging |
 
 ```text
-Dataset → EfficientNet-B3 + CBAM + GeM + MLP
-        → ACWF-FL → SAM → SWA → trained checkpoint
+Dataset
+   ↓
+EfficientNet-B3 + CBAM + GeM + MLP
+   ↓
+ACWF-FL
+   ↓
+SAM
+   ↓
+SWA
+   ↓
+Trained checkpoint
 ```
 
-These training methods are not rerun during a normal `/api/diagnose` request.
+ACWF-FL, SAM and SWA are **training-time methods**; they are not rerun during normal inference.
 
-### Inference-time methods
+## Inference Algorithms
 
 ```text
 TTA
  ↓
-EfficientNet-B3 → CBAM → GeM → MLP
+EfficientNet-B3
+ ↓
+CBAM
+ ↓
+GeM
+ ↓
+MLP Head
  ↓
 Mel-only logit adjustment
  ↓
 Softmax + TTA averaging
  ↓
-MC Dropout → MCUE
+MC Dropout
+ ↓
+MCUE
  ↓
 Symptom NLP + Demographic Risk
  ↓
@@ -134,16 +151,16 @@ CMCA
 Grad-CAM + ABCD + Recommendation
 ```
 
-## 4. Steps 1–4: Input, Quality and TTA
+## Steps 1–4: Input, Quality and TTA
 
-Images are resized to **300×300** and normalized using:
+Images are resized to **300×300** and normalized with:
 
 ```text
 Mean = [0.485, 0.456, 0.406]
 Std  = [0.229, 0.224, 0.225]
 ```
 
-The default 8 TTA views are:
+The default TTA views are:
 
 ```text
 1. Original
@@ -156,9 +173,9 @@ The default 8 TTA views are:
 8. Rotate 45°
 ```
 
-Quality checks use Laplacian variance for blur, grayscale mean brightness for exposure, and minimum image dimension for resolution. These checks produce warnings and do not change the classifier output.
+Quality checking uses Laplacian variance for blur, grayscale mean brightness for exposure, and minimum image dimension for resolution. These checks create warnings and do not change the model prediction.
 
-## 5. Steps 5–8: Image Classifier
+## Steps 5–8: Image Classifier
 
 ```text
 EfficientNet-B3
@@ -182,21 +199,21 @@ LayerNorm
 Linear → 7 classes
 ```
 
-GeM is a learnable generalized mean:
+GeM is implemented as a learnable generalized mean:
 
 ```text
 GeM(x) = ( mean(clamp(x, eps)^p) )^(1/p)
 ```
 
-Seven output classes:
+The seven classes are:
 
 ```text
 akiec · bcc · bkl · df · mel · nv · vasc
 ```
 
-## 6. Steps 9–10: Logit Adjustment and Primary Prediction
+## Steps 9–10: Logit Adjustment and Prediction
 
-The predictor can apply a mel-only logit adjustment before softmax:
+Current mel-only adjustment configuration:
 
 ```text
 LOGIT_ADJUSTMENT_ENABLED = true
@@ -205,29 +222,27 @@ LOGIT_ADJUSTMENT_TAU     = 0.3
 MEL_LOG_PRIOR            = -2.1970
 ```
 
-Only the `mel` logit is changed. Softmax probabilities are then averaged across TTA views. The highest probability is the `predicted_class`; that probability is the `image confidence`.
+Only the `mel` logit is modified. Softmax probabilities from the TTA views are then averaged. The largest probability determines `predicted_class`; that probability is the `image confidence`.
 
-## 7. Steps 11–12: MC Dropout and MCUE
+## Steps 11–12: MC Dropout and MCUE
 
-MC Dropout performs repeated stochastic passes with explicit dropout layers in training mode while the rest of the network remains in evaluation mode.
-
-Default:
+MC Dropout performs repeated stochastic passes with only explicit dropout layers in training mode while the rest of the model remains in evaluation mode.
 
 ```text
 MC_DROPOUT_PASSES = 20
 ```
 
-MCUE combines the TTA distribution and MC distributions:
+MCUE calculates:
 
 ```text
-Aleatory
+Aleatory uncertainty
 = expected normalized entropy
 
-Epistemic
-= predictive entropy of the MC mean
+Epistemic uncertainty
+= predictive entropy of MC mean
   - expected MC entropy
 
-Fusion
+Fusion uncertainty
 = normalized Jensen-Shannon divergence
   between TTA and MC distributions
 ```
@@ -240,27 +255,27 @@ Composite uncertainty:
 + 0.2 × fusion
 ```
 
-The review threshold uses the checkpoint value `mcue_threshold` when present; otherwise it falls back to `0.8054`.
+The review threshold is the checkpoint's `mcue_threshold` when available; otherwise the configured fallback is `0.8054`.
 
-## 8. Step 13: Symptom NLP
+## Step 13: Symptom NLP
 
-The current live implementation is **rule-based clinical NLP**. The module contains an optional BioBERT transformer path, but transformer mode is disabled in the current singleton.
+The default live engine uses **rule-based clinical NLP**. The optional BioBERT transformer path exists in the module but is disabled in the current singleton.
 
 ```text
-Free-text symptoms
-      ↓
+Symptom text
+   ↓
 Keyword matching
-      ↓
+   ↓
 Negation handling
-      ↓
+   ↓
 Duplicate/overlap suppression
-      ↓
+   ↓
 Weighted symptom risk
-      ↓
+   ↓
 Duration + urgency information
 ```
 
-## 9. Step 14: Demographic Risk
+## Step 14: Demographic Risk
 
 ```text
 Age risk
@@ -271,11 +286,13 @@ Age risk
 Demographic risk score [0,1]
 ```
 
-The current scoring implementation accepts gender but does not apply a separate gender weight.
+The current implementation accepts gender but does not apply a separate gender weight.
 
-## 10. Step 15: CMCA
+## Step 15: CMCA
 
-**CMCA = Cross-Modal Confidence Aggregation.** It is applied after image, symptom and demographic signals are available.
+**CMCA = Cross-Modal Confidence Aggregation.**
+
+The image probability distribution is summarized as:
 
 ```text
 Malignancy mass
@@ -285,12 +302,12 @@ Clinical-concern mass
 = P(akiec) + P(bcc) + P(mel)
 ```
 
-CMCA combines:
+CMCA then combines:
 
 ```text
 Image clinical-concern mass
-Symptom risk
-Demographic risk
+Symptom risk score
+Demographic risk score
 ```
 
 with evidence-adaptive weights:
@@ -309,9 +326,9 @@ Malignancy-mass escalation    = 0.30
 Malignant review confidence   = 0.70
 ```
 
-CMCA creates a clinical-concern/review signal and **does not overwrite the image-model predicted class**.
+CMCA does **not** overwrite the image-model `predicted_class`; it adds the broader clinical-concern/review signal.
 
-## 11. Malignant vs Clinical Concern
+## Clinical Class Semantics
 
 ```python
 MALIGNANT_CLASSES = ['bcc', 'mel']
@@ -328,31 +345,23 @@ CLINICAL_CONCERN_CLASSES = ['akiec', 'bcc', 'mel']
 | `nv` | No | No |
 | `vasc` | No | No |
 
-Thus:
-
-```text
-Predicted class = image-model output
-Malignant       = bcc or mel prediction
-Clinical concern = concern class OR multimodal/review escalation
-```
-
-## 12. Steps 16–17: Explainability
+## Steps 16–17: Explainability
 
 ### Grad-CAM
 
 ```text
 Selected class
-    ↓
+      ↓
 Forward activations
-    ↓
+      ↓
 Backward gradients
-    ↓
+      ↓
 Gradient-based channel weights
-    ↓
+      ↓
 Weighted activation map
-    ↓
+      ↓
 ReLU + normalization
-    ↓
+      ↓
 Heatmap overlay
 ```
 
@@ -373,12 +382,12 @@ Color variation
 Diameter in pixels
 ```
 
-ABCD is an explainability/context layer and is **not fed into the classifier**.
+ABCD is a context/explainability layer. Its outputs are **not fed into the classifier**.
 
-## 13. Step 18: Recommendations
+## Step 18: Recommendation Engine
 
 ```text
-Prediction
+Predicted class
 + malignancy status
 + uncertainty/review state
 + symptom urgency
@@ -389,28 +398,41 @@ Recommendation Engine
 Recommendations + urgency + follow-up
 ```
 
-Class-specific knowledge is stored in `backend/knowledge/`.
+Class-specific knowledge is stored under `backend/knowledge/`.
 
-## 14. Steps 19–22: Storage and Workflow
+## Steps 19–22: Storage and Clinical Workflow
 
-The diagnosis record stores the main prediction and multimodal outputs needed for history, reports and review. ReportLab generates the PDF. Patients can attach diagnoses to named lesions, with a conditional database update protecting concurrent assignment.
+The diagnosis record persists the prediction, confidence, uncertainty, symptom risk, demographic risk, class probabilities, modality weights, ABCD features and generated artifact paths.
 
 ```text
-Doctor queue → Claim → Review → confirmed / revised / dismissed
+Diagnosis record
+      ↓
+ReportLab PDF report
+
+Diagnosis record
+      ↓
+Tracked lesion
+      ↓
+Doctor queue
+      ↓
+Claim → Review → confirmed / revised / dismissed
 ```
 
-## 15. Main Algorithm Files
+Lesion assignment uses a conditional database update to avoid concurrent double-claiming of an unassigned diagnosis.
+
+## Main Algorithm Files
 
 ```text
 backend/
 ├── core/
-│   ├── preprocessing.py       # resize, normalize, TTA, quality checks
-│   └── model.py               # EfficientNet-B3, CBAM, GeM, MLP
+│   ├── preprocessing.py       # preprocessing + TTA + quality checks
+│   └── model.py               # EfficientNet-B3 + CBAM + GeM + MLP
 ├── ai/
-│   ├── predictor.py           # prediction, TTA, MC Dropout
+│   ├── predictor.py           # prediction + TTA + MC Dropout
 │   ├── uncertainty.py         # MCUE
 │   ├── decision_engine.py     # CMCA
 │   ├── biobert_engine.py      # symptom NLP / optional BioBERT
+│   ├── text_negation.py
 │   ├── risk_engine.py         # demographic risk
 │   ├── gradcam.py             # Grad-CAM
 │   ├── abcd_engine.py         # ABCD features
@@ -422,7 +444,7 @@ backend/
 └── alembic/
 ```
 
-## 16. Local Run
+## Run Locally
 
 ```powershell
 cd backend
@@ -451,11 +473,6 @@ Place the trained checkpoint at:
 backend/models/best.pth
 ```
 
-## 17. Limitations
+## Limitations
 
 DERMAXAI is a student research/prototype screening and decision-support system. It is not a substitute for dermatologist assessment, clinical examination, or histopathological confirmation.
-
-- CMCA is a clinical-concern score, not a calibrated malignancy probability.
-- MCUE values are uncertainty indicators, not guarantees of clinical safety.
-- Symptom and demographic modules provide rule-based risk contributions.
-- ABCD features are contextual outputs and are not classifier inputs.
