@@ -192,18 +192,67 @@ def delete_lesion(lesion_id: int, db: Session = Depends(get_db), current_user: U
     return {"message": "Lesion tracking removed"}
 
 
+def _attach_diagnosis_atomically(
+    db: Session,
+    diagnosis_id: int,
+    user_id: int,
+    lesion_id: int,
+) -> bool:
+    """Claim an unassigned diagnosis with a single conditional UPDATE.
+
+    The previous read-then-write flow allowed two concurrent requests to both
+    observe `lesion_id IS NULL` and overwrite each other. The conditional UPDATE
+    makes the ownership claim atomic at the database level.
+    """
+    updated = (
+        db.query(Diagnosis)
+        .filter(
+            Diagnosis.id == diagnosis_id,
+            Diagnosis.user_id == user_id,
+            Diagnosis.lesion_id.is_(None),
+        )
+        .update(
+            {Diagnosis.lesion_id: lesion_id},
+            synchronize_session=False,
+        )
+    )
+    if updated == 1:
+        return True
+
+    db.rollback()
+    current = (
+        db.query(Diagnosis)
+        .filter(Diagnosis.id == diagnosis_id, Diagnosis.user_id == user_id)
+        .first()
+    )
+    if current is not None and current.lesion_id == lesion_id:
+        return False
+    if current is not None and current.lesion_id is not None:
+        raise HTTPException(status_code=409, detail="Diagnosis is already assigned to another lesion")
+    raise HTTPException(status_code=404, detail="Lesion or diagnosis not found")
+
+
 @router.post("/api/lesions/{lesion_id:int}/diagnoses/{diagnosis_id:int}")
 def attach_diagnosis(lesion_id: int, diagnosis_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     lesion = db.query(Lesion).filter(Lesion.id == lesion_id, Lesion.user_id == current_user.id).first()
     diagnosis = db.query(Diagnosis).filter(Diagnosis.id == diagnosis_id, Diagnosis.user_id == current_user.id).first()
     if not lesion or not diagnosis:
         raise HTTPException(status_code=404, detail="Lesion or diagnosis not found")
-    if diagnosis.lesion_id is not None and diagnosis.lesion_id != lesion.id:
-        raise HTTPException(status_code=409, detail="Diagnosis is already assigned to another lesion")
-    diagnosis.lesion_id = lesion.id
+
+    already_assigned = _attach_diagnosis_atomically(
+        db,
+        diagnosis_id=diagnosis.id,
+        user_id=current_user.id,
+        lesion_id=lesion.id,
+    )
     lesion.updated_at = datetime.utcnow()
     db.commit()
-    return {"message": "Diagnosis added to lesion", "lesion_id": lesion.id, "diagnosis_id": diagnosis.id}
+
+    return {
+        "message": "Diagnosis already assigned to lesion" if already_assigned is False else "Diagnosis added to lesion",
+        "lesion_id": lesion.id,
+        "diagnosis_id": diagnosis.id,
+    }
 
 
 @router.patch("/api/patients/profile")
