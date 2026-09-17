@@ -6,10 +6,24 @@ import { Search, Download, Stethoscope, CheckCircle2, RotateCcw, XCircle, Chevro
 
 const CLASS_NAMES = { mel:'Melanoma', bcc:'Basal Cell Carcinoma', akiec:'Actinic Keratoses', bkl:'Benign Keratosis', nv:'Melanocytic Nevi', df:'Dermatofibroma', vasc:'Vascular Lesions' }
 const CLASS_COLORS = { mel:'#B4413A', bcc:'#C17A3D', akiec:'#B08135', bkl:'#4F7A52', nv:'#3D6B94', df:'#6B5B95', vasc:'#3D8B94' }
+const CLINICAL_CONCERN_CLASSES = ['akiec', 'bcc', 'mel']
 const VERDICT_STYLE = {
   confirmed: { label: 'Confirmed', color: '#B4413A', bg: '#FBEAE8', border: '#EFCAC6', icon: CheckCircle2 },
   revised: { label: 'Revised', color: '#B08135', bg: '#FBF3E4', border: '#E9D3A4', icon: RotateCcw },
   dismissed: { label: 'Cleared', color: '#4F7A52', bg: '#EDF3ED', border: '#C9DBC9', icon: XCircle },
+}
+
+function clinicalCategory(diagnosis) {
+  if (diagnosis.is_malignant) return 'malignant'
+  if (diagnosis.clinical_concern ?? (CLINICAL_CONCERN_CLASSES.includes(diagnosis.predicted_class) || diagnosis.requires_review)) return 'concern'
+  return 'non-malignant'
+}
+
+function ClinicalBadge({ diagnosis }) {
+  const category = clinicalCategory(diagnosis)
+  if (category === 'malignant') return <span className="badge-malignant">Malignant</span>
+  if (category === 'concern') return <span className="badge-review">Clinical concern</span>
+  return <span className="badge-benign">Non-malignant</span>
 }
 
 function DoctorNoteCallout({ review }) {
@@ -43,7 +57,12 @@ export default function History() {
 
   const filtered = history.filter(d => {
     const matchSearch = !search || CLASS_NAMES[d.predicted_class]?.toLowerCase().includes(search.toLowerCase())
-    const matchFilter = filter === 'all' || (filter === 'malignant' && d.is_malignant) || (filter === 'benign' && !d.is_malignant) || (filter === 'review' && d.requires_review)
+    const category = clinicalCategory(d)
+    const matchFilter = filter === 'all' ||
+      (filter === 'malignant' && category === 'malignant') ||
+      (filter === 'clinical-concern' && category === 'concern') ||
+      (filter === 'benign' && category === 'non-malignant') ||
+      (filter === 'review' && d.requires_review)
     return matchSearch && matchFilter
   })
 
@@ -67,7 +86,13 @@ export default function History() {
 
         <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-6">
           <div className="relative flex-1 max-w-sm"><Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" /><input className="input-glass pl-9 py-2.5 text-sm" placeholder="Search diagnoses…" value={search} onChange={e => setSearch(e.target.value)} /></div>
-          <div className="flex gap-2 overflow-x-auto pb-1">{['all','malignant','benign','review'].map(f => <button key={f} onClick={() => setFilter(f)} className="px-3 py-1.5 rounded-lg text-xs font-medium capitalize border whitespace-nowrap" style={{ background: filter === f ? '#EEF4F3' : 'transparent', borderColor: filter === f ? '#B8C5C2' : '#E4E7E4', color: filter === f ? '#254742' : '#5B6764' }}>{f}</button>)}</div>
+          <div className="flex gap-2 overflow-x-auto pb-1">{[
+            ['all', 'all'],
+            ['malignant', 'malignant'],
+            ['clinical-concern', 'clinical concern'],
+            ['benign', 'non-malignant'],
+            ['review', 'review'],
+          ].map(([value, label]) => <button key={value} onClick={() => setFilter(value)} className="px-3 py-1.5 rounded-lg text-xs font-medium capitalize border whitespace-nowrap" style={{ background: filter === value ? '#EEF4F3' : 'transparent', borderColor: filter === value ? '#B8C5C2' : '#E4E7E4', color: filter === value ? '#254742' : '#5B6764' }}>{label}</button>)}</div>
         </div>
 
         <div className="glass overflow-hidden">
@@ -78,7 +103,7 @@ export default function History() {
                 <div className="flex items-start gap-3"><div className="w-2.5 h-2.5 rounded-full mt-1.5 flex-shrink-0" style={{ background: CLASS_COLORS[d.predicted_class] || '#5B6764' }} /><div><div className="text-sm font-medium text-ink">{CLASS_NAMES[d.predicted_class] || d.predicted_class}</div><div className="text-xs text-muted font-mono mt-0.5">Diagnosis #{d.id}</div></div></div>
                 <div className="mt-3 md:mt-0"><div className="text-[10px] text-muted uppercase tracking-wide md:hidden">Confidence</div><div className="text-sm font-mono text-teal-700">{(d.fused_confidence * 100).toFixed(1)}%</div></div>
                 <div className="mt-3 md:mt-0"><div className="text-[10px] text-muted uppercase tracking-wide md:hidden">Uncertainty</div><div className="text-sm font-mono text-muted">{d.composite_uncertainty?.toFixed(3)}</div></div>
-                <div className="mt-3 md:mt-0"><div className="text-[10px] text-muted uppercase tracking-wide md:hidden">Risk</div>{d.is_malignant ? <span className="badge-malignant">Malignant</span> : <span className="badge-benign">Benign</span>}{d.doctor_review?.status === 'claimed' && <div className="text-[10px] text-muted mt-1">Under review</div>}</div>
+                <div className="mt-3 md:mt-0"><div className="text-[10px] text-muted uppercase tracking-wide md:hidden">Risk</div><ClinicalBadge diagnosis={d} />{d.doctor_review?.status === 'claimed' && <div className="text-[10px] text-muted mt-1">Under review</div>}</div>
                 <div className="mt-3 md:mt-0 text-xs text-muted">{new Date(d.created_at).toLocaleDateString()}</div>
                 <div className="mt-3 md:mt-0">{d.report_url && <button type="button" onClick={() => reportApi.download(d.report_url, `DERMAXAI_Report_${d.id}.pdf`)} className="text-xs text-teal-700 inline-flex items-center gap-1"><Download size={11} /> PDF</button>}</div>
               </div>
