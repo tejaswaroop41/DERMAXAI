@@ -9,6 +9,20 @@ const VERDICTS = [
   { value: 'revised', label: 'Revised', icon: RotateCcw, color: '#B08135' },
   { value: 'dismissed', label: 'Dismissed', icon: XCircle, color: '#4F7A52' },
 ]
+const CLINICAL_CONCERN_CLASSES = ['akiec', 'bcc', 'mel']
+
+function clinicalCategory(diagnosis) {
+  if (diagnosis.is_malignant) return 'malignant'
+  if (diagnosis.clinical_concern ?? (CLINICAL_CONCERN_CLASSES.includes(diagnosis.predicted_class) || diagnosis.requires_review)) return 'concern'
+  return 'non-malignant'
+}
+
+function ClinicalBadge({ diagnosis }) {
+  const category = clinicalCategory(diagnosis)
+  if (category === 'malignant') return <span className="badge-malignant">Malignant</span>
+  if (category === 'concern') return <span className="badge-review">Clinical concern</span>
+  return <span className="badge-benign">Non-malignant</span>
+}
 
 function VerdictBadge({ verdict }) {
   const v = VERDICTS.find(x => x.value === verdict)
@@ -76,7 +90,7 @@ function CaseCard({ item, onClaim, onReview, readOnly, claimedByOther }) {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1 flex-wrap">
             <span className="text-sm font-semibold text-ink">{item.class_name}</span>
-            {item.is_malignant && <span className="badge-malignant">Malignant</span>}
+            <ClinicalBadge diagnosis={item} />
             {item.urgency_escalated && <span className="badge-review">Urgent</span>}
             {claimedByOther && item.review?.doctor_name && (
               <span className="text-xs text-muted">— claimed by {item.review.doctor_name}</span>
