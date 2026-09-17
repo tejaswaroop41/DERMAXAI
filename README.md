@@ -444,19 +444,6 @@ CLINICAL_CONCERN_CLASSES = ['akiec', 'bcc', 'mel']
 | `nv` | No | No |
 | `vasc` | No | No |
 
-Therefore:
-
-```text
-Predicted class
-    = image classifier output
-
-Malignant
-    = predicted class is bcc or mel
-
-Clinical concern
-    = concern class OR CMCA/review escalation
-```
-
 ---
 
 ## 12. Explainability Algorithms
