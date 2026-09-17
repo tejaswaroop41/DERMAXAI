@@ -1,4 +1,4 @@
-"""Additive feature routes: lesion tracking and admin/patient analytics."""
+"""Additive feature routes: lesion tracking and admin analytics."""
 from __future__ import annotations
 
 from datetime import datetime
@@ -192,33 +192,6 @@ def patch_patient_profile(req: PatientProfilePatch, db: Session = Depends(get_db
             "skin_type": patient.skin_type,
             "medical_history": patient.medical_history,
             "sun_exposure": patient.sun_exposure,
-        },
-    }
-
-
-@router.get("/api/diagnose/summary")
-def patient_diagnosis_summary(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    """Return all-time patient metrics without relying on the paginated history endpoint."""
-    base_filter = Diagnosis.user_id == current_user.id
-    total = db.query(Diagnosis.id).filter(base_filter).count()
-    malignant = db.query(Diagnosis.id).filter(base_filter, Diagnosis.is_malignant.is_(True)).count()
-    needs_review = db.query(Diagnosis.id).filter(base_filter, Diagnosis.requires_review.is_(True)).count()
-    average_confidence = db.query(func.avg(Diagnosis.fused_confidence)).filter(base_filter).scalar()
-
-    distribution_rows = (
-        db.query(Diagnosis.predicted_class, func.count(Diagnosis.id))
-        .filter(base_filter)
-        .group_by(Diagnosis.predicted_class)
-        .all()
-    )
-
-    return {
-        "total_diagnoses": int(total),
-        "malignant_count": int(malignant),
-        "review_required": int(needs_review),
-        "average_confidence": round(float(average_confidence), 4) if average_confidence is not None else 0.0,
-        "class_distribution": {
-            class_code or "unknown": int(count) for class_code, count in distribution_rows
         },
     }
 
