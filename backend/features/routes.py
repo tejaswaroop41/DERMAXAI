@@ -7,7 +7,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -41,6 +41,20 @@ class PatientProfilePatch(BaseModel):
     sun_exposure: Optional[str] = Field(default=None, max_length=30)
 
 
+def _clinical_concern_for_diagnosis(diagnosis: Diagnosis) -> bool:
+    """Reconstruct the stored decision contract for historical diagnoses.
+
+    The current decision engine marks clinical concern when the predicted class
+    is in CLINICAL_CONCERN_CLASSES or when multimodal escalation requires review.
+    `requires_review` therefore preserves the escalation part for older rows that
+    predate an explicit clinical_concern database field.
+    """
+    return bool(
+        diagnosis.predicted_class in settings.CLINICAL_CONCERN_CLASSES
+        or diagnosis.requires_review
+    )
+
+
 def _diagnosis_payload(d: Diagnosis) -> dict:
     return {
         "id": d.id,
@@ -50,6 +64,7 @@ def _diagnosis_payload(d: Diagnosis) -> dict:
         "fused_confidence": d.fused_confidence,
         "composite_uncertainty": d.composite_uncertainty,
         "is_malignant": d.is_malignant,
+        "clinical_concern": _clinical_concern_for_diagnosis(d),
         "requires_review": d.requires_review,
         "urgency_escalated": d.urgency_escalated,
         "symptoms": d.symptoms,
@@ -78,6 +93,7 @@ def compute_admin_performance(diagnoses: list[Diagnosis], reviews: list[DoctorRe
     """Compute review/uncertainty metrics without claiming unsupported accuracy."""
     total = len(diagnoses)
     malignant = sum(1 for d in diagnoses if d.is_malignant)
+    clinical_concern = sum(1 for d in diagnoses if _clinical_concern_for_diagnosis(d))
     requires_review = sum(1 for d in diagnoses if d.requires_review)
     distribution: dict[str, int] = {}
     uncertainty_values = []
@@ -98,6 +114,8 @@ def compute_admin_performance(diagnoses: list[Diagnosis], reviews: list[DoctorRe
         "total_diagnoses": total,
         "malignant_count": malignant,
         "malignant_rate": round(malignant / total, 4) if total else 0.0,
+        "clinical_concern_count": clinical_concern,
+        "clinical_concern_rate": round(clinical_concern / total, 4) if total else 0.0,
         "review_required": requires_review,
         "review_rate": round(requires_review / total, 4) if total else 0.0,
         "reviewed_count": len(reviews),
@@ -231,6 +249,18 @@ def patient_diagnosis_summary(db: Session = Depends(get_db), current_user: User 
     base_filter = Diagnosis.user_id == current_user.id
     total = db.query(func.count(Diagnosis.id)).filter(base_filter).scalar() or 0
     malignant = db.query(func.count(Diagnosis.id)).filter(base_filter, Diagnosis.is_malignant.is_(True)).scalar() or 0
+    clinical_concern = (
+        db.query(func.count(Diagnosis.id))
+        .filter(
+            base_filter,
+            or_(
+                Diagnosis.predicted_class.in_(settings.CLINICAL_CONCERN_CLASSES),
+                Diagnosis.requires_review.is_(True),
+            ),
+        )
+        .scalar()
+        or 0
+    )
     needs_review = db.query(func.count(Diagnosis.id)).filter(base_filter, Diagnosis.requires_review.is_(True)).scalar() or 0
     average_confidence = db.query(func.avg(Diagnosis.fused_confidence)).filter(base_filter).scalar()
 
@@ -244,6 +274,7 @@ def patient_diagnosis_summary(db: Session = Depends(get_db), current_user: User 
     return {
         "total_diagnoses": int(total),
         "malignant_count": int(malignant),
+        "clinical_concern_count": int(clinical_concern),
         "review_required": int(needs_review),
         "average_confidence": round(float(average_confidence), 4) if average_confidence is not None else 0.0,
         "class_distribution": {
