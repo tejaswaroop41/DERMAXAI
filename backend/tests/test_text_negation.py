@@ -28,6 +28,16 @@ def test_negated_history_does_not_add_risk():
     assert engine.compute_history_risk("No family history of melanoma and no skin cancer.") == 0.0
 
 
+def test_negated_history_with_auxiliary_verb_does_not_add_risk():
+    engine = RiskEngine()
+    assert engine.compute_history_risk("The patient does not have a family history of melanoma.") == 0.0
+
+
 def test_positive_history_still_adds_risk():
     engine = RiskEngine()
     assert engine.compute_history_risk("Family history of melanoma.") > 0.0
+
+
+def test_negation_does_not_leak_after_clause_boundary():
+    engine = RiskEngine()
+    assert engine.compute_history_risk("No family history of melanoma, but previous skin cancer.") > 0.0
