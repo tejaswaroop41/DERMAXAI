@@ -18,6 +18,17 @@ def _csv_env(name: str, default: list[str]) -> list[str]:
     return [item.strip() for item in raw.split(",") if item.strip()]
 
 
+def _bounded_int_value(name: str, raw: str, minimum: int, maximum: int) -> int:
+    """Parse an integer configuration value and enforce safe runtime bounds."""
+    try:
+        value = int(raw)
+    except (TypeError, ValueError) as exc:
+        raise RuntimeError(f"{name} must be an integer between {minimum} and {maximum}") from exc
+    if not minimum <= value <= maximum:
+        raise RuntimeError(f"{name} must be between {minimum} and {maximum}")
+    return value
+
+
 def _default_model_path(base_dir: Path = BASE_DIR) -> str:
     """Return the preferred checkpoint path, with a legacy local fallback."""
     model_dir = Path(base_dir) / "models"
@@ -83,9 +94,12 @@ class Settings:
     # ── Inference ────────────────────────────────────────
     # Canonical name: this pipeline uses full-image transformed views,
     # not spatial crops. TTA_CROPS remains as a backward-compatible alias.
-    TTA_VIEWS = int(os.getenv("TTA_VIEWS", os.getenv("TTA_CROPS", "8")))
+    _tta_raw = os.getenv("TTA_VIEWS", os.getenv("TTA_CROPS", "8"))
+    TTA_VIEWS = _bounded_int_value("TTA_VIEWS", _tta_raw, 1, 8)
     TTA_CROPS = TTA_VIEWS  # deprecated compatibility alias; use TTA_VIEWS
-    MC_DROPOUT_PASSES = 20
+    MC_DROPOUT_PASSES = _bounded_int_value(
+        "MC_DROPOUT_PASSES", os.getenv("MC_DROPOUT_PASSES", "20"), 1, 64
+    )
 
     UNCERTAINTY_THETA = 0.8054
 
