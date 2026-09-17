@@ -53,7 +53,7 @@ The main purpose of this README is to make the implementation traceable: **which
                        ▼
              ┌────────────────────┐
              │ 2. Image quality   │
-             │    checks           │
+             │    checks          │
              └─────────┬──────────┘
                        ▼
              ┌────────────────────┐
@@ -62,9 +62,9 @@ The main purpose of this README is to make the implementation traceable: **which
              └─────────┬──────────┘
                        ▼
              ┌────────────────────┐
-             │ 4. TTA              │
-             │ 8 deterministic     │
-             │ image views         │
+             │ 4. TTA             │
+             │ 8 deterministic    │
+             │ image views        │
              └─────────┬──────────┘
                        ▼
       ┌───────────────────────────────────────┐
