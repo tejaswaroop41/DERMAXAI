@@ -1,11 +1,14 @@
-"""Additive feature routes: lesion tracking and admin analytics."""
+"""Additive feature routes: lesion tracking and admin/patient analytics."""
 from __future__ import annotations
 
 from datetime import datetime
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
+from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from core.auth import get_current_user, require_admin
@@ -106,6 +109,20 @@ def compute_admin_performance(diagnoses: list[Diagnosis], reviews: list[DoctorRe
     }
 
 
+def doctor_claim_integrity_error_handler(request: Request, exc: IntegrityError):
+    """Turn the doctor-review uniqueness race into a stable 409 response."""
+    message = str(getattr(exc, "orig", exc))
+    if "doctor_reviews" in message and "diagnosis_id" in message:
+        return JSONResponse(
+            status_code=409,
+            content={"detail": "Diagnosis already claimed by another doctor"},
+        )
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Database integrity error"},
+    )
+
+
 @router.post("/api/lesions")
 def create_lesion(req: LesionCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     lesion = Lesion(user_id=current_user.id, name=req.name.strip(), body_site=req.body_site.strip() if req.body_site else None, notes=req.notes.strip() if req.notes else None)
@@ -196,6 +213,45 @@ def patch_patient_profile(req: PatientProfilePatch, db: Session = Depends(get_db
     }
 
 
+@router.get("/api/diagnose/unassigned")
+def unassigned_diagnoses(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """Return every diagnosis owned by the patient that is not linked to a lesion."""
+    diagnoses = (
+        db.query(Diagnosis)
+        .filter(Diagnosis.user_id == current_user.id, Diagnosis.lesion_id.is_(None))
+        .order_by(Diagnosis.created_at.desc(), Diagnosis.id.desc())
+        .all()
+    )
+    return [_diagnosis_payload(d) for d in diagnoses]
+
+
+@router.get("/api/diagnose/summary")
+def patient_diagnosis_summary(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """Return all-time patient metrics without relying on the paginated history endpoint."""
+    base_filter = Diagnosis.user_id == current_user.id
+    total = db.query(func.count(Diagnosis.id)).filter(base_filter).scalar() or 0
+    malignant = db.query(func.count(Diagnosis.id)).filter(base_filter, Diagnosis.is_malignant.is_(True)).scalar() or 0
+    needs_review = db.query(func.count(Diagnosis.id)).filter(base_filter, Diagnosis.requires_review.is_(True)).scalar() or 0
+    average_confidence = db.query(func.avg(Diagnosis.fused_confidence)).filter(base_filter).scalar()
+
+    distribution_rows = (
+        db.query(Diagnosis.predicted_class, func.count(Diagnosis.id))
+        .filter(base_filter)
+        .group_by(Diagnosis.predicted_class)
+        .all()
+    )
+
+    return {
+        "total_diagnoses": int(total),
+        "malignant_count": int(malignant),
+        "review_required": int(needs_review),
+        "average_confidence": round(float(average_confidence), 4) if average_confidence is not None else 0.0,
+        "class_distribution": {
+            class_code or "unknown": int(count) for class_code, count in distribution_rows
+        },
+    }
+
+
 @router.get("/api/admin/performance")
 def admin_performance(db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
     diagnoses = db.query(Diagnosis).all()
@@ -220,4 +276,5 @@ def mount_feature_routes() -> None:
     except Exception:
         return
     fastapi_app.include_router(router)
+    fastapi_app.add_exception_handler(IntegrityError, doctor_claim_integrity_error_handler)
     _mounted = True
