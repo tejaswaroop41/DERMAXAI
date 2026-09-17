@@ -265,7 +265,7 @@ The pooling parameter `p` is learnable in the implementation.
 
 ### MLP head
 
-The pooled vector is passed through a three-stage LayerNorm/Linear/GELU/Dropout head and finally produces logits for the seven HAM10000 classes:
+The pooled vector is passed through a three-stage LayerNorm/Linear/GELU/Dropout head and finally produces logits for:
 
 ```text
 akiec · bcc · bkl · df · mel · nv · vasc
@@ -292,7 +292,7 @@ No other class logit is modified by this adjustment.
 
 ## 7. MC Dropout and MCUE
 
-After the primary image prediction, the predictor performs stochastic MC-dropout passes. Only explicit dropout layers are switched to training mode; the remaining model stays in evaluation mode.
+After the primary image prediction, the predictor performs stochastic MC-dropout passes. Only explicit dropout layers are switched to training mode.
 
 Default:
 
@@ -300,11 +300,9 @@ Default:
 MC_DROPOUT_PASSES = 20
 ```
 
-MCUE then combines the TTA distribution and MC-dropout distributions.
+MCUE combines the TTA distribution and MC-dropout distributions.
 
 ### Aleatory uncertainty
-
-The expected normalized entropy of the stochastic MC samples:
 
 ```text
 H(p) = -Σ pᵢ log(pᵢ)
@@ -314,8 +312,6 @@ normalized entropy = H(p) / log(7)
 
 ### Epistemic uncertainty
 
-The implementation uses the normalized mutual-information/BALD form:
-
 ```text
 epistemic = H(mean(MC samples))
              - mean(H(each MC sample))
@@ -323,7 +319,7 @@ epistemic = H(mean(MC samples))
 
 ### Fusion uncertainty
 
-The deterministic TTA distribution and the mean MC distribution are compared using normalized **Jensen-Shannon divergence**.
+The TTA distribution and mean MC distribution are compared with normalized **Jensen-Shannon divergence**.
 
 ### Composite uncertainty
 
@@ -334,15 +330,9 @@ composite =
   + 0.2 × fusion
 ```
 
-All components are constrained to `[0,1]`.
+The review threshold uses `mcue_threshold` from the checkpoint when present; otherwise the configured fallback is `0.8054`.
 
-The review threshold is taken from the checkpoint's `mcue_threshold` when available, otherwise the configured value is:
-
-```text
-0.8054
-```
-
-Confidence labels:
+Confidence labels are:
 
 ```text
 < 0.20  → Very High
@@ -356,9 +346,7 @@ Confidence labels:
 
 ## 8. Symptom Analysis
 
-The default live implementation is lightweight **rule-based clinical NLP**. The module contains an optional BioBERT transformer path, but the current singleton is initialized with transformer mode disabled.
-
-The rule engine:
+The default live implementation is **rule-based clinical NLP**. The module also contains an optional BioBERT transformer path, but the current runtime singleton has transformer mode disabled.
 
 ```text
 Free-text symptoms
@@ -369,46 +357,37 @@ Negation handling
       ↓
 Duplicate/overlap suppression
       ↓
-Risk-weight accumulation
+Weighted risk accumulation
       ↓
 Symptom risk score [0,1]
 ```
 
-Clinical terms include bleeding, ulceration, rapid growth, irregularity, color changes, asymmetry, itching, pain, crusting and oozing.
-
-The engine also extracts duration from day/week/month/year expressions and can set an urgency flag when risk keywords are present with unknown or short onset duration.
-
-Repeated occurrences of the same keyword are counted once.
+The engine also extracts durations from day/week/month/year expressions and can set an urgency flag when risk keywords are present with unknown or short onset duration.
 
 ---
 
 ## 9. Demographic Risk Engine
 
-The demographic module is a rule-based risk contribution layer.
+The current risk engine combines:
 
 ```text
-Age
-  +
-Fitzpatrick skin type
-  +
-Medical/family history
-  +
-Sun exposure
-  ↓
+Age risk
++ Fitzpatrick skin-type risk
++ Medical/family-history risk
++ Sun-exposure risk
+        ↓
 Demographic risk score
 ```
 
-The result is capped at `1.0` and returned with a factor-by-factor breakdown.
+The result is capped at `1.0` and returned with a factor breakdown.
 
-The current implementation accepts `gender` but does not apply a separate gender weight in the scoring formula.
+The API accepts `gender`, but the current scoring implementation does not apply a separate gender weight.
 
 ---
 
 ## 10. CMCA — Multimodal Decision Layer
 
-CMCA is used **after** the independent image, symptom, and demographic calculations.
-
-The image model produces two useful probability aggregates:
+CMCA is used **after** image, symptom, and demographic calculations.
 
 ```text
 Malignancy mass
@@ -426,42 +405,29 @@ Symptom risk score
 Demographic risk score
 ```
 
-Evidence-adaptive weights are calculated as:
+Evidence-adaptive weights are:
 
 ```text
-image       = 0.25 + 0.75 × image confidence
-symptoms    = 0.25 + 0.75 × symptom risk
-demographics= 0.25 + 0.75 × demographic risk
+image        = 0.25 + 0.75 × image confidence
+symptoms     = 0.25 + 0.75 × symptom risk
+demographics = 0.25 + 0.75 × demographic risk
 ```
 
-The CMCA score is the weighted average of the three normalized signals.
+The CMCA score is the weighted average of the three normalized concern signals.
 
 Current escalation values:
 
 ```text
-CMCA concern threshold         = 0.30
-Malignancy-mass escalation     = 0.30
-Malignant review confidence    = 0.70
+CMCA concern threshold        = 0.30
+Malignancy-mass escalation    = 0.30
+Malignant review confidence   = 0.70
 ```
 
-### Important distinction
-
-CMCA **does not change the image-model predicted class**.
-
-For example, a case can have:
-
-```text
-Predicted class = nv
-Clinical concern = true
-```
-
-because multimodal risk, uncertainty, or urgency can trigger review without converting the image prediction into `bcc` or `mel`.
+CMCA **does not change the image-model predicted class**. A case can therefore be predicted as a non-malignant class while still being flagged for clinical concern or review.
 
 ---
 
 ## 11. Clinical Class Semantics
-
-The application keeps the following sets separate:
 
 ```python
 MALIGNANT_CLASSES = ['bcc', 'mel']
@@ -497,16 +463,14 @@ Clinical concern
 
 ### Grad-CAM
 
-Grad-CAM is generated for the selected image class using the final spatial backbone block.
-
 ```text
 Forward pass
    ↓
-Feature activations
+Target-layer activations
    ↓
-Backward pass for target class
+Backward pass for selected class
    ↓
-Feature-channel gradient weights
+Gradient-based channel weights
    ↓
 Weighted activation map
    ↓
@@ -515,18 +479,16 @@ ReLU + normalization
 Heatmap overlay
 ```
 
-The heatmap is intended to show which image regions influenced the selected class score.
+The implementation uses the final spatial backbone block to produce the visual explanation.
 
 ### ABCD feature extraction
-
-The ABCD module is a **parallel explainability/context algorithm**, not a classifier input.
 
 ```text
 Image
   ↓
 Otsu thresholding
   ↓
-Morphological open/close
+Morphological opening/closing
   ↓
 Largest lesion contour
   ↓
@@ -536,13 +498,11 @@ Largest lesion contour
 └─ Diameter (pixels)
 ```
 
-The four values are derived using image geometry/statistics and are stored for context. They are **never fed into EfficientNet-B3**.
+The ABCD module is a **parallel explainability/context layer**. Its outputs are stored and displayed, but they are **never fed into EfficientNet-B3**.
 
 ---
 
 ## 13. Recommendation and Report Layer
-
-Recommendations are generated after the final decision state is known.
 
 ```text
 Predicted class
@@ -556,145 +516,49 @@ Recommendation Engine
 Recommendations + urgency + follow-up
 ```
 
-Per-class knowledge is loaded from:
+Class-specific knowledge is stored under:
 
 ```text
 backend/knowledge/<class>.json
 ```
 
-The PDF report is then generated using ReportLab and can contain:
-
-```text
-Predicted class
-Image confidence
-Malignancy mass
-Clinical-concern mass
-Uncertainty values
-Modality contributions
-Class probabilities
-Grad-CAM
-Recommendations
-```
+Reports are generated with ReportLab and can include prediction, confidence, malignancy mass, clinical-concern mass, uncertainty, modality contribution, class probabilities, Grad-CAM, recommendations, and a medical-use disclaimer.
 
 ---
 
-## 14. Database and Workflow Algorithms
+## 14. Database and Workflow
 
-### Diagnosis persistence
+The diagnosis record stores the main model and multimodal outputs required for history, reports, and later review.
 
-Each diagnosis stores the outputs required for history, reports, and later review, including class probabilities, uncertainty components, symptom risk, demographic risk, modality weights, ABCD features and generated artifact paths.
+Lesion tracking groups diagnoses over time. Diagnosis assignment uses a conditional database update so concurrent requests cannot both claim the same unassigned diagnosis.
 
-### Lesion tracking
-
-A diagnosis can be attached to a patient-owned lesion for longitudinal tracking. The attachment uses a **single conditional database update** so two concurrent requests cannot both successfully claim the same unassigned diagnosis for different lesions.
-
-### Doctor review
+Doctor workflow:
 
 ```text
-Diagnosis queue
-      ↓
-Claim case
-      ↓
-Review
-      ↓
-confirmed / revised / dismissed
+Queue → Claim → Review → confirmed / revised / dismissed
 ```
-
-Only the claiming doctor can submit the final review.
 
 ---
 
 ## 15. Model Checkpoint
 
-Place the trained checkpoint at:
+Place the trained model at:
 
 ```text
 backend/models/best.pth
 ```
 
-The loader accepts common checkpoint layouts such as:
-
-```text
-model_state
-model_state_dict
-direct state dictionary
-```
-
-When `class_names` are included in the checkpoint, their order must exactly match:
+The loader supports common checkpoint layouts such as `model_state`, `model_state_dict`, or a direct state dictionary. When `class_names` are present, their order must exactly match:
 
 ```text
 akiec, bcc, bkl, df, mel, nv, vasc
 ```
 
-The runtime refuses to serve a partially loaded architecture.
-
-`ALLOW_RANDOM_WEIGHTS=true` exists only for development/CI scenarios where a real trained checkpoint is intentionally unavailable.
+Normal operation refuses missing or partially incompatible trained weights. `ALLOW_RANDOM_WEIGHTS=true` is reserved for development/CI scenarios.
 
 ---
 
-## 16. Project Structure
-
-```text
-DERMAXAI/
-├── backend/
-│   ├── app.py
-│   ├── core/
-│   │   ├── preprocessing.py      # resize, normalize, TTA, quality checks
-│   │   ├── model.py              # EfficientNet-B3, CBAM, GeM, MLP
-│   │   ├── database.py
-│   │   └── auth.py
-│   ├── ai/
-│   │   ├── predictor.py          # TTA + prediction + MC Dropout
-│   │   ├── uncertainty.py        # MCUE
-│   │   ├── decision_engine.py    # CMCA
-│   │   ├── biobert_engine.py     # symptom NLP / optional BioBERT
-│   │   ├── text_negation.py
-│   │   ├── risk_engine.py
-│   │   ├── gradcam.py
-│   │   ├── abcd_engine.py
-│   │   └── recommendation_engine.py
-│   ├── reports/
-│   │   └── report_generator.py
-│   ├── features/
-│   │   └── routes.py
-│   ├── knowledge/
-│   ├── models/
-│   └── alembic/
-├── frontend/
-├── docker-compose.yml
-├── .env.example
-└── README.md
-```
-
----
-
-## 17. Technology Stack
-
-| Layer | Technology |
-|---|---|
-| Deep learning | PyTorch + timm |
-| Backbone | EfficientNet-B3 |
-| Attention | CBAM |
-| Pooling | GeM |
-| Classification head | LayerNorm + GELU + Dropout MLP |
-| Training loss | ACWF-FL |
-| Optimizer | SAM + AdamW |
-| Weight averaging | SWA |
-| Inference augmentation | TTA |
-| Uncertainty | MC Dropout + MCUE |
-| Symptom analysis | Rule-based NLP + optional BioBERT |
-| Multimodal fusion | CMCA |
-| Explainability | Grad-CAM + ABCD |
-| Backend | FastAPI + SQLAlchemy |
-| Database | SQLite |
-| Frontend | React + Vite + TailwindCSS |
-| Reporting | ReportLab |
-| Deployment | Docker Compose + Nginx |
-| CI | GitHub Actions |
-
----
-
-## 18. Local Run
+## 16. Local Run
 
 ### Backend
 
@@ -722,18 +586,44 @@ cp .env.example .env
 docker compose up --build
 ```
 
-Place `best.pth` under `backend/models/` before running the normal application. Docker startup executes the Alembic migration before starting Uvicorn.
+The Docker backend applies Alembic migrations before Uvicorn starts.
 
 ---
 
-## 19. Limitations
+## 17. Technology Stack
 
-DERMAXAI is a **student research/prototype screening and decision-support system**. Its outputs are not a substitute for clinical examination, dermatologist assessment, or histopathological confirmation.
+| Component | Technology |
+|---|---|
+| Deep learning | PyTorch + timm |
+| CNN backbone | EfficientNet-B3 |
+| Attention | CBAM |
+| Pooling | GeM |
+| Classifier head | LayerNorm + GELU + Dropout MLP |
+| Training loss | ACWF-FL |
+| Training optimization | SAM + AdamW |
+| Weight averaging | SWA |
+| Inference augmentation | TTA |
+| Uncertainty | MC Dropout + MCUE |
+| Symptom processing | Rule-based NLP + optional BioBERT |
+| Multimodal fusion | CMCA |
+| Explainability | Grad-CAM + ABCD |
+| Backend | FastAPI + SQLAlchemy |
+| Database | SQLite |
+| Frontend | React + Vite + TailwindCSS |
+| Reports | ReportLab |
+| Deployment | Docker Compose + Nginx |
+| CI | GitHub Actions |
 
-In particular:
+---
 
-- CMCA is a concern score, not a calibrated malignancy probability.
-- MCUE uncertainty values are model uncertainty indicators, not guarantees of safety.
+## 18. Limitations
+
+DERMAXAI is a **student research/prototype screening and decision-support system**. It is not a substitute for clinical examination, dermatologist assessment, or histopathological confirmation.
+
+The following should be kept explicit when presenting the system:
+
+- CMCA is a clinical-concern score, not a calibrated malignancy probability.
+- MCUE values are uncertainty indicators, not guarantees of clinical safety.
 - Symptom and demographic scores are rule-based contributions.
-- ABCD features are contextual image measurements and are not classifier inputs.
+- ABCD measurements are contextual image features and are not classifier inputs.
 - Model behavior depends on the trained checkpoint and its training data.
