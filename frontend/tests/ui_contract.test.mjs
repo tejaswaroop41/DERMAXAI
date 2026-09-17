@@ -7,6 +7,9 @@ const root = path.resolve(import.meta.dirname, '..')
 const register = fs.readFileSync(path.join(root, 'src/pages/Register.jsx'), 'utf8')
 const admin = fs.readFileSync(path.join(root, 'src/pages/Admin.jsx'), 'utf8')
 const dashboard = fs.readFileSync(path.join(root, 'src/pages/Dashboard.jsx'), 'utf8')
+const diagnose = fs.readFileSync(path.join(root, 'src/pages/Diagnose.jsx'), 'utf8')
+const history = fs.readFileSync(path.join(root, 'src/pages/History.jsx'), 'utf8')
+const doctor = fs.readFileSync(path.join(root, 'src/pages/Doctor.jsx'), 'utf8')
 const lesions = fs.readFileSync(path.join(root, 'src/pages/Lesions.jsx'), 'utf8')
 const api = fs.readFileSync(path.join(root, 'src/lib/api.js'), 'utf8')
 const app = fs.readFileSync(path.join(root, 'src/App.jsx'), 'utf8')
@@ -62,4 +65,15 @@ test('profile uses explicit PATCH semantics for clearing optional fields', () =>
   assert.match(api, /updateProfile: d => api\.patch\('\/patients\/profile', d\)/)
   assert.match(profile, /const emptyToNull = value => value === '' \|\| value == null \? null : value/)
   assert.match(profile, /value=\{form\.age \?\? ''\}/)
+})
+
+
+test('diagnostic UIs distinguish malignant, clinical concern, and non-malignant states', () => {
+  for (const source of [dashboard, diagnose, history, doctor, lesions]) {
+    assert.match(source, /Clinical concern/)
+    assert.match(source, /Non-malignant/)
+    assert.match(source, /clinical_concern \?\?/) 
+  }
+  assert.match(dashboard, /summary\?\.clinical_concern_count/)
+  assert.match(history, /clinical-concern/)
 })
