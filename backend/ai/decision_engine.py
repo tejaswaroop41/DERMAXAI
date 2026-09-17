@@ -3,7 +3,7 @@ DERMAXAI — Decision Engine / CMCA
 
 Cross-Modal Confidence Aggregation (CMCA) combines three normalized clinical
 risk signals into a single clinical-concern score:
-  - image malignancy probability mass
+  - image clinical-concern probability mass
   - symptom risk score
   - demographic risk score
 
@@ -48,14 +48,20 @@ class DecisionEngine:
         image_conf = float(image_result["confidence"])
         class_probs = image_result["class_probabilities"]
         predicted_malignant = bool(pred_class in settings.MALIGNANT_CLASSES)
+        predicted_clinical_concern = bool(pred_class in settings.CLINICAL_CONCERN_CLASSES)
 
         # Image confidence remains the model's class-confidence measure.
         image_confidence = image_conf
 
-        # Image-derived malignancy evidence is the sum of the configured
-        # malignant-class probabilities. This is the image-side risk input.
+        # Keep binary malignant evidence separate from the broader clinical
+        # concern signal. AKIEC contributes to concern/review, but is not
+        # converted into a malignant prediction solely because of its dataset
+        # category.
         malignancy_mass = float(sum(
             class_probs.get(c, 0.0) for c in settings.MALIGNANT_CLASSES
+        ))
+        clinical_concern_mass = float(sum(
+            class_probs.get(c, 0.0) for c in settings.CLINICAL_CONCERN_CLASSES
         ))
 
         symptom_score = max(0.0, min(1.0, float(
@@ -76,7 +82,7 @@ class DecisionEngine:
             "demographics": 0.25 + 0.75 * demo_score,
         }
         risk_values = {
-            "image": malignancy_mass,
+            "image": clinical_concern_mass,
             "symptoms": symptom_score,
             "demographics": demo_score,
         }
@@ -84,10 +90,10 @@ class DecisionEngine:
 
         # Clinical escalation is intentionally separate from the malignant
         # class label. A concerning multimodal score can require review without
-        # converting a benign image prediction into a malignant prediction.
+        # converting a non-malignant image prediction into a malignant one.
         urgency_escalation = bool(
             symptom_urgent
-            or malignancy_mass >= self.MALIGNANCY_MASS_ESCALATION_THRESHOLD
+            or clinical_concern_mass >= self.MALIGNANCY_MASS_ESCALATION_THRESHOLD
             or cmca_score >= self.CMCA_CONCERN_THRESHOLD
         )
 
@@ -104,10 +110,16 @@ class DecisionEngine:
             "fused_confidence": round(image_confidence, 4),
             "image_confidence": round(image_confidence, 4),
             "malignancy_mass": round(malignancy_mass, 4),
+            "clinical_concern_mass": round(clinical_concern_mass, 4),
             "cmca_clinical_concern_score": round(cmca_score, 4),
             "is_malignant": is_malignant,
             "predicted_malignant": predicted_malignant,
-            "clinical_concern": bool(cmca_score >= self.CMCA_CONCERN_THRESHOLD or requires_review),
+            "predicted_clinical_concern": predicted_clinical_concern,
+            "clinical_concern": bool(
+                predicted_clinical_concern
+                or cmca_score >= self.CMCA_CONCERN_THRESHOLD
+                or requires_review
+            ),
             "requires_review": requires_review,
             "urgency_escalated": urgency_escalation,
             "modality_weights": self._reported_weights(weights),
