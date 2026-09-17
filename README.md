@@ -4,711 +4,558 @@
 > Final Year BE Project — Dr. AIT, Bengaluru | Course: 22CSP605 | 2025–26  
 > Guide: Dr. Suresha D, Assoc. Prof., CSE Programme
 
-DERMAXAI is a multimodal dermatology screening and clinical-review support application that combines dermoscopic image analysis with symptom information, demographic risk factors, uncertainty estimation, explainable AI, clinical recommendations, lesion tracking, doctor review workflows, and PDF report generation.
+DERMAXAI is a **multimodal dermatology screening and clinical-review support system**. The core pipeline starts with a dermoscopic image, extracts an image-model prediction and uncertainty information, analyzes optional symptoms and demographic risk factors, combines the resulting signals using CMCA, generates explainability outputs, and stores the complete case for reporting and optional doctor review.
 
-The system is designed as a **screening and decision-support prototype**, not as a replacement for a dermatologist. The generated classification, concern signal, uncertainty metrics, explanations, recommendations, and reports are intended to support preliminary assessment and structured review.
-
----
-
-## Table of Contents
-
-- [Project Overview](#project-overview)
-- [What DERMAXAI Does](#what-dermaxai-does)
-- [End-to-End Workflow](#end-to-end-workflow)
-- [Architecture Overview](#architecture-overview)
-- [Clinical Class Semantics](#clinical-class-semantics)
-- [Model Architecture](#model-architecture)
-- [Novel Algorithms and Methods](#novel-algorithms-and-methods)
-- [Multimodal Decision Logic](#multimodal-decision-logic)
-- [Uncertainty Estimation](#uncertainty-estimation)
-- [Explainable AI](#explainable-ai)
-- [Symptom and Demographic Processing](#symptom-and-demographic-processing)
-- [Clinical Recommendation Layer](#clinical-recommendation-layer)
-- [PDF Report Generation](#pdf-report-generation)
-- [User Roles and Application Workflows](#user-roles-and-application-workflows)
-- [Frontend](#frontend)
-- [Backend API](#backend-api)
-- [Database Design](#database-design)
-- [Database Migrations](#database-migrations)
-- [Project Structure](#project-structure)
-- [Technology Stack](#technology-stack)
-- [Model Checkpoint](#model-checkpoint)
-- [Configuration](#configuration)
-- [Quick Start with Docker](#quick-start-with-docker)
-- [Local Backend Development](#local-backend-development)
-- [Local Frontend Development](#local-frontend-development)
-- [Docker Architecture](#docker-architecture)
-- [Authentication and Security](#authentication-and-security)
-- [Testing and CI](#testing-and-ci)
-- [Troubleshooting](#troubleshooting)
-- [Expected Development Workflow](#expected-development-workflow)
-- [Limitations and Scope](#limitations-and-scope)
-- [Research and Academic Context](#research-and-academic-context)
-- [License / Project Status](#license--project-status)
+The most important design principle is that **each algorithm has a defined place in the pipeline**. Training algorithms are separated from inference algorithms, and explainability algorithms are not treated as classifier inputs.
 
 ---
 
-## Project Overview
+## 1. Algorithm-to-Pipeline Mapping
 
-DERMAXAI v6 is organized as a full-stack application with four major layers:
+The table below is the main technical map of DERMAXAI: **what algorithm is used, at which step, what it receives, and what it produces.**
 
-1. **AI inference layer** — EfficientNet-B3 based image classification with CBAM, GeM pooling, a LayerNorm/GELU/Dropout MLP head, TTA, and MC-dropout based uncertainty estimation.
-2. **Multimodal reasoning layer** — symptom analysis, demographic risk assessment, and Cross-Modal Confidence Aggregation (CMCA).
-3. **Clinical workflow layer** — recommendations, Grad-CAM explanations, reports, lesion history, doctor review, and administrative analytics.
-4. **Application layer** — FastAPI backend, SQLite persistence, JWT authentication, React/Vite frontend, Nginx reverse proxy, Docker Compose, and GitHub Actions CI.
-
-The application intentionally keeps the following concepts separate:
-
-- the **image model's predicted class**;
-- the **malignant class signal**;
-- the broader **clinical-concern signal**;
-- the **automated review requirement**;
-- the **uncertainty score**; and
-- the **multimodal CMCA concern score**.
-
-That separation is important because a multimodal risk signal should not silently rewrite the image model's class prediction.
+| Pipeline step | Algorithm / method | Implementation | Input | Output |
+|---|---|---|---|---|
+| 1. Image intake | File validation + format verification | `backend/ai/predictor.py` | Uploaded image | Validated image payload |
+| 2. Image quality | Laplacian variance, brightness and resolution checks | `backend/core/preprocessing.py` | RGB image | Quality score + warnings |
+| 3. Preprocessing | Resize `300×300` + ImageNet normalization | `backend/core/preprocessing.py` | RGB image | Model-ready tensor |
+| 4. Test-time augmentation | **TTA**: 8 deterministic full-image views | `backend/core/preprocessing.py` | Model-ready image | Multiple transformed tensors |
+| 5. Feature extraction | **EfficientNet-B3** | `backend/core/model.py` | TTA tensors | Deep spatial feature maps |
+| 6. Feature refinement | **CBAM** channel + spatial attention | `backend/core/model.py` | Feature maps | Attention-refined features |
+| 7. Feature pooling | **GeM (Generalized Mean Pooling)** | `backend/core/model.py` | Refined feature maps | Global feature vector |
+| 8. Classification | LayerNorm → Linear → GELU → Dropout MLP head | `backend/core/model.py` | Pooled feature vector | 7 class logits |
+| 9. Calibration adjustment | Mel-only logit adjustment | `backend/ai/predictor.py` | 7 logits | Adjusted logits |
+| 10. Primary prediction | Softmax + TTA probability averaging | `backend/ai/predictor.py` | Adjusted logits | Class probabilities + predicted class + image confidence |
+| 11. Stochastic inference | **MC Dropout** | `backend/ai/predictor.py` | Image tensor | Multiple stochastic probability distributions |
+| 12. Uncertainty | **MCUE** | `backend/ai/uncertainty.py` | TTA distribution + MC distributions | Aleatory, epistemic, fusion and composite uncertainty |
+| 13. Symptom analysis | Rule-based clinical NLP + negation handling; optional BioBERT module | `backend/ai/biobert_engine.py` | Patient symptom text | Symptom risk + duration + urgency flag |
+| 14. Demographic risk | Weighted risk rules using age, Fitzpatrick skin type, history and sun exposure | `backend/ai/risk_engine.py` | Patient/profile data | Demographic risk score + breakdown |
+| 15. Multimodal fusion | **CMCA** (Cross-Modal Confidence Aggregation) | `backend/ai/decision_engine.py` | Image concern mass + symptom risk + demographic risk | Clinical-concern score and escalation signals |
+| 16. Visual explanation | **Grad-CAM** | `backend/ai/gradcam.py` | Image + predicted class | Heatmap showing influential image regions |
+| 17. Dermoscopic feature explanation | Otsu segmentation + ABCD feature extraction | `backend/ai/abcd_engine.py` | Image | Asymmetry, border irregularity, color variation, diameter |
+| 18. Clinical guidance | Knowledge-base recommendation rules | `backend/ai/recommendation_engine.py` | Decision + uncertainty + symptoms | Recommendations, urgency and follow-up |
+| 19. Persistence | SQLAlchemy + SQLite | `backend/core/database.py` | Complete case outputs | Diagnosis record |
+| 20. Report generation | ReportLab | `backend/reports/report_generator.py` | Decision + uncertainty + recommendations + Grad-CAM | PDF report |
+| 21. Longitudinal tracking | Lesion grouping + atomic diagnosis assignment | `backend/features/routes.py` | Existing diagnosis + lesion | Serial lesion history |
+| 22. Clinical review | Doctor claim/review workflow | `backend/app.py` + `backend/features/routes.py` | Flagged/stored diagnosis | Doctor verdict and notes |
 
 ---
 
-## What DERMAXAI Does
-
-A typical patient workflow is:
+## 2. End-to-End Algorithmic Flow
 
 ```text
-Create account / Login
-        │
-        ▼
-Complete patient profile
-        │
-        ▼
-Upload dermoscopic image
-        │
-        ├── Optional symptoms
-        ├── Optional demographics/profile data
-        └── Optional sun-exposure information
-        │
-        ▼
-Image validation
-        │
-        ▼
-TTA image inference
-        │
-        ├── Predicted class
-        ├── Class probabilities
-        └── Image confidence
-        │
-        ▼
-MC-dropout sampling + MCUE
-        │
-        ├── Aleatory uncertainty
-        ├── Epistemic uncertainty
-        ├── Fusion uncertainty
-        └── Composite uncertainty
-        │
-        ▼
-Symptom analysis + demographic risk
-        │
-        ▼
-CMCA multimodal concern analysis
-        │
-        ├── Malignancy mass
-        ├── Clinical-concern mass
-        ├── CMCA concern score
-        ├── Review escalation
-        └── Urgency escalation
-        │
-        ├───────────────┐
-        ▼               ▼
-   Grad-CAM      Recommendation engine
-        │               │
-        └───────┬───────┘
-                ▼
-        Persistent diagnosis record
-                │
-        ┌───────┴─────────────────────────┐
-        ▼                                 ▼
- Patient history / lesions        PDF clinical report
-        │
-        ▼
- Optional doctor review workflow
+PATIENT IMAGE + OPTIONAL SYMPTOMS + OPTIONAL PROFILE DATA
+                         │
+                         ▼
+                [1] INPUT VALIDATION
+                         │
+                         ▼
+                [2] IMAGE QUALITY CHECK
+                         │
+                         ▼
+                [3] RESIZE + NORMALIZE
+                         │
+                         ▼
+              [4] TTA — 8 IMAGE VIEWS
+                         │
+                         ▼
+          ┌──────────────────────────────┐
+          │ [5] EfficientNet-B3          │
+          │ [6] CBAM                     │
+          │ [7] GeM pooling              │
+          │ [8] LayerNorm/GELU/Dropout   │
+          │     MLP classification head  │
+          └──────────────┬───────────────┘
+                         │
+                         ▼
+                [9] MEL LOGIT ADJUSTMENT
+                         │
+                         ▼
+              [10] SOFTMAX + TTA AVERAGE
+                         │
+              ┌──────────┴──────────┐
+              │                     │
+              ▼                     ▼
+      PRIMARY PREDICTION       [11] MC DROPOUT
+      class + confidence             │
+              │                      ▼
+              │                  [12] MCUE
+              │                      │
+              └──────────┬───────────┘
+                         │
+          ┌──────────────┼──────────────┐
+          ▼              ▼              ▼
+   IMAGE CONCERN     [13] SYMPTOM    [14] DEMOGRAPHIC
+       MASS             NLP              RISK
+          │              │              │
+          └──────────────┼──────────────┘
+                         ▼
+                  [15] CMCA FUSION
+                         │
+                         ▼
+              CLINICAL-CONCERN DECISION
+                         │
+          ┌──────────────┼──────────────┐
+          ▼              ▼              ▼
+     [16] Grad-CAM   [17] ABCD      [18] RECOMMENDATION
+          │              │              │
+          └──────────────┼──────────────┘
+                         ▼
+                [19] DATABASE RECORD
+                         │
+                ┌────────┴────────┐
+                ▼                 ▼
+         [20] PDF REPORT    [21] LESION TRACKING
+                                   │
+                                   ▼
+                           [22] DOCTOR REVIEW
 ```
 
 ---
 
-## End-to-End Workflow
+## 3. Training-Time Algorithms vs Inference-Time Algorithms
 
-### 1. Authentication
+This distinction is important when describing DERMAXAI in a viva, paper, presentation, or documentation.
 
-The backend exposes registration, login, current-user, forgot-password, and reset-password endpoints. Patient self-registration is allowed through the public registration endpoint. Doctor accounts are intended to be provisioned through the admin workflow rather than selected by an arbitrary public registration request.
+### Training-time methods
 
-The frontend stores the access token locally and sends it as a Bearer token through the Axios API layer.
+| Method | Where it is used | Purpose |
+|---|---|---|
+| **ACWF-FL** | Model training | Addresses class imbalance using effective-number weighting and focal loss; malignant classes receive additional `1.5×` loss amplification |
+| **SAM** | Training phase 2 | Sharpness-Aware Minimization for optimization toward flatter solutions |
+| **SWA** | Training phase 3 | Stochastic Weight Averaging over late training checkpoints |
 
-### 2. Patient profile
+These methods affect the **trained model weights**. They are not recalculated during normal API inference.
 
-A patient profile can hold:
+### Inference-time methods
 
-- age;
-- gender;
-- skin type;
-- medical history; and
-- sun exposure.
-
-These values can be used by the demographic risk layer when a diagnosis is requested. Diagnosis-specific form values can override corresponding profile values when supplied.
-
-### 3. Image intake
-
-Before inference, the backend checks:
-
-- the submitted filename/extension;
-- the file size (10 MB maximum at the API boundary); and
-- the actual encoded image format/content.
-
-Supported image extensions are:
-
-- `.jpg`
-- `.jpeg`
-- `.png`
-- `.bmp`
-
-The image is stored under a generated UUID-based filename before the AI pipeline runs.
-
-### 4. Image inference
-
-The predictor loads the trained checkpoint once at application startup and reuses the model singleton. Inference performs configured TTA views, averages the resulting class probabilities, selects the maximum-probability class, and reports the corresponding image confidence.
-
-### 5. Uncertainty estimation
-
-The predictor also performs stochastic MC-dropout passes. The uncertainty engine combines the stochastic distribution with the deterministic TTA distribution and produces normalized uncertainty components.
-
-### 6. Multimodal reasoning
-
-The system separately analyzes:
-
-- image clinical-concern probability mass;
-- symptom risk;
-- demographic risk.
-
-CMCA produces a clinical-concern score from these normalized signals. This score is explicitly **not** a calibrated probability of malignancy.
-
-### 7. Explainability
-
-Grad-CAM is generated for the predicted image class and stored so that the authenticated owner or a doctor can retrieve it.
-
-### 8. Recommendations
-
-The recommendation engine uses the decision, uncertainty, and symptom analysis to provide a structured recommendation payload containing class description, recommendation text, urgency level, and a suggested follow-up window.
-
-### 9. Persistence and reporting
-
-A diagnosis record stores the prediction, confidence, uncertainty values, symptom risk, demographic risk, class probabilities, modality weights, optional Grad-CAM path, optional report path, and ABCD feature extraction results.
-
-A PDF report can then be generated from the same decision and evidence bundle.
-
-### 10. Longitudinal lesion tracking
-
-Patients can create named lesions and attach previously generated diagnoses to those lesions. This supports serial tracking of the same lesion over time.
-
-Diagnosis attachment uses an atomic database update so that two concurrent requests cannot both claim an unassigned diagnosis for different lesions.
-
-### 11. Doctor review
-
-Doctors can view the review queue, claim cases, and submit one of the supported verdicts:
-
-- `confirmed`
-- `revised`
-- `dismissed`
-
-Only the doctor who claimed a case can submit its review. A uniqueness constraint on `doctor_reviews.diagnosis_id` prevents multiple active review records for the same diagnosis; an integrity-race is returned as a stable HTTP 409 response.
-
-### 12. Administrative analytics
-
-Administrators can view user management data and aggregate diagnosis/review metrics. The performance endpoint explicitly avoids presenting revision rate as model accuracy because ground-truth labels are not stored in the application database.
+| Method | Where it is used | Purpose |
+|---|---|---|
+| **TTA** | Before/around image prediction | Runs multiple deterministic transformed views and averages their class probabilities |
+| **MC Dropout** | After primary model setup | Produces stochastic predictive samples |
+| **MCUE** | Uncertainty stage | Quantifies predictive uncertainty and TTA/MC disagreement |
+| **Clinical NLP** | Symptom stage | Converts free-text symptoms into a normalized risk contribution |
+| **Demographic Risk Engine** | Profile stage | Converts patient risk factors into a normalized risk contribution |
+| **CMCA** | Multimodal decision stage | Combines the three concern signals without changing the image-model class |
+| **Grad-CAM** | Explainability stage | Shows image regions that influenced the selected class |
+| **ABCD extraction** | Explainability stage | Computes additional dermoscopic measurements for context |
 
 ---
 
-## Architecture Overview
+## 4. Step-by-Step Technical Details
+
+### Step 1 — Input validation
+
+Before AI inference, the backend verifies the uploaded image extension and then verifies the actual encoded image content. Supported extensions are:
 
 ```text
-Dermoscopic Image
-       │
-       ▼
-┌───────────────────────────────────────────────┐
-│              IMAGE MODEL                      │
-│                                               │
-│  EfficientNet-B3 backbone                     │
-│      │                                        │
-│      ├── CBAM channel attention               │
-│      ├── CBAM spatial attention               │
-│      │                                        │
-│      └── GeM pooling                          │
-│               │                               │
-│               ▼                               │
-│  LayerNorm → Linear → GELU → Dropout          │
-│      → LayerNorm → Linear → GELU → Dropout    │
-│      → LayerNorm → Linear → 7 logits          │
-└──────────────────────┬────────────────────────┘
-                       │
-                       ▼
-            TTA mean class probabilities
-                       │
-             ┌─────────┴─────────┐
-             │                   │
-             ▼                   ▼
-       Primary result       MC-dropout samples
-             │                   │
-             │                   ▼
-             │                MCUE
-             │                   │
-             └─────────┬─────────┘
-                       │
-                       ▼
-┌───────────────────────────────────────────────┐
-│              MULTIMODAL LAYER                │
-│                                               │
-│ Image clinical-concern mass ──────┐          │
-│ Symptom risk ─────────────────────┼─► CMCA    │
-│ Demographic risk ─────────────────┘          │
-└──────────────────────┬────────────────────────┘
-                       │
-                       ▼
-┌───────────────────────────────────────────────┐
-│                 DECISION                     │
-│                                               │
-│ Predicted class                              │
-│ Image confidence                             │
-│ Malignancy mass                              │
-│ Clinical-concern mass                        │
-│ CMCA clinical-concern score                  │
-│ Clinical concern flag                        │
-│ Review requirement                            │
-│ Urgency escalation                            │
-└───────────────┬──────────────────────────────┘
-                │
-       ┌────────┼───────────────┐
-       ▼        ▼               ▼
-   Grad-CAM Recommendations    ABCD
-       │        │               │
-       └────────┼───────────────┘
-                ▼
-        Database + PDF report
-                │
-        ┌───────┴────────┐
-        ▼                ▼
-  Patient workflow   Doctor workflow
+.jpg
+.jpeg
+.png
+.bmp
 ```
 
----
+The API accepts files up to **10 MB**. The stored runtime filename is generated from a UUID rather than trusting the original filename.
 
-## Clinical Class Semantics
+### Step 2 — Image quality checks
 
-The image model uses seven classes in this exact order:
+`validate_image_quality()` performs lightweight quality assessment using:
+
+- **Laplacian variance** for blur detection (`< 100` is flagged as blurry);
+- grayscale mean brightness (`< 40` too dark, `> 220` too bright); and
+- minimum image dimension (`< 100 px` is flagged as low resolution).
+
+These checks produce warnings. They do not modify the classifier's prediction.
+
+### Step 3 — Preprocessing
+
+Images are resized to:
+
+```text
+300 × 300
+```
+
+and normalized using:
+
+```text
+Mean = [0.485, 0.456, 0.406]
+Std  = [0.229, 0.224, 0.225]
+```
+
+The same normalization convention is used by the inference preprocessing pipeline.
+
+### Step 4 — TTA
+
+DERMAXAI uses **full-image Test-Time Augmentation**, not spatial crops. The configured default is `8` views:
+
+```text
+1. Original
+2. Horizontal flip
+3. Vertical flip
+4. Rotate 90°
+5. Rotate 180°
+6. Rotate 270°
+7. Transpose
+8. Rotate 45°
+```
+
+Each view is passed through the classifier and its probability vector is collected. The primary prediction uses the mean probability across the configured views.
+
+### Step 5 — EfficientNet-B3
+
+The backbone is:
+
+```text
+EfficientNet-B3
+```
+
+implemented through `timm` with feature extraction enabled. The live service loads the trained checkpoint rather than training the network during inference.
+
+### Step 6 — CBAM
+
+CBAM is applied to the final spatial feature map and contains two sequential attention operations:
+
+```text
+Feature map
+    ↓
+Channel Attention
+    ↓
+Spatial Attention
+    ↓
+Refined feature map
+```
+
+**Channel attention** uses global average pooling and global max pooling followed by a shared MLP and sigmoid gating.
+
+**Spatial attention** uses channel-wise average and maximum projections, concatenates them, and applies a convolutional attention gate.
+
+### Step 7 — GeM pooling
+
+The refined feature map is converted into a feature vector using **Generalized Mean Pooling (GeM)**.
+
+The implementation learns the pooling parameter `p` and uses:
+
+```text
+GeM(x) = ( mean(clamp(x, eps)^p) )^(1/p)
+```
+
+This replaces a simple global average pooling operation.
+
+### Step 8 — Classification head
+
+The pooled feature vector enters a three-stage normalized MLP:
+
+```text
+LayerNorm
+  ↓
+Linear → 512
+  ↓
+GELU
+  ↓
+Dropout(0.3)
+  ↓
+LayerNorm
+  ↓
+Linear → 256
+  ↓
+GELU
+  ↓
+Dropout(0.3)
+  ↓
+LayerNorm
+  ↓
+Linear → 7 classes
+```
+
+The seven output classes are:
 
 ```text
 akiec · bcc · bkl · df · mel · nv · vasc
 ```
 
-### Class definitions in the application
+### Step 9 — Mel-only logit adjustment
 
-| Code | Application name | Presentation group |
-|---|---|---|
-| `akiec` | Actinic Keratoses / Intraepithelial Carcinoma | Clinical concern |
-| `bcc` | Basal Cell Carcinoma | Malignant + clinical concern |
-| `bkl` | Benign Keratosis | Non-malignant |
-| `df` | Dermatofibroma | Non-malignant |
-| `mel` | Melanoma | Malignant + clinical concern |
-| `nv` | Melanocytic Nevi | Non-malignant |
-| `vasc` | Vascular Lesions | Non-malignant |
+Before softmax, DERMAXAI can apply a **surgical logit adjustment only to the `mel` class**.
 
-The application maintains two explicit class lists:
-
-```python
-MALIGNANT_CLASSES = ['bcc', 'mel']
-CLINICAL_CONCERN_CLASSES = ['akiec', 'bcc', 'mel']
-```
-
-### Why AKIEC is treated separately
-
-`akiec` is kept inside the broader clinical-concern group rather than the binary malignant group used by the presentation layer. This avoids collapsing the dataset label and the application's broader review semantics into one flag.
-
-Therefore:
+Current configuration:
 
 ```text
-Predicted class      = image-model output
-Malignant            = predicted class is bcc or mel
-Clinical concern     = class is akiec/bcc/mel OR multimodal/review escalation
+LOGIT_ADJUSTMENT_ENABLED = true
+LOGIT_ADJUSTMENT_CLASS   = mel
+LOGIT_ADJUSTMENT_TAU     = 0.3
+MEL_LOG_PRIOR            = -2.1970
 ```
 
-A case can therefore be clinically concerning without the UI or PDF describing it as simply malignant.
+The adjustment is applied to the mel logit only; other class logits are untouched.
 
----
+### Step 10 — Primary image prediction
 
-## Model Architecture
-
-### EfficientNet-B3 backbone
-
-The image classifier uses a `timm` EfficientNet-B3 backbone with feature extraction enabled. The runtime loads the backbone with `pretrained=False` and expects the complete trained checkpoint to contain compatible weights.
-
-The application refuses to silently serve a partially loaded architecture. A checkpoint with missing/unexpected parameters is treated as an architecture mismatch.
-
-### CBAM
-
-CBAM (Convolutional Block Attention Module) is implemented as two sequential attention stages:
-
-1. **Channel attention** — combines global average and global max pooled descriptors and passes them through a small MLP before applying a sigmoid gate.
-2. **Spatial attention** — aggregates channel-wise average and maximum projections, concatenates them, and uses a convolutional gate to produce spatial attention.
-
-The resulting operation can be summarized as:
+The adjusted logits are passed through softmax for each TTA view. The vectors are averaged and the maximum-probability class becomes:
 
 ```text
-features
-   │
-   ▼
-channel attention
-   │
-   ▼
-spatial attention
-   │
-   ▼
-refined features
+predicted_class
 ```
 
-### GeM pooling
-
-The classifier uses Generalized Mean Pooling rather than a plain global average pool.
-
-Conceptually, for a feature activation map `x` and learnable pooling parameter `p`:
+The probability of that class is returned as:
 
 ```text
-GeM(x) = ( mean( clamp(x, eps)^p ) )^(1/p)
+image confidence
 ```
 
-The implementation learns `p` and uses a small epsilon to avoid invalid values.
+The image model remains the sole source of the class prediction.
 
-### MLP classification head
+### Step 11 — MC Dropout
 
-The pooled feature vector is passed through three normalized/linear stages:
+A second stochastic inference path is used for uncertainty estimation.
+
+The model is returned to evaluation mode, but only explicit dropout layers are switched to training mode. This preserves batch-normalization behavior while introducing stochasticity across repeated passes.
+
+The default number of passes is:
 
 ```text
-LayerNorm
-   ↓
-Linear(feat_dim → 512)
-   ↓
-GELU
-   ↓
-Dropout(0.3)
-   ↓
-LayerNorm
-   ↓
-Linear(512 → 256)
-   ↓
-GELU
-   ↓
-Dropout(0.3)
-   ↓
-LayerNorm
-   ↓
-Linear(256 → 7)
+MC_DROPOUT_PASSES = 20
 ```
 
-### Checkpoint validation
+### Step 12 — MCUE uncertainty estimation
 
-The loader supports common checkpoint layouts such as:
+MCUE combines the deterministic TTA distribution with MC-dropout samples.
 
-- `model_state`
-- `model_state_dict`
-- a direct state dictionary
+#### Aleatory uncertainty
 
-If the checkpoint explicitly contains `class_names`, the stored ordering must match the application's configured class order exactly.
+The expected predictive entropy of the stochastic samples is used as the aleatory component.
 
-The runtime also supports a development-only `ALLOW_RANDOM_WEIGHTS=true` path for CI/testing when a trained checkpoint is intentionally unavailable. Normal operation fails closed when trained weights cannot be found.
-
----
-
-## Novel Algorithms and Methods
-
-### ACWF-FL — Adaptive Class Weight Function + Focal Loss
-
-The project training methodology documents an adaptive class-weighted focal-loss formulation using:
-
-- effective-number based class weighting;
-- focal loss with `γ = 2.0`;
-- `β = 0.9999`; and
-- an additional `1.5×` amplification for malignant-class loss.
-
-This is a **training-time method**. The production inference service does not recalculate training loss.
-
-### CMCA — Cross-Modal Confidence Aggregation
-
-CMCA combines three normalized concern signals:
+For a probability vector `p`:
 
 ```text
-1. image clinical-concern probability mass
-2. symptom risk score
-3. demographic risk score
+H(p) = -Σ p_i log(p_i)
 ```
 
-The implementation uses evidence-adaptive modality weights with a non-zero baseline contribution for every modality.
-
-The final value is a **clinical-concern score**, not a calibrated probability of malignancy.
-
-### MCUE — Monte Carlo Uncertainty Estimation
-
-MCUE combines:
-
-- aleatory uncertainty;
-- epistemic uncertainty; and
-- disagreement between deterministic TTA inference and stochastic MC-dropout inference.
-
-All reported components are normalized into `[0, 1]`.
-
-### SAM — Sharpness-Aware Minimization
-
-The project training methodology includes Sharpness-Aware Minimization as a training phase intended to seek flatter solutions and improve generalization.
-
-### SWA — Stochastic Weight Averaging
-
-The training methodology includes Stochastic Weight Averaging during the final phase to average weights over training epochs.
-
-### TTA — Test-Time Augmentation
-
-The runtime supports a configurable number of transformed image views. The default is `8`, with an allowed range of `1–8`.
-
-TTA predictions are averaged at the probability level before selecting the primary class.
-
----
-
-## Multimodal Decision Logic
-
-The decision engine intentionally separates image classification from multimodal concern reasoning.
-
-### Image confidence
-
-`image_confidence` is the probability assigned to the selected image class after averaging configured TTA views.
-
-It is not a fused confidence score derived from symptoms or demographics.
-
-### Malignancy mass
-
-The malignant probability mass is:
+DERMAXAI normalizes entropy by `log(K)` where `K = 7` classes:
 
 ```text
-malignancy_mass = P(bcc) + P(mel)
+normalized entropy = H(p) / log(7)
 ```
 
-This quantity represents the total image-model probability assigned to the application's malignant classes.
+#### Epistemic uncertainty
 
-### Clinical-concern mass
-
-The clinical-concern mass is:
+The implementation uses the normalized mutual-information/BALD form:
 
 ```text
-clinical_concern_mass = P(akiec) + P(bcc) + P(mel)
+epistemic = H(mean(MC samples)) - mean(H(each MC sample))
 ```
 
-### Adaptive modality weights
+The value is clipped to `[0, 1]`.
 
-The decision engine calculates:
+#### Fusion uncertainty
+
+The difference between deterministic TTA inference and stochastic MC inference is measured using normalized **Jensen-Shannon divergence**.
+
+#### Composite uncertainty
+
+The current fixed composition is:
 
 ```text
-image_weight       = 0.25 + 0.75 × image_confidence
-symptom_weight     = 0.25 + 0.75 × symptom_score
-demographic_weight = 0.25 + 0.75 × demographic_score
+composite =
+    0.4 × aleatory
+  + 0.4 × epistemic
+  + 0.2 × fusion
 ```
 
-The weights are normalized and then applied to:
+The score is clipped to `[0, 1]`.
+
+The review threshold comes from the checkpoint's `mcue_threshold` when present; otherwise the application uses:
 
 ```text
-image       → clinical_concern_mass
-symptoms    → symptom_score
-demographics→ demographic_score
+0.8054
 ```
 
-The weighted result is the CMCA clinical-concern score.
-
-### Review escalation
-
-Automated review escalation is triggered when at least one of these conditions is true:
+Confidence labels are derived from the composite uncertainty:
 
 ```text
-symptom urgency flag
-OR clinical_concern_mass >= 0.30
-OR CMCA score >= 0.30
-OR uncertainty requires review
-OR malignant prediction has image confidence < 0.70
+< 0.20  → Very High
+< 0.40  → High
+< 0.60  → Moderate
+< 0.80  → Low
+≥ 0.80  → Very Low
 ```
 
-These thresholds are application decision thresholds; they should not be interpreted as medical diagnostic standards.
+### Step 13 — Symptom NLP
 
-### Clinical concern flag
+The default live symptom engine is **lightweight rule-based NLP**. The optional BioBERT transformer path exists in the module but is not enabled by default.
 
-The API can report `clinical_concern` independently of `is_malignant`.
-
-This prevents a case from being relabeled as malignant simply because symptoms, demographics, uncertainty, or multimodal evidence caused the case to require review.
-
----
-
-## Uncertainty Estimation
-
-MCUE is implemented in `backend/ai/uncertainty.py`.
-
-### Predictive entropy
-
-The engine normalizes the distribution and calculates entropy divided by `log(K)`, where `K` is the number of model classes:
+The default engine detects clinical terms such as:
 
 ```text
-H_normalized = H(p) / log(K)
+bleeding, ulcer, rapid growth, irregular border,
+color change, asymmetric, itching, pain, crusting,
+oozing, new mole, darkening
 ```
 
-The resulting value is constrained to `[0, 1]`.
+Each matched keyword contributes a predefined weight, and the final symptom risk score is capped at `1.0`.
 
-### Aleatory uncertainty
+The implementation also includes:
 
-The mean entropy across stochastic MC-dropout samples is used as the aleatory component.
+- negation handling;
+- duplicate keyword suppression;
+- overlap suppression for phrases such as `painful` vs `pain`; and
+- duration extraction using day/week/month/year patterns.
 
-This represents uncertainty associated with the predictive distribution itself.
+An urgency flag is raised when risk keywords are present and the onset is either unknown or approximately under `30` days.
 
-### Epistemic uncertainty
+### Step 14 — Demographic Risk Engine
 
-The engine uses normalized mutual information-style uncertainty:
+The demographic risk score is built from four components:
 
 ```text
-epistemic = predictive_entropy(mean_MC_distribution)
-            - mean(expected_sample_entropy)
+Age risk
++ Fitzpatrick skin-type risk
++ Medical/family-history risk
++ Sun-exposure risk
 ```
 
-The result is clipped into `[0, 1]`.
+The final score is capped at `1.0`.
 
-### Fusion uncertainty
+The current implementation uses rule-based weights. Examples include higher contributions for older age groups, fairer Fitzpatrick skin types, relevant skin-cancer history, blistering sunburn, tanning-bed exposure, and similar recorded risk factors.
 
-The deterministic TTA distribution and the mean MC-dropout distribution are compared with normalized Jensen-Shannon divergence.
+The `gender` field is accepted by the API, but the current `RiskEngine` does not apply a separate gender weight.
 
-### Composite uncertainty
+### Step 15 — CMCA multimodal fusion
 
-The current transparent composition is:
+**CMCA (Cross-Modal Confidence Aggregation)** is the main multimodal reasoning step.
+
+Three signals are used:
 
 ```text
-composite_uncertainty
-    = 0.4 × aleatory
-    + 0.4 × epistemic
-    + 0.2 × fusion
+1. Image clinical-concern probability mass
+2. Symptom risk score
+3. Demographic risk score
 ```
 
-The result is clipped into `[0, 1]`.
-
-### Uncertainty review threshold
-
-The runtime uses `0.8054` as the default uncertainty threshold unless the loaded checkpoint provides its own `mcue_threshold`.
+The class probabilities are grouped into two related but separate concepts:
 
 ```text
-composite_uncertainty > theta_H
-        ↓
-requires_review = true
+Malignancy mass = P(bcc) + P(mel)
+
+Clinical-concern mass =
+    P(akiec) + P(bcc) + P(mel)
 ```
 
-### Confidence labels
-
-The UI-friendly uncertainty labels are derived from the composite uncertainty value:
-
-| Composite uncertainty | Label |
-|---|---|
-| `< 0.20` | Very High |
-| `0.20–<0.40` | High |
-| `0.40–<0.60` | Moderate |
-| `0.60–<0.80` | Low |
-| `>= 0.80` | Very Low |
-
-These labels describe **uncertainty**, not clinical disease severity.
-
----
-
-## Explainable AI
-
-### Grad-CAM
-
-Grad-CAM is generated for the selected image class after the main prediction is calculated.
-
-The generated image is stored under the configured heatmap directory and exposed through an authenticated API endpoint.
-
-The frontend retrieves the heatmap as an authenticated blob rather than treating it as an unrestricted public asset.
-
-The Grad-CAM visualization is intended to show which image regions influenced the model. It should not be interpreted as a clinically validated lesion segmentation mask.
-
----
-
-## Symptom and Demographic Processing
-
-### Symptom analysis
-
-The runtime symptom engine is exposed through `backend/ai/biobert_engine.py`.
-
-The application uses a rule-based/default symptom processing path and provides optional BioBERT/Transformer capability in the runtime dependencies.
-
-The symptom engine returns a normalized `symptom_risk_score` plus an urgency signal used by CMCA.
-
-### Demographic risk engine
-
-The demographic risk layer is implemented in `backend/ai/risk_engine.py` and can consume:
-
-- age;
-- gender;
-- skin type;
-- medical history; and
-- sun exposure.
-
-When a diagnosis request omits a demographic value, the backend can fall back to the corresponding patient profile value.
-
-Demographic risk contributes to **clinical concern reasoning** and does not replace the image classifier's class prediction.
-
----
-
-## Clinical Recommendation Layer
-
-Recommendations are generated after the decision and uncertainty stages.
-
-The recommendation payload used by the API/report includes:
+The modality weights are evidence-adaptive:
 
 ```text
-class_description
-recommendations[]
-urgency_level
-follow_up_days
+image weight        = 0.25 + 0.75 × image confidence
+symptom weight      = 0.25 + 0.75 × symptom risk
+
+demographic weight  = 0.25 + 0.75 × demographic risk
 ```
 
-The recommendation engine uses the image decision, uncertainty output, and symptom analysis.
+The CMCA score is the weighted average of the three normalized concern signals.
 
-The report generator also includes a fixed screening disclaimer stating that DERMAXAI is an AI screening tool and does not constitute a medical diagnosis.
+**Important:** CMCA produces a **clinical-concern score**, not a calibrated probability of malignancy, and it does not overwrite the image-model class prediction.
 
----
+Current escalation rules include:
 
-## PDF Report Generation
+```text
+CMCA concern threshold          = 0.30
+Malignancy-mass escalation      = 0.30
+Malignant low-confidence floor  = 0.70
+```
 
-Reports are generated using ReportLab.
+A case can therefore require clinical review even when the image model's predicted class itself is not malignant.
 
-A generated report can contain:
+### Step 16 — Grad-CAM
 
-- DERMAXAI report header;
-- generation timestamp;
-- patient information;
-- diagnosis result;
-- predicted class and class code;
-- diagnostic confidence;
-- malignant probability mass;
-- clinical-concern probability mass;
-- normalized predictive entropy;
-- composite uncertainty and confidence label;
-- clinical classification;
-- review status;
-- urgency level;
-- modality contribution table;
-- complete class-probability distribution;
-- Grad-CAM visualization when available;
-- class description;
-- recommendation list; and
-- suggested follow-up window.
+Grad-CAM is generated specifically for the selected image class.
 
-### Report presentation categories
+The implementation targets the final spatial block of the EfficientNet-B3 backbone and uses forward and backward hooks to obtain:
 
-The PDF uses three explicit presentation categories:
+```text
+activations + gradients
+```
+
+The Grad-CAM weighting is based on the mean gradient per feature channel, followed by weighted activation aggregation and ReLU.
+
+The output is rendered as a heatmap overlay so the user or doctor can see which regions contributed to the selected prediction.
+
+### Step 17 — ABCD feature extraction
+
+The ABCD module is an **explainability/context layer**, not another classifier.
+
+The implementation performs:
+
+```text
+Otsu thresholding
+    ↓
+Morphological opening/closing
+    ↓
+Largest lesion contour
+    ↓
+Asymmetry
+Border irregularity
+Color variation
+Diameter in pixels
+```
+
+The features are computed as follows:
+
+- **Asymmetry:** average mirror difference between horizontal and vertical flips of the lesion mask.
+- **Border irregularity:** `1 - compactness`, where compactness is based on `4πA / P²`.
+- **Color variation:** normalized mean channel standard deviation inside the lesion.
+- **Diameter:** diameter of the contour's minimum enclosing circle.
+
+These values are stored and displayed for context. **They are never fed back into the classifier.**
+
+### Step 18 — Recommendation engine
+
+Recommendations are generated from the predicted class and the current decision state. The engine loads per-class information from:
+
+```text
+backend/knowledge/<class>.json
+```
+
+It then adds dynamic guidance based on:
+
+- review requirement;
+- malignant status;
+- symptom urgency.
+
+The resulting output includes:
+
+```text
+class description
+recommendation list
+urgency level
+suggested follow-up window
+```
+
+### Step 19 — Diagnosis persistence
+
+The diagnosis record stores the model and multimodal outputs needed for later history, review and reporting, including:
+
+```text
+predicted class
+image confidence
+malignancy signal
+review requirement
+urgency escalation
+uncertainty components
+symptom risk
+
+demographic risk
+class probabilities
+modality weights
+ABCD features
+Grad-CAM path
+PDF report path
+```
+
+### Step 20 — PDF report
+
+ReportLab is used to create the clinical report.
+
+The report contains the predicted class, image confidence, malignancy mass, clinical-concern mass, uncertainty measures, modality contributions, class probability distribution, Grad-CAM explanation, recommendations, and a medical-use disclaimer.
+
+The report uses three presentation categories:
 
 ```text
 MALIGNANT
@@ -716,1292 +563,379 @@ CLINICAL CONCERN
 NON-MALIGNANT
 ```
 
-The distinction is intentional and mirrors the backend decision contract.
+The presentation category is intentionally kept separate from the raw model class and from the uncertainty score.
 
----
+### Step 21 — Lesion tracking
 
-## User Roles and Application Workflows
+Patients can create a named lesion and attach previous diagnoses to it.
 
-DERMAXAI currently has three application roles:
+The diagnosis-to-lesion claim uses a conditional database update so that two concurrent requests cannot both successfully claim the same unassigned diagnosis for different lesions.
 
-```text
-patient
-    │
-    ├── dashboard
-    ├── diagnose
-    ├── history
-    ├── lesions
-    └── profile
+This supports longitudinal tracking of the same lesion across multiple evaluations.
 
- doctor
-    │
-    ├── dashboard access
-    └── doctor review queue
-
- admin
-    │
-    └── admin workspace
-```
-
-### Patient
-
-Patients can:
-
-- register and log in;
-- maintain their profile;
-- submit diagnostic cases;
-- inspect history;
-- view clinical-concern/review state;
-- access Grad-CAM explanations;
-- download authenticated reports;
-- create and edit tracked lesions;
-- attach unassigned diagnoses to lesions; and
-- view completed doctor-review notifications.
-
-### Doctor
+### Step 22 — Doctor review
 
 Doctors can:
 
-- access the doctor queue;
-- inspect diagnosis data;
-- claim cases;
-- view Grad-CAM and reports when available; and
-- submit supported review verdicts.
+```text
+View queue
+   ↓
+Claim diagnosis
+   ↓
+Review case
+   ↓
+Submit verdict
+```
 
-### Admin
-
-Administrators can:
-
-- list users;
-- inspect aggregate system statistics;
-- inspect aggregate performance/workflow metrics;
-- promote eligible users to doctor; and
-- deactivate/reactivate users.
-
-Public registration cannot directly create a doctor account.
-
----
-
-## Frontend
-
-The frontend is a React 18 application built with Vite and styled with TailwindCSS.
-
-### Frontend technologies
-
-- React 18
-- React Router 6
-- Vite 5
-- TailwindCSS 3
-- Axios
-- Recharts
-- React Dropzone
-- React Hot Toast
-- Framer Motion
-- React Hook Form
-- Lucide React
-- React Spinners
-- ESLint
-
-### Frontend route map
-
-| Route | Access | Purpose |
-|---|---|---|
-| `/` | Public | Landing page |
-| `/login` | Public | Login |
-| `/register` | Public | Patient registration |
-| `/forgot-password` | Public | Request password reset |
-| `/reset-password` | Public | Complete password reset |
-| `/dashboard` | Patient / Doctor | Authenticated dashboard |
-| `/diagnose` | Patient | Run multimodal diagnosis |
-| `/history` | Patient | Diagnosis history |
-| `/lesions` | Patient | Lesion tracking |
-| `/profile` | Patient | Patient profile |
-| `/doctor` | Doctor | Doctor review workspace |
-| `/admin` | Admin | Administration workspace |
-
-### Frontend API integration
-
-The Axios client defaults to:
+Supported verdicts are:
 
 ```text
-VITE_API_URL || /api
+confirmed
+revised
+dismissed
 ```
 
-The Docker production-style frontend therefore talks to the backend through the Nginx `/api` reverse proxy.
-
-Authenticated requests automatically include:
-
-```http
-Authorization: Bearer <token>
-```
-
-Authenticated PDF and Grad-CAM retrieval uses blob requests so the browser can access protected binary resources without exposing them as public static files.
+Only the doctor who claimed a case can submit its review.
 
 ---
 
-## Backend API
+## 5. Clinical Class Semantics
 
-The backend is a FastAPI application started from `backend/app.py`.
+The model has seven image classes:
 
-### Core endpoints
+| Code | Full name in application | Malignant group | Clinical-concern group |
+|---|---|---:|---:|
+| `akiec` | Actinic Keratoses / Intraepithelial Carcinoma | No | Yes |
+| `bcc` | Basal Cell Carcinoma | Yes | Yes |
+| `bkl` | Benign Keratosis | No | No |
+| `df` | Dermatofibroma | No | No |
+| `mel` | Melanoma | Yes | Yes |
+| `nv` | Melanocytic Nevi | No | No |
+| `vasc` | Vascular Lesions | No | No |
 
-#### Health and root
+Current configuration:
 
-```http
-GET /
-GET /api/health
+```python
+MALIGNANT_CLASSES = ['bcc', 'mel']
+CLINICAL_CONCERN_CLASSES = ['akiec', 'bcc', 'mel']
 ```
 
-`/api/health` reports runtime status, configured model name, dataset label, device, model-loaded state, and the major AI pipeline components.
-
-#### Authentication
-
-```http
-POST /api/auth/register
-POST /api/auth/login
-POST /api/auth/forgot-password
-POST /api/auth/reset-password
-GET  /api/auth/me
-```
-
-Rate limits currently configured by the backend:
-
-| Endpoint | Limit |
-|---|---|
-| Register | 5 requests/minute |
-| Login | 10 requests/minute |
-| Forgot password | 3 requests/minute |
-| Reset password | 5 requests/minute |
-
-#### Diagnosis
-
-```http
-POST /api/diagnose
-GET  /api/diagnose/history
-GET  /api/diagnose/summary
-GET  /api/diagnose/unassigned
-GET  /api/diagnose/notifications
-POST /api/diagnose/notifications/mark-seen
-GET  /api/diagnose/{diagnosis_id}/gradcam
-```
-
-#### Reports
-
-```http
-GET /api/reports/{diagnosis_id}
-```
-
-#### Patient profile
-
-```http
-GET /api/patients/profile
-PUT /api/patients/profile
-PATCH /api/patients/profile
-```
-
-The additive feature router provides the PATCH form and preserves explicit `null` values when the client intentionally clears a field.
-
-#### Lesion tracking
-
-```http
-POST   /api/lesions
-GET    /api/lesions
-GET    /api/lesions/{lesion_id}
-PATCH  /api/lesions/{lesion_id}
-DELETE /api/lesions/{lesion_id}
-POST   /api/lesions/{lesion_id}/diagnoses/{diagnosis_id}
-```
-
-#### Doctor workflow
-
-```http
-GET  /api/doctor/queue
-POST /api/doctor/diagnoses/{diagnosis_id}/claim
-POST /api/doctor/diagnoses/{diagnosis_id}/review
-```
-
-#### Admin workflow
-
-```http
-GET  /api/admin/users
-POST /api/admin/users/{user_id}/promote-doctor
-POST /api/admin/users/{user_id}/deactivate
-POST /api/admin/users/{user_id}/reactivate
-GET  /api/admin/stats
-GET  /api/admin/performance
-```
-
-### Diagnosis request fields
-
-`POST /api/diagnose` accepts multipart form data.
-
-| Field | Type | Required | Description |
-|---|---|---:|---|
-| `image` | file | Yes | JPG/JPEG/PNG/BMP image |
-| `symptoms` | string | No | Free-text symptom description |
-| `age` | integer | No | Diagnosis-specific age override |
-| `gender` | string | No | Diagnosis-specific gender override |
-| `skin_type` | string | No | Diagnosis-specific skin-type override |
-| `sun_exposure` | string | No | Diagnosis-specific sun-exposure value |
-
-### Diagnosis response structure
-
-The successful diagnosis response can contain:
-
-```json
-{
-  "diagnosis_id": 123,
-  "decision": {
-    "predicted_class": "mel",
-    "class_name": "Melanoma",
-    "fused_confidence": 0.91,
-    "image_confidence": 0.91,
-    "malignancy_mass": 0.94,
-    "clinical_concern_mass": 0.97,
-    "cmca_clinical_concern_score": 0.80,
-    "is_malignant": true,
-    "clinical_concern": true,
-    "requires_review": true,
-    "urgency_escalated": true,
-    "modality_weights": {
-      "image": 0.55,
-      "symptoms": 0.25,
-      "demographics": 0.20
-    }
-  },
-  "uncertainty": {
-    "aleatory_uncertainty": 0.12,
-    "epistemic_uncertainty": 0.08,
-    "fusion_uncertainty": 0.05,
-    "composite_uncertainty": 0.10,
-    "normalized_entropy": 0.14,
-    "requires_review": false
-  },
-  "symptom_analysis": {},
-  "demographic_risk": {},
-  "recommendation": {},
-  "image_quality": {},
-  "abcd_features": {},
-  "gradcam_url": "/api/diagnose/123/gradcam",
-  "report_url": "/api/reports/123"
-}
-```
-
-The numeric values above are **illustrative structure only**, not reference results. Runtime values depend on the submitted case and loaded model checkpoint.
-
----
-
-## Database Design
-
-The runtime database is SQLite.
-
-### `users`
-
-Stores authentication and account state.
-
-Important fields include:
-
-- `id`
-- `email`
-- `name`
-- `hashed_password`
-- `role`
-- `created_at`
-- `is_active`
-- `token_version`
-- `password_reset_nonce_hash`
-
-Emails are normalized to lowercase/trimmed form through the custom SQLAlchemy `NormalizedEmail` type and application validators.
-
-### `patients`
-
-One patient profile is linked to one user through `user_id`.
-
-Stored fields include:
-
-- age;
-- gender;
-- skin type;
-- medical history;
-- sun exposure; and
-- creation timestamp.
-
-The `user_id` invariant is enforced uniquely.
-
-### `diagnoses`
-
-Stores each diagnostic run.
-
-Important fields include:
-
-- owner/user ID;
-- patient ID;
-- optional lesion ID;
-- source image path;
-- symptoms;
-- predicted class;
-- fused/image confidence;
-- malignancy flag;
-- review and urgency flags;
-- uncertainty components;
-- symptom and demographic risk scores;
-- Grad-CAM path;
-- PDF report path;
-- class probability JSON;
-- modality-weight JSON;
-- ABCD feature JSON; and
-- creation timestamp.
-
-### `lesions`
-
-Stores patient-owned tracked lesions:
-
-- name;
-- body site;
-- notes;
-- timestamps; and
-- owning user.
-
-### `doctor_reviews`
-
-Stores the review workflow state:
-
-- diagnosis ID;
-- doctor ID;
-- status;
-- verdict;
-- notes;
-- claimed timestamp;
-- reviewed timestamp; and
-- whether the patient has viewed the completed review.
-
-The diagnosis ID is unique in this table.
-
----
-
-## Database Migrations
-
-Alembic is the schema authority for the production/Docker startup path.
-
-Current migration chain:
+Therefore:
 
 ```text
-0001_initial_schema
-        │
-        ▼
-0002_lesion_tracking
-        │
-        ▼
-0003_token_version
+predicted_class
+    = image-model class prediction
+
+is_malignant
+    = predicted_class ∈ {bcc, mel}
+
+clinical_concern
+    = predicted_class ∈ {akiec, bcc, mel}
+      OR CMCA/review escalation
 ```
 
-### Migration 0001
-
-Creates the initial:
-
-- users;
-- patients;
-- diagnoses; and
-- doctor_reviews tables.
-
-### Migration 0002
-
-Adds lesion tracking:
-
-- `lesions` table;
-- `diagnoses.lesion_id`;
-- lesion indexes; and
-- the diagnosis-to-lesion foreign key.
-
-### Migration 0003
-
-Adds:
-
-- `users.token_version`; and
-- SQLite triggers that increment the token version when a password change or user deactivation revokes previously issued JWT access tokens.
-
-### Docker migration behavior
-
-The backend container entrypoint runs:
-
-```bash
-python -m alembic upgrade head
-```
-
-before Uvicorn starts.
-
-This means the container attempts to bring the persistent SQLite database to the latest repository migration automatically.
-
-### Existing local database that predates migration tracking
-
-If a manually created local database already contains tables but has an empty Alembic revision, do not blindly run `alembic upgrade head` first.
-
-First inspect the schema and determine the last migration it actually matches. For example, a database containing `lesions` and `diagnoses.lesion_id` but lacking `users.token_version` corresponds to the `0002` schema and can be stamped to `0002_lesion_tracking` before upgrading to head.
-
-Example recovery flow:
-
-```powershell
-# from backend/
-Copy-Item .\dermaxai.db .\dermaxai_backup_before_migration.db
-alembic stamp 0002_lesion_tracking
-alembic upgrade head
-alembic current
-```
-
-Only use a stamp value that matches the actual existing schema. Stamping is metadata; it does not perform the missing schema changes.
+This prevents multimodal concern evidence from silently relabeling a non-malignant image prediction as malignant.
 
 ---
 
-## Project Structure
+## 6. Training Methodology
+
+The training pipeline documented for DERMAXAI-NOVA uses the following sequence:
+
+```text
+ISIC 2018 / HAM10000
+        │
+        ▼
+EfficientNet-B3 backbone
+        │
+        ▼
+CBAM attention
+        │
+        ▼
+GeM pooling
+        │
+        ▼
+LayerNorm/GELU/Dropout MLP head
+        │
+        ▼
+ACWF-FL loss
+        │
+        ▼
+Phase 1 training
+        │
+        ▼
+Phase 2: SAM optimization
+        │
+        ▼
+Phase 3: SWA averaging
+        │
+        ▼
+Trained checkpoint
+        │
+        ▼
+Production inference with TTA + MCUE
+```
+
+The dataset classes are:
+
+```text
+akiec, bcc, bkl, df, mel, nv, vasc
+```
+
+The loss methodology is documented with:
+
+```text
+β = 0.9999
+γ = 2.0
+malignant-loss amplification = 1.5×
+```
+
+The deployed service does not retrain the network; it loads the trained checkpoint and executes the inference pipeline described above.
+
+---
+
+## 7. Project Structure — Algorithm Files
 
 ```text
 DERMAXAI/
-├── .github/
-│   └── workflows/
-│       └── ci.yml
-│
 ├── backend/
-│   ├── app.py                         # FastAPI application + auth + diagnosis workflow
-│   ├── entrypoint.sh                  # Alembic upgrade + Uvicorn startup
-│   ├── Dockerfile
-│   ├── requirements.txt
-│   ├── alembic.ini
-│   ├── alembic/
-│   │   ├── env.py
-│   │   └── versions/
-│   │       ├── 0001_initial_schema.py
-│   │       ├── 0002_lesion_tracking.py
-│   │       └── 0003_token_version.py
+│   ├── app.py
+│   ├── core/
+│   │   ├── config.py
+│   │   ├── preprocessing.py      # resize, normalize, TTA, quality checks
+│   │   ├── model.py              # EfficientNet-B3, CBAM, GeM, MLP
+│   │   ├── database.py
+│   │   └── auth.py
 │   │
 │   ├── ai/
-│   │   ├── predictor.py               # TTA inference + MC-dropout samples
-│   │   ├── model.py / core/model.py    # Runtime model architecture
-│   │   ├── uncertainty.py              # MCUE
-│   │   ├── gradcam.py                  # Grad-CAM generation
-│   │   ├── biobert_engine.py           # Symptom analysis
-│   │   ├── risk_engine.py              # Demographic risk
-│   │   ├── decision_engine.py          # CMCA + concern/review logic
-│   │   ├── recommendation_engine.py    # Recommendations
-│   │   └── abcd_engine.py              # ABCD feature extraction
-│   │
-│   ├── core/
-│   │   ├── config.py                  # Centralized settings
-│   │   ├── database.py                # SQLAlchemy models + DB bootstrap
-│   │   ├── model.py                   # EfficientNet-B3 + CBAM + GeM + MLP
-│   │   ├── preprocessing.py           # Image loading + TTA transforms
-│   │   └── auth.py                    # JWT + password/reset-token logic
-│   │
-│   ├── features/
-│   │   └── routes.py                  # Lesion + analytics routes
+│   │   ├── predictor.py          # image inference, TTA, MC Dropout
+│   │   ├── uncertainty.py        # MCUE
+│   │   ├── decision_engine.py    # CMCA
+│   │   ├── biobert_engine.py     # symptom NLP / optional BioBERT
+│   │   ├── text_negation.py      # negation handling
+│   │   ├── risk_engine.py        # demographic risk
+│   │   ├── gradcam.py             # Grad-CAM
+│   │   ├── abcd_engine.py         # ABCD explainability
+│   │   └── recommendation_engine.py
 │   │
 │   ├── reports/
-│   │   └── report_generator.py        # ReportLab PDF generation
+│   │   └── report_generator.py
 │   │
-│   ├── utils/
-│   │   ├── email.py
-│   │   ├── logger.py
-│   │   └── validators.py
+│   ├── features/
+│   │   └── routes.py             # lesions, analytics, assignment
 │   │
-│   ├── knowledge/                     # Per-class clinical knowledge JSON files
-│   ├── models/                        # Trained best.pth checkpoint
-│   ├── uploads/                       # Runtime image uploads
-│   ├── heatmaps/                      # Runtime Grad-CAM images
-│   ├── generated_reports/             # Runtime PDF reports
-│   └── tests/
-│       ├── ...                        # Backend regression tests
-│       └── smoke_test.py              # End-to-end auth/diagnose/review smoke test
+│   ├── knowledge/                # class-specific recommendation data
+│   ├── models/                    # trained best.pth checkpoint
+│   └── alembic/                   # schema migrations
 │
-├── frontend/
-│   ├── Dockerfile
-│   ├── nginx.conf.template
-│   ├── package.json
-│   ├── package-lock.json
-│   ├── src/
-│   │   ├── App.jsx                    # Routes + auth context
-│   │   ├── lib/api.js                 # Axios API client
-│   │   └── pages/
-│   │       ├── Landing.jsx
-│   │       ├── Login.jsx
-│   │       ├── Register.jsx
-│   │       ├── ForgotPassword.jsx
-│   │       ├── ResetPassword.jsx
-│   │       ├── Dashboard.jsx
-│   │       ├── Diagnose.jsx
-│   │       ├── History.jsx
-│   │       ├── Lesions.jsx
-│   │       ├── Profile.jsx
-│   │       ├── Doctor.jsx
-│   │       └── Admin.jsx
-│   └── tests/
-│       └── ui_contract.test.mjs       # Frontend API/UI contract checks
-│
+├── frontend/                     # React + Vite + TailwindCSS
 ├── docker-compose.yml
 ├── .env.example
 └── README.md
 ```
 
-> Note: the repository contains both `backend/core/model.py` and model-related import paths used by the backend. Use the actual import locations in code when navigating the implementation rather than relying only on the abbreviated tree above.
+---
+
+## 8. Technology Stack
+
+| Layer | Technology |
+|---|---|
+| Image model | EfficientNet-B3 |
+| Attention | CBAM |
+| Pooling | GeM |
+| Classification head | LayerNorm + Linear + GELU + Dropout MLP |
+| Training loss | ACWF-FL |
+| Training optimizer | SAM + AdamW |
+| Weight averaging | SWA |
+| Inference augmentation | TTA |
+| Uncertainty | MC Dropout + MCUE |
+| Symptom processing | Rule-based NLP; optional BioBERT module |
+| Multimodal fusion | CMCA |
+| Explainability | Grad-CAM + ABCD features |
+| Backend | FastAPI + SQLAlchemy |
+| Database | SQLite |
+| Authentication | JWT |
+| Reports | ReportLab |
+| Frontend | React + Vite + TailwindCSS |
+| Deployment | Docker Compose + Nginx |
+| CI | GitHub Actions |
 
 ---
 
-## Technology Stack
+## 9. Quick Start
 
-| Layer | Technology | Purpose |
-|---|---|---|
-| Image model | EfficientNet-B3 / timm | Dermoscopic image classification |
-| Attention | CBAM | Channel + spatial feature refinement |
-| Pooling | GeM | Learnable generalized mean pooling |
-| Classification head | LayerNorm + Linear + GELU + Dropout MLP | 7-class classification |
-| Training loss | ACWF-FL | Imbalance-aware focal-loss methodology |
-| Optimizer | SAM + AdamW | Training optimization methodology |
-| Weight averaging | SWA | Final training stabilization methodology |
-| Inference augmentation | TTA | Multi-view prediction averaging |
-| Uncertainty | MC-dropout + entropy + MI + JS divergence | MCUE |
-| XAI | Grad-CAM | Visual model explanation |
-| NLP | Rule-based engine + optional Transformers/BioBERT | Symptom analysis |
-| Risk | Custom demographic risk engine | Additional concern signal |
-| Multimodal reasoning | CMCA | Clinical-concern aggregation |
-| Backend | FastAPI + Uvicorn | REST API and application server |
-| ORM | SQLAlchemy | Database access |
-| Database | SQLite | Local/persistent application storage |
-| Migrations | Alembic | Schema versioning |
-| Authentication | JWT + bcrypt | Session/authentication security |
-| Rate limiting | SlowAPI | Auth endpoint rate limiting |
-| Reports | ReportLab | PDF report generation |
-| Frontend | React + Vite | Web client |
-| Styling | TailwindCSS | Frontend UI styling |
-| Reverse proxy | Nginx | Static frontend + `/api` proxy |
-| Packaging | Docker Compose | Reproducible local stack |
-| CI | GitHub Actions | Backend/frontend/Docker validation |
-
----
-
-## Model Checkpoint
-
-The runtime expects a trained checkpoint at:
-
-```text
-backend/models/best.pth
-```
-
-When running with Docker Compose, this directory is mounted read-only into the backend container as:
-
-```text
-/data/models
-```
-
-with the default runtime path:
-
-```text
-/data/models/best.pth
-```
-
-### Important checkpoint rules
-
-The checkpoint must match:
-
-```text
-Model: EfficientNet-B3
-Classes: 7
-Class order:
-  akiec
-  bcc
-  bkl
-  df
-  mel
-  nv
-  vasc
-```
-
-A checkpoint that cannot be fully loaded is rejected rather than being served with missing parameters.
-
-For actual diagnosis runs, use the trained checkpoint. `ALLOW_RANDOM_WEIGHTS=true` exists only for development/CI scenarios in which deterministic model behavior is not being evaluated.
-
----
-
-## Configuration
-
-Copy the environment template:
-
-```bash
-cp .env.example .env
-```
-
-On PowerShell:
-
-```powershell
-Copy-Item .env.example .env
-```
-
-### Core environment variables
-
-| Variable | Default / Example | Purpose |
-|---|---|---|
-| `SECRET_KEY` | required outside debug | JWT signing secret |
-| `DEBUG` | `false` | Enables debug-oriented API docs/routes |
-| `ALLOW_RANDOM_WEIGHTS` | `false` | Development/CI-only random-weight fallback |
-| `MODEL_PATH` | `/data/models/best.pth` in Docker | Model checkpoint path |
-| `DATABASE_URL` | `sqlite:////data/dermaxai.db` in Docker | SQLite database location |
-| `UPLOADS_DIR` | `/data/uploads` | Uploaded image storage |
-| `HEATMAPS_DIR` | `/data/heatmaps` | Grad-CAM storage |
-| `REPORTS_DIR` | `/data/generated_reports` | PDF storage |
-| `CORS_ORIGINS` | localhost frontend/API origins | Allowed web origins |
-| `FRONTEND_URL` | `http://localhost:5173` | Password reset link origin |
-| `PASSWORD_RESET_TOKEN_MINUTES` | `30` | Reset token lifetime |
-| `SMTP_HOST` | `smtp.gmail.com` | SMTP server |
-| `SMTP_PORT` | `587` | SMTP port |
-| `SMTP_USER` | empty | SMTP username |
-| `SMTP_PASSWORD` | empty | SMTP password/app password |
-| `SMTP_FROM` | same as SMTP user | Sender address |
-| `SMTP_STARTTLS` | `true` | SMTP STARTTLS setting |
-| `TTA_VIEWS` | `8` | Number of inference views, range 1–8 |
-| `MC_DROPOUT_PASSES` | `20` | Stochastic uncertainty passes, range 1–64 |
-
-### Secret handling
-
-Do not commit `.env` or real credentials. Use `.env.example` as the public configuration template.
-
-For Gmail SMTP, use an App Password rather than a normal account password when the account configuration requires it.
-
-### API documentation in debug mode
-
-When `DEBUG=true`, FastAPI exposes:
-
-```text
-http://localhost:8000/docs
-http://localhost:8000/redoc
-http://localhost:8000/openapi.json
-```
-
-In non-debug mode these API documentation endpoints are disabled by application configuration.
-
----
-
-## Quick Start with Docker
-
-### Prerequisites
-
-Install:
-
-- Git
-- Docker Desktop with Docker Compose support
-
-### 1. Clone the repository
+### Docker
 
 ```bash
 git clone https://github.com/tejaswaroop41/DERMAXAI.git
 cd DERMAXAI
-```
 
-### 2. Place the trained checkpoint
+# Place the trained checkpoint here:
+# backend/models/best.pth
 
-Copy the trained checkpoint to:
-
-```text
-backend/models/best.pth
-```
-
-### 3. Create `.env`
-
-```bash
 cp .env.example .env
-```
+# Set SECRET_KEY in .env
 
-Replace the example secret with a long random value.
-
-### 4. Build and start
-
-```bash
 docker compose up --build
 ```
 
-### 5. Open the application
-
-Frontend:
+Services:
 
 ```text
-http://localhost:5173
+Frontend: http://localhost:5173
+Backend:  http://localhost:8000
+Docs:     http://localhost:8000/docs   (when DEBUG=true)
 ```
 
-Backend health:
+The Docker backend starts with the Alembic migration step before Uvicorn. This keeps the production schema under migration control.
 
-```text
-http://localhost:8000/api/health
-```
-
-FastAPI docs when `DEBUG=true`:
-
-```text
-http://localhost:8000/docs
-```
-
-### 6. Stop the stack
-
-```bash
-docker compose down
-```
-
-To stop and also remove the Compose-managed persistent volume:
-
-```bash
-docker compose down -v
-```
-
-Use the `-v` form carefully because it removes the Docker volume that stores the SQLite database and generated runtime data.
-
----
-
-## Local Backend Development
-
-The backend can also be started directly for development/testing.
-
-### 1. Create and activate the virtual environment
-
-Windows PowerShell example:
+### Local backend
 
 ```powershell
-cd D:\DERMAXAI\DERMAXAI\backend
-python -m venv venv
+cd backend
 .\venv\Scripts\Activate.ps1
-```
-
-### 2. Install dependencies
-
-```powershell
-python -m pip install -r requirements.txt
-```
-
-### 3. Configure local `.env`
-
-The backend loads:
-
-```text
-backend/.env
-```
-
-A local development database can use a path such as:
-
-```text
-DATABASE_URL=sqlite:///D:/DERMAXAI/DERMAXAI/backend/dermaxai.db
-```
-
-Use a path appropriate for the current machine.
-
-### 4. Run migrations
-
-For a fresh database:
-
-```powershell
 alembic upgrade head
-```
-
-### 5. Start the backend
-
-```powershell
 uvicorn app:app --reload --port 8000
 ```
 
-### 6. Verify health
+### Local frontend
 
-```text
-http://127.0.0.1:8000/api/health
-```
-
-### Model loading behavior
-
-At application startup the lifespan handler:
-
-1. initializes the development/test schema path when appropriate;
-2. loads the trained predictor model;
-3. constructs the uncertainty engine; and
-4. constructs the Grad-CAM engine.
-
-A successful startup log contains a model-loaded message followed by the predictor device.
-
----
-
-## Local Frontend Development
-
-The frontend can be run independently when working on UI code.
-
-### Install dependencies
-
-```bash
+```powershell
 cd frontend
-npm ci
-```
-
-### Development server
-
-```bash
+npm install
 npm run dev
 ```
 
-### Production build
-
-```bash
-npm run build
-```
-
-### Lint
-
-```bash
-npm run lint
-```
-
-### Preview build
-
-```bash
-npm run preview
-```
-
-For local frontend development, `VITE_API_URL` can be used to control the Axios base URL. Without an explicit value, the frontend uses `/api`.
-
 ---
 
-## Docker Architecture
+## 10. Database Migrations
 
-The Compose file defines two services.
-
-### Backend container
-
-The backend service:
-
-- builds from `backend/Dockerfile`;
-- runs Python 3.11;
-- exposes port `8000`;
-- mounts `backend/models` read-only into `/data/models`;
-- persists runtime data in the `backend_data` volume;
-- runs an HTTP healthcheck against `/api/health`; and
-- executes Alembic migrations before Uvicorn through `entrypoint.sh`.
-
-Persistent data includes:
+The current migration chain is:
 
 ```text
-/data/dermaxai.db
-/data/uploads
-/data/heatmaps
-/data/generated_reports
+0001_initial_schema
+        ↓
+0002_lesion_tracking
+        ↓
+0003_token_version
 ```
 
-### Frontend container
+The application schema includes users, patients, diagnoses, doctor reviews, and lesions.
 
-The frontend service:
-
-- builds the Vite application;
-- serves the static output from Nginx;
-- listens on container port `80`;
-- is published on host port `5173`; and
-- proxies `/api/*` to the backend service.
-
-The Compose dependency waits for the backend healthcheck before starting the frontend service.
-
-### Network flow
-
-```text
-Browser
-  │
-  │ http://localhost:5173
-  ▼
-Nginx frontend container
-  │
-  │ /api/*
-  ▼
-FastAPI backend container
-  │
-  ├── SQLite volume
-  ├── model checkpoint mount
-  ├── uploads volume
-  ├── heatmaps volume
-  └── report volume
-```
-
----
-
-## Authentication and Security
-
-### Password hashing
-
-Passwords are hashed using bcrypt through the backend authentication layer.
-
-### JWT access tokens
-
-The backend issues JWT access tokens containing the user identity and role. A per-user `token_version` is also enforced by the authentication layer so that security-sensitive account changes can invalidate older tokens.
-
-### Token-version invalidation
-
-The database migration creates triggers for:
-
-- password changes; and
-- account deactivation.
-
-These changes increment `token_version`, allowing the server to reject previously issued tokens after the account state changes.
-
-### Password reset flow
-
-The password reset design uses a per-request random nonce:
-
-```text
-reset request
-    │
-    ▼
-random nonce
-    │
-    ├── hash stored in users.password_reset_nonce_hash
-    └── nonce embedded in reset JWT
-            │
-            ▼
-        email sent
-```
-
-The nonce is committed to the database before the reset email is delivered. If delivery fails, cleanup is scoped so that an older failed request does not accidentally erase a newer reset nonce created concurrently.
-
-The forgot-password endpoint intentionally returns a generic response regardless of whether the requested email is registered.
-
-### Rate limiting
-
-SlowAPI is wired into the FastAPI application and currently rate-limits authentication operations, including login and password-reset endpoints.
-
-### Access control
-
-The backend verifies resource ownership before serving protected diagnosis assets such as:
-
-- Grad-CAM images; and
-- PDF reports.
-
-Patients can access their own diagnosis data. Doctors use dedicated protected endpoints for review operations. Admin endpoints require administrator authorization.
-
-### File validation
-
-The diagnosis upload path validates both the submitted extension and the actual image encoding before inference.
-
----
-
-## Testing and CI
-
-The repository includes backend, frontend, and Docker validation in GitHub Actions.
-
-### CI pipeline
-
-The workflow is triggered on:
-
-```text
-push to main
-pull request to main
-```
-
-### Backend checks
-
-The CI backend job performs:
-
-1. dependency installation;
-2. Python 3.11 setup;
-3. syntax compilation of backend Python files;
-4. backend regression tests;
-5. auth → diagnose → doctor-review smoke testing.
-
-The backend CI environment uses SQLite and a CI secret. The smoke test enables random weights so the workflow does not depend on a large trained checkpoint being available in the CI runner.
-
-### Frontend checks
-
-The frontend job performs:
-
-```bash
-npm ci
-node --test tests/ui_contract.test.mjs
-npm run build
-npm run lint -- --max-warnings=0
-```
-
-### Docker integration checks
-
-The Docker job:
-
-1. builds both images;
-2. starts the Compose stack;
-3. waits for backend health;
-4. checks the frontend `/healthz` endpoint;
-5. checks the frontend → backend `/api/health` proxy; and
-6. tears the stack down.
-
-### Local backend tests
-
-From `backend/`:
+For an existing local SQLite database created before the migration history was established, inspect the schema before stamping it. For example:
 
 ```powershell
-python -m pytest -q tests
+python -c "from sqlalchemy import inspect; from core.database import engine; i=inspect(engine); print(i.get_table_names()); print([c['name'] for c in i.get_columns('users')])"
 ```
 
-### Local smoke test
+Do not blindly run `alembic upgrade head` against an old manually-created database that already contains tables but has an empty `alembic_version` table. Establish the correct baseline first, then apply only the missing revisions.
 
-From `backend/`:
+---
 
-```powershell
-$env:ALLOW_RANDOM_WEIGHTS="true"
-python tests/smoke_test.py
+## 11. Configuration Relevant to the Algorithms
+
+Important settings in `backend/core/config.py` include:
+
+```text
+MODEL_NAME = efficientnet_b3
+IMG_SIZE = 300
+DROPOUT = 0.3
+NUM_CLASSES = 7
+
+TTA_VIEWS = 8
+MC_DROPOUT_PASSES = 20
+UNCERTAINTY_THETA = 0.8054
+
+LOGIT_ADJUSTMENT_ENABLED = true
+LOGIT_ADJUSTMENT_CLASS = mel
+LOGIT_ADJUSTMENT_TAU = 0.3
+MEL_LOG_PRIOR = -2.1970
+
+MALIGNANT_CLASSES = [bcc, mel]
+CLINICAL_CONCERN_CLASSES = [akiec, bcc, mel]
 ```
 
-Use random weights only for smoke/infrastructure validation. It is not a meaningful model-quality test.
+The runtime also validates checkpoint class ordering when `class_names` are present in the checkpoint.
 
-### Local frontend contract tests
+---
 
-From `frontend/`:
+## 12. Important Implementation Boundaries
 
-```bash
-node --test tests/ui_contract.test.mjs
+### What changes the class prediction?
+
+```text
+EfficientNet-B3
+      + CBAM
+      + GeM
+      + MLP head
+      + mel-only logit adjustment
+      + TTA probability averaging
+```
+
+### What measures uncertainty?
+
+```text
+MC Dropout
+      + TTA distribution
+      + entropy
+      + mutual information
+      + Jensen-Shannon divergence
+      → MCUE
+```
+
+### What contributes to clinical concern?
+
+```text
+Image clinical-concern mass
+      + symptom risk
+      + demographic risk
+      → CMCA
+```
+
+### What explains the prediction?
+
+```text
+Grad-CAM
+ABCD feature extraction
+```
+
+ABCD features are **not classifier inputs**.
+
+### What recommends next steps?
+
+```text
+Predicted class
++ malignancy status
++ uncertainty/review state
++ symptom urgency
++ knowledge-base content
+→ Recommendation Engine
 ```
 
 ---
 
-## Troubleshooting
+## 13. Scope and Limitations
 
-### `sqlite3.OperationalError: no such column: users.token_version`
+DERMAXAI is a **student research/prototype system for preliminary screening and clinical-review support**. It is not a replacement for a dermatologist or for histopathological confirmation.
 
-This normally means the code has moved ahead of the local SQLite schema.
+Important limitations include:
 
-Check the migration state:
-
-```powershell
-alembic current
-```
-
-If the command prints no revision and the database already contains application tables, inspect the schema before running migrations. A database that already contains `lesions` and `diagnoses.lesion_id` but lacks `users.token_version` is structurally aligned with the `0002` migration and can be stamped to that revision before upgrading to head.
-
-Do not delete the database automatically when it contains data you need.
-
-### `table users already exists` during `alembic upgrade head`
-
-This happens when Alembic believes the database is fresh (`revision` is empty) while the tables were already created by an older/manual bootstrap path.
-
-The safe recovery is:
-
-```text
-1. Back up the SQLite file.
-2. Inspect the existing tables/columns.
-3. Identify the last migration actually represented by the database.
-4. Stamp only that migration.
-5. Run `alembic upgrade head`.
-```
-
-### Model checkpoint not found
-
-If startup fails with a missing-checkpoint message, verify:
-
-```text
-backend/models/best.pth
-```
-
-exists for local development, or that the Docker volume mount and `MODEL_PATH` point to the correct location.
-
-For CI-only startup without real weights:
-
-```text
-ALLOW_RANDOM_WEIGHTS=true
-```
-
-### Port 8000 already in use
-
-Start Uvicorn on another port, for example:
-
-```powershell
-uvicorn app:app --reload --port 8001
-```
-
-If the frontend is configured to use a direct backend URL, update that configuration accordingly. In the Docker setup, the documented backend port is `8000`.
-
-### Frontend cannot reach the API
-
-For Docker, verify:
-
-```text
-http://localhost:5173/healthz
-http://localhost:5173/api/health
-```
-
-Then inspect:
-
-```bash
-docker compose ps
-docker compose logs backend
-docker compose logs frontend
-```
-
-### Login returns HTTP 401
-
-Check that:
-
-- the user exists;
-- the email is correctly normalized;
-- the password is correct; and
-- the account is active.
-
-If login returns HTTP 500 with a database-column error, fix the schema/migration state first; it is not a normal invalid-credentials response.
-
-### Password reset email is not delivered
-
-Verify:
-
-```text
-SMTP_HOST
-SMTP_PORT
-SMTP_USER
-SMTP_PASSWORD
-SMTP_FROM
-SMTP_STARTTLS
-```
-
-For Gmail, use an App Password where required.
-
-The forgot-password endpoint intentionally returns the same generic message even when delivery fails or the account does not exist.
-
-### Grad-CAM or report returns 404
-
-The diagnosis must have a stored generated asset and the authenticated caller must be allowed to view the diagnosis. A report/Grad-CAM request can also return 404 when the generated artifact does not exist on disk.
-
-### Two doctors try to claim the same case
-
-The application uses a unique review record per diagnosis and translates the database integrity race into:
-
-```http
-409 Conflict
-Diagnosis already claimed by another doctor
-```
-
-### Two users try to attach the same diagnosis to different lesions
-
-Diagnosis attachment uses a conditional database update that only claims rows whose `lesion_id` is still `NULL`. The first successful claimant wins; subsequent conflicting requests receive a conflict response.
+- class predictions depend on the trained checkpoint and dataset characteristics;
+- uncertainty scores are model uncertainty indicators, not guarantees of clinical safety;
+- CMCA is a clinical-concern aggregation score, not a calibrated malignancy probability;
+- demographic and symptom scores are rule-based contributions rather than independently validated clinical risk calculators;
+- ABCD measurements are image-derived context and are not physical measurements unless an appropriate scale is available; and
+- the system should not be interpreted as providing a definitive medical diagnosis.
 
 ---
 
-## Expected Development Workflow
+## 14. Project Identity
 
-For repository work, the recommended workflow is:
+**DERMAXAI v6**  
+Multimodal AI-Powered Healthcare Diagnostic Assistant  
+Dr. Ambedkar Institute of Technology, Bengaluru  
+B.E./B.Tech CSE Final Year Project
 
-```text
-main
-  │
-  ├── feature branch / fix branch / docs branch
-  │
-  ▼
-Make focused changes
-  │
-  ▼
-Run local tests
-  │
-  ▼
-Open Pull Request
-  │
-  ▼
-GitHub Actions CI
-  │
-  ▼
-Review / merge
-  │
-  ▼
-Pull updated main locally
-  │
-  ▼
-Run integration testing again
-```
+For the research methodology, the associated training work is documented as:
 
-Keep bug fixes, documentation updates, and larger architectural changes in separate focused commits/PRs where practical.
-
----
-
-## Limitations and Scope
-
-DERMAXAI should be understood within the following boundaries:
-
-### 1. Screening prototype
-
-The application is intended for preliminary screening and clinical-review support. It does not provide a definitive medical diagnosis.
-
-### 2. Model prediction scope
-
-The image classifier produces one of the configured seven HAM10000 classes. Real-world images that fall outside the training distribution can behave differently from benchmark data.
-
-### 3. Dataset dependence
-
-The current application is aligned to the ISIC 2018 / HAM10000 seven-class taxonomy used by the project.
-
-### 4. Uncertainty is not a guarantee
-
-MCUE provides numerical uncertainty estimates based on the implemented stochastic and deterministic distributions. A low uncertainty value is not a guarantee of correctness, and a high uncertainty value is not itself a diagnosis.
-
-### 5. CMCA is not calibrated malignancy probability
-
-The CMCA score is explicitly a clinical-concern score. It should not be presented as a percentage probability of cancer or malignancy.
-
-### 6. Grad-CAM is an explanation aid
-
-Grad-CAM highlights influential regions for the model prediction but is not a validated clinical segmentation or localization system.
-
-### 7. Clinical recommendations require human review
-
-Recommendation text and follow-up windows are generated programmatically and must be interpreted by qualified clinical professionals.
-
-### 8. SQLite is the current application database
-
-The current repository is structured around SQLite and Docker persistent volumes. No cloud database configuration is required by the documented setup.
-
-### 9. Production deployment hardening
-
-The repository is primarily organized for local Docker demonstration, development, testing, and academic evaluation. Additional infrastructure would be required for a production healthcare deployment, including operational monitoring, data-governance controls, backups, secret management, and environment-specific security validation.
-
----
-
-## Research and Academic Context
-
-DERMAXAI is built around the project's multimodal and uncertainty-aware dermatology research direction.
-
-The core research ideas represented in the implementation are:
-
-- EfficientNet-B3 backbone;
-- CBAM channel/spatial attention;
-- GeM pooling;
-- LayerNorm/GELU/Dropout MLP head;
-- adaptive class-weighted focal loss methodology;
-- SAM training methodology;
-- SWA training methodology;
-- test-time augmentation;
-- Monte Carlo uncertainty estimation;
-- multimodal clinical-concern aggregation;
-- Grad-CAM explanation;
-- symptom-aware reasoning;
-- demographic risk reasoning; and
-- longitudinal lesion tracking.
-
-The repository separates **training-time techniques** from **runtime inference and workflow components**. The deployed FastAPI service is responsible for inference, uncertainty estimation, multimodal decision support, persistence, reporting, and user workflows; training-specific loss/optimizer techniques are represented in the trained checkpoint methodology rather than recomputed during inference.
-
-For academic writing, benchmark metrics should be taken from the project's validated experimental records/notebooks rather than inferred from live application statistics. The admin performance endpoint itself does not claim model accuracy because its database does not store ground-truth labels.
-
----
-
-## Project Status
-
-The repository currently contains:
-
-- a FastAPI multimodal inference backend;
-- React/Vite frontend;
-- JWT authentication;
-- password reset flow;
-- SQLite persistence;
-- Alembic migrations;
-- lesion tracking;
-- doctor review workflow;
-- Grad-CAM explanations;
-- MCUE uncertainty estimates;
-- CMCA concern aggregation;
-- PDF report generation;
-- Docker Compose deployment for local use; and
-- GitHub Actions CI covering backend, frontend, and Docker integration.
-
-The project is under active development and should be treated as an academic/research prototype rather than a certified clinical device.
-
----
-
-## License / Project Status
-
-This repository is a student/final-year academic project by the project team at Dr. Ambedkar Institute of Technology.
-
-Refer to the repository for the current source code, issue history, pull requests, model artifacts, and project documentation.
+**DERMAXAI-NOVA: A Clinically Grounded, Uncertainty-Aware Deep Learning Framework for Skin Lesion Triage**
