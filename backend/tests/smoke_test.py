@@ -130,6 +130,13 @@ def main():
         r = client.get("/api/diagnose/history", headers=patient_headers)
         assert r.status_code == 200 and len(r.json()) == 1, f"History failed: {r.text}"
 
+        r = client.get("/api/diagnose/summary", headers=patient_headers)
+        assert r.status_code == 200, f"Diagnosis summary failed: {r.text}"
+        summary = r.json()
+        assert summary["total_diagnoses"] == 1, f"Summary total wrong: {summary}"
+        assert 0.0 <= summary["average_confidence"] <= 1.0, f"Summary confidence out of range: {summary}"
+        assert sum(summary["class_distribution"].values()) == 1, f"Summary distribution wrong: {summary}"
+
         r = client.get("/api/doctor/queue", headers=doctor_headers)
         assert r.status_code == 200, f"Doctor queue failed: {r.text}"
 
@@ -146,7 +153,7 @@ def main():
         r = client.post("/api/diagnose/notifications/mark-seen", headers=patient_headers)
         assert r.json()["marked_seen"] == 1, f"Mark-seen wrong: {r.json()}"
 
-    print("SMOKE TEST PASSED: auth policy, rate limiting, register, diagnose, ABCD, history, doctor queue, claim, review, notifications")
+    print("SMOKE TEST PASSED: auth policy, rate limiting, register, diagnose, ABCD, history, summary, doctor queue, claim, review, notifications")
 
 
 if __name__ == "__main__":
