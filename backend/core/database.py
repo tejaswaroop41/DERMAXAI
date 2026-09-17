@@ -201,11 +201,30 @@ def _ensure_security_triggers():
         ))
 
 
+def _mount_feature_routes():
+    """Mount optional feature routes without coupling schema setup to imports."""
+    app_module = sys.modules.get("app")
+    if app_module is not None and hasattr(app_module, "app"):
+        from features.routes import mount_feature_routes
+        mount_feature_routes()
+
+
 def create_tables():
     """
-    Create missing tables and apply additive SQLite-compatible column/index migrations.
+    Create/bootstrap the local debug/test schema.
+
+    Production Docker startup runs Alembic before Uvicorn, so production no
+    longer performs ad-hoc schema creation or mutation from this function.
     """
     from sqlalchemy import inspect, text
+
+    _mount_feature_routes()
+
+    # Alembic is the production schema authority. Keep this legacy bootstrap
+    # path for the debug/test workflows that construct a fresh SQLite database
+    # directly without running the container entrypoint.
+    if not settings.DEBUG:
+        return
 
     Base.metadata.create_all(bind=engine)
     inspector = inspect(engine)
@@ -226,7 +245,7 @@ def create_tables():
                         f'ALTER TABLE "{table.name}" ADD COLUMN "{col.name}" {col_type}{default_sql}'
                     )
                 )
-            print(f"[INFO] Auto-migration: added missing column {table.name}.{col.name}")
+            print(f"[INFO] Legacy test migration: added missing column {table.name}.{col.name}")
 
     inspector = inspect(engine)
     patient_table = Patient.__table__
@@ -268,16 +287,10 @@ def create_tables():
                     "Cannot normalize user emails because case-insensitive duplicates exist: " + values
                 )
             conn.execute(text('UPDATE "users" SET email = LOWER(TRIM(email))'))
-            conn.execute(text('UPDATE "users" SET token_version = COALESCE(token_version, 0)'))
+            if "token_version" in {c["name"] for c in inspector.get_columns(users_table.name)}:
+                conn.execute(text('UPDATE "users" SET token_version = COALESCE(token_version, 0)'))
 
     _ensure_security_triggers()
-
-    # Only mount feature routes when FastAPI is already importing/running app.py.
-    # Database-only tests and scripts should not pull the full AI application stack.
-    app_module = sys.modules.get("app")
-    if app_module is not None and hasattr(app_module, "app"):
-        from features.routes import mount_feature_routes
-        mount_feature_routes()
 
 
 def get_db():
