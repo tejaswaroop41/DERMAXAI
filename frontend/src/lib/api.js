@@ -88,6 +88,7 @@ export const diagnoseApi = {
   }),
   history: () => api.get('/diagnose/history'),
   summary: () => api.get('/diagnose/summary'),
+  unassigned: () => api.get('/diagnose/unassigned'),
   gradcam: path => getAuthenticatedBlobUrl(path),
   unreadReviews: () => api.get('/diagnose/notifications'),
   markReviewsSeen: () => api.post('/diagnose/notifications/mark-seen'),
