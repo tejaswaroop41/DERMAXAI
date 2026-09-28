@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { BRAND_NAME, BRAND_SHORT } from '../lib/brand'
 import { ArrowRight, CheckCircle2, Microscope, ShieldCheck, Stethoscope } from 'lucide-react'
 
 const highlights = [
@@ -6,19 +7,19 @@ const highlights = [
     icon: Microscope,
     title: 'AI image analysis',
     body: 'Analyze a dermoscopic image with confidence and uncertainty signals.',
-    tone: 'bg-teal-50 border-teal-100 text-teal-700',
+    tone: 'bg-[#EEF5F3] border-[#DCEAE6] text-teal-700',
   },
   {
     icon: ShieldCheck,
     title: 'Explainable output',
     body: 'Review class probabilities and Grad-CAM evidence alongside the result.',
-    tone: 'bg-violet-50 border-violet-100 text-violet-700',
+    tone: 'bg-[#F3F7F5] border-line text-teal-700',
   },
   {
     icon: Stethoscope,
     title: 'Clinician review',
     body: 'Cases that need attention can move into a structured doctor workflow.',
-    tone: 'bg-amber-50 border-amber-100 text-amber-700',
+    tone: 'bg-[#F3F7F5] border-line text-teal-700',
   },
 ]
 
@@ -32,8 +33,8 @@ export default function Landing() {
               <Microscope size={17} strokeWidth={2.1} />
             </div>
             <div>
-              <div className="font-serif font-semibold tracking-tight">DERMAXAI</div>
-              <div className="text-[10px] uppercase tracking-[0.18em] text-muted">Clinical intelligence</div>
+              <div className="font-serif font-semibold tracking-tight">{BRAND_SHORT}</div>
+              <div className="text-[10px] uppercase tracking-[0.14em] text-muted">Multimodal healthcare assistant</div>
             </div>
           </Link>
 
@@ -47,9 +48,8 @@ export default function Landing() {
       </nav>
 
       <main>
-        <section className="relative overflow-hidden bg-[radial-gradient(circle_at_82%_20%,rgba(196,181,253,0.20),transparent_28%),radial-gradient(circle_at_15%_45%,rgba(45,212,191,0.10),transparent_25%),linear-gradient(180deg,#F7FAF9_0%,#FCFBFA_72%)]">
-          <div className="absolute -top-24 right-[-90px] w-80 h-80 rounded-full bg-violet-200/20 blur-3xl pointer-events-none" />
-          <div className="absolute bottom-[-140px] left-[-80px] w-96 h-96 rounded-full bg-amber-200/15 blur-3xl pointer-events-none" />
+        <section className="relative overflow-hidden bg-[linear-gradient(180deg,#F4F8F7_0%,#FCFBFA_72%)]">
+          
 
           <div className="max-w-6xl mx-auto px-6 lg:px-8 py-16 sm:py-20 lg:py-24">
             <div className="grid lg:grid-cols-[1.05fr_.95fr] gap-12 lg:gap-16 items-center">
@@ -57,8 +57,8 @@ export default function Landing() {
                 <div className="eyebrow mb-5">
                   <span className="eyebrow-dot" /> AI-assisted dermatology
                 </div>
-                <h1 className="text-5xl sm:text-6xl lg:text-[4.35rem] font-serif font-semibold leading-[0.98] tracking-[-0.035em] max-w-2xl">
-                  A clearer way to assess skin lesions.
+                <h1 className="text-4xl sm:text-5xl lg:text-[4rem] font-serif font-semibold leading-[1.02] tracking-[-0.035em] max-w-2xl">
+                  {BRAND_NAME}
                 </h1>
                 <p className="mt-6 text-base sm:text-lg text-muted leading-8 max-w-xl">
                   DERMAXAI combines dermoscopic image analysis, patient context, uncertainty estimation and clinician review in one focused workflow.
@@ -73,8 +73,8 @@ export default function Landing() {
                 </div>
                 <div className="mt-7 flex flex-wrap gap-x-6 gap-y-2 text-xs text-muted">
                   <span className="inline-flex items-center gap-2"><CheckCircle2 size={14} className="text-teal-600" /> Confidence + uncertainty</span>
-                  <span className="inline-flex items-center gap-2"><CheckCircle2 size={14} className="text-violet-600" /> Grad-CAM explanation</span>
-                  <span className="inline-flex items-center gap-2"><CheckCircle2 size={14} className="text-amber-600" /> Clinician review</span>
+                  <span className="inline-flex items-center gap-2"><CheckCircle2 size={14} className="text-teal-600" /> Grad-CAM explanation</span>
+                  <span className="inline-flex items-center gap-2"><CheckCircle2 size={14} className="text-teal-600" /> Clinician review</span>
                 </div>
               </div>
 
@@ -99,37 +99,37 @@ export default function Landing() {
                   </div>
 
                   <div className="space-y-3">
-                    <div className="rounded-xl border border-teal-100 p-4 bg-gradient-to-br from-teal-50 to-white">
+                    <div className="rounded-xl border border-[#DCEAE6] p-4 bg-[#F5F9F7]">
                       <div className="text-[10px] uppercase tracking-[0.12em] text-teal-700/80">Top prediction</div>
                       <div className="flex items-end justify-between gap-3 mt-2">
                         <div>
-                          <div className="font-serif text-xl font-semibold">Melanocytic Nevi</div>
-                          <div className="text-[10px] text-muted mt-1">NV · example result</div>
+                          <div className="font-serif text-xl font-semibold">Example model output</div>
+                          <div className="text-[10px] text-muted mt-1">Illustrative result — not a measured performance claim</div>
                         </div>
                         <div className="text-right">
-                          <div className="font-mono text-xl font-semibold text-teal-700">92.4%</div>
-                          <div className="text-[10px] text-muted">confidence</div>
+                          <div className="font-mono text-sm font-semibold text-teal-700">Class probabilities</div>
+                          <div className="text-[10px] text-muted">review before acting</div>
                         </div>
                       </div>
-                      <div className="confidence-bar mt-4"><div className="confidence-fill" style={{ width: '92.4%' }} /></div>
+                      <div className="confidence-bar mt-4"><div className="confidence-fill" style={{ width: '68%' }} /></div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
-                      <div className="rounded-xl border border-amber-100 p-4 bg-amber-50/70">
-                        <div className="text-[10px] uppercase tracking-[0.1em] text-amber-800/75">Uncertainty</div>
+                      <div className="rounded-xl border border-line p-4 bg-paper">
+                        <div className="text-[10px] uppercase tracking-[0.1em] text-muted">Uncertainty</div>
                         <div className="font-mono text-sm font-semibold mt-2">0.0831</div>
-                        <div className="text-[10px] text-emerald-700 mt-1">Low</div>
+                        <div className="text-[10px] text-teal-700 mt-1">Low</div>
                       </div>
-                      <div className="rounded-xl border border-violet-100 p-4 bg-violet-50/65">
-                        <div className="text-[10px] uppercase tracking-[0.1em] text-violet-800/75">Review</div>
+                      <div className="rounded-xl border border-line p-4 bg-paper">
+                        <div className="text-[10px] uppercase tracking-[0.1em] text-muted">Review</div>
                         <div className="text-sm font-semibold mt-2">Routine</div>
                         <div className="text-[10px] text-muted mt-1">No escalation</div>
                       </div>
                     </div>
 
-                    <div className="rounded-xl border border-sky-100 bg-gradient-to-br from-sky-50 to-white p-4">
-                      <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.1em] text-sky-800/75">
-                        <ShieldCheck size={13} className="text-sky-600" /> Explainability
+                    <div className="rounded-xl border border-line bg-[#F5F8F7] p-4">
+                      <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.1em] text-muted">
+                        <ShieldCheck size={13} className="text-teal-600" /> Explainability
                       </div>
                       <p className="text-xs text-muted leading-5 mt-2">Confidence, class probabilities and Grad-CAM can be reviewed before acting on a result.</p>
                     </div>
@@ -165,7 +165,7 @@ export default function Landing() {
         </section>
 
         <section className="max-w-6xl mx-auto px-6 lg:px-8 py-14 lg:py-16">
-          <div className="glass p-6 sm:p-8 flex flex-col md:flex-row md:items-center md:justify-between gap-6 bg-gradient-to-r from-teal-50 via-white to-violet-50 border-teal-100/70">
+          <div className="glass p-6 sm:p-8 flex flex-col md:flex-row md:items-center md:justify-between gap-6 bg-[#F3F7F5] border-[#DCEAE6]">
             <div>
               <div className="eyebrow">Start when you're ready</div>
               <h2 className="text-2xl sm:text-3xl font-serif font-semibold mt-2">Run your first assessment.</h2>
@@ -183,8 +183,8 @@ export default function Landing() {
           <div className="flex items-center gap-3">
             <div className="brand-mark small"><Microscope size={14} /></div>
             <div>
-              <div className="font-serif font-semibold text-sm">DERMAXAI</div>
-              <div className="text-[10px] text-muted">AI-assisted skin lesion decision support</div>
+              <div className="font-serif font-semibold text-sm">{BRAND_SHORT}</div>
+              <div className="text-[10px] text-muted">Multimodal healthcare assistant with skin specialisation</div>
             </div>
           </div>
           <div className="text-xs text-muted">Dr. AIT Major Project 2025–26</div>
