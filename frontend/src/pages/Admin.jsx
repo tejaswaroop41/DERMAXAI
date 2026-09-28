@@ -15,12 +15,12 @@ import {
 } from 'lucide-react'
 import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 
-const COLORS = { mel: '#B4413A', bcc: '#C17A3D', akiec: '#B08135', bkl: '#4F7A52', nv: '#3D6B94', df: '#6B5B95', vasc: '#3D8B94' }
+const COLORS = { mel: '#8B4A46', bcc: '#8B6A4E', akiec: '#8A7545', bkl: '#52705A', nv: '#557086', df: '#6F667F', vasc: '#557A7A' }
 const NAMES = { mel: 'Melanoma', bcc: 'Basal Cell Carcinoma', akiec: 'Actinic Keratoses', bkl: 'Benign Keratosis', nv: 'Melanocytic Nevi', df: 'Dermatofibroma', vasc: 'Vascular Lesions' }
 
 function Metric({ icon: Icon, label, value, note, tone = 'teal' }) {
   const styles = {
-    teal: ['#3D7068', '#EEF5F3'], red: ['#B4413A', '#FBEAE8'], amber: ['#B08135', '#FBF3E4'], purple: ['#6B5B95', '#F1EEF7']
+    teal: ['#3D7068', '#EEF5F3'], red: ['#8B4A46', '#F5E9E7'], amber: ['#8A7545', '#F4F0E5'], purple: ['#6F667F', '#EEEDF1']
   }
   const [color, bg] = styles[tone]
   return (
