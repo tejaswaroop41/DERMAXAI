@@ -1,7 +1,7 @@
 # DERMAXAI
 ### Multimodal Healthcare Assistant with Skin Specialisation
 
-> B.Tech CSE Major Project — Dr. AIT, Bengaluru | Course: 22CSP605 | 2025–26  
+> B.E. CSE Major Project — Dr. AIT, Bengaluru | Course: 22CSP605 | 2025–26  
 > Guide: Dr. Suresha D, Assoc. Prof., CSE Programme
 
 DERMAXAI is a multimodal healthcare assistant with skin specialisation, designed for AI-assisted skin-lesion screening, uncertainty-aware decision support, lesion tracking, and clinician review. This README focuses on one question: **which algorithm or method is used at which step of the DERMAXAI pipeline?**
