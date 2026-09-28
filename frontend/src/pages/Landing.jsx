@@ -88,7 +88,7 @@ export default function Landing() {
                 </div>
 
                 <div className="grid sm:grid-cols-[.9fr_1.1fr] gap-5 pt-5">
-                  <div className="rounded-xl overflow-hidden border border-emerald-100 bg-[#eef3f1] min-h-64 relative">
+                  <div className="rounded-xl overflow-hidden border border-[#DCEAE6] bg-[#EEF3F1] min-h-64 relative">
                     <div className="scan-surface" />
                     <div className="absolute inset-x-0 top-4 flex justify-center">
                       <span className="rounded-full border border-white/60 bg-white/65 px-2.5 py-1 text-[9px] font-semibold text-slate-600 backdrop-blur-sm">EXAMPLE MODEL VIEW</span>
