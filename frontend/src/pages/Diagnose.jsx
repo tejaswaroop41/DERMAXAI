@@ -248,6 +248,8 @@ export default function Diagnose() {
 
                 <Section title="Recommendations" eyebrow="Decision support"><p className="text-sm text-muted leading-6">{result.recommendation.class_description}</p><ul className="mt-4 space-y-2">{result.recommendation.recommendations.map((r, i) => <li key={i} className="text-sm text-ink/85 flex gap-2"><span className="text-teal-700">•</span><span>{r}</span></li>)}</ul></Section>
 
+                <div className="rounded-xl border border-line bg-paper p-4 text-xs text-muted leading-5"><span className="font-semibold text-ink">Decision-support notice:</span> DERMAXAI is an AI-assisted screening and clinical decision-support system. Results should be reviewed by a qualified healthcare professional and are not a substitute for medical diagnosis or clinical examination.</div>
+
                 <div className="grid sm:grid-cols-2 gap-3"><button type="button" onClick={() => reportApi.download(result.report_url, `DERMAXAI_Report_${result.diagnosis_id}.pdf`)} disabled={!result.report_url} className="btn-primary inline-flex items-center justify-center gap-2 py-3 text-sm"><Download size={15} /> Download report</button><button type="button" onClick={reset} className="btn-ghost inline-flex items-center justify-center gap-2 py-3 text-sm"><RotateCcw size={15} /> New assessment</button></div>
               </>
             )}
