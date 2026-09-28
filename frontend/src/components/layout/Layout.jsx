@@ -89,14 +89,14 @@ export default function Layout({ children }) {
             <div className="brand-mark"><Microscope size={16} /></div>
             <div>
               <div className="font-serif font-semibold text-ink text-base">{BRAND_SHORT}</div>
-              <div className="text-[9px] uppercase tracking-[0.16em] text-muted mt-0.5">Clinical intelligence</div>
+              <div className="text-[9px] uppercase tracking-[0.16em] text-muted mt-0.5">Decision support</div>
             </div>
           </Link>
         </div>
         <div className="px-5 pt-6 pb-2"><div className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted/70">Workspace</div></div>
         <nav className="flex-1 px-3 space-y-1">{renderNav()}</nav>
         <div className="mx-4 mb-4 rounded-2xl p-3.5 bg-[#F3F7F5] border border-[#DEE9E5]">
-          <div className="flex items-center gap-2 mb-2"><Bell size={13} className="text-teal-700" /><span className="text-[10px] uppercase tracking-[0.12em] font-bold text-teal-800">Clinical workspace</span></div>
+          <div className="flex items-center gap-2 mb-2"><Bell size={13} className="text-teal-700" /><span className="text-[10px] uppercase tracking-[0.12em] font-bold text-teal-800">Decision-support workspace</span></div>
           <p className="text-[11px] leading-5 text-muted">Review uncertainty signals and supporting evidence before making decisions.</p>
         </div>
         <div className="px-4 py-4 border-t border-line">
