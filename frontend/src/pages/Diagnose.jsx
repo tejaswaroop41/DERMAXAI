@@ -20,7 +20,7 @@ import {
 } from 'lucide-react'
 
 const CLASS_NAMES = { mel:'Melanoma', bcc:'Basal Cell Carcinoma', akiec:'Actinic Keratoses', bkl:'Benign Keratosis', nv:'Melanocytic Nevi', df:'Dermatofibroma', vasc:'Vascular Lesions' }
-const CLASS_COLORS = { mel:'#B4413A', bcc:'#C17A3D', akiec:'#B08135', bkl:'#4F7A52', nv:'#3D6B94', df:'#6B5B95', vasc:'#3D8B94' }
+const CLASS_COLORS = { mel:'#8B4A46', bcc:'#8B6A4E', akiec:'#8A7545', bkl:'#52705A', nv:'#557086', df:'#6F667F', vasc:'#557A7A' }
 
 function resultCategory(decision) {
   if (decision?.is_malignant) return 'malignant'
@@ -223,13 +223,13 @@ export default function Diagnose() {
                   </div>
                   <div className="mt-5"><div className="flex justify-between text-xs text-muted mb-1.5"><span>Confidence</span><span className="font-mono">{(result.decision.fused_confidence * 100).toFixed(1)}%</span></div><div className="confidence-bar h-2"><div className="confidence-fill h-2" style={{ width: `${result.decision.fused_confidence * 100}%` }} /></div></div>
                   <div className="grid grid-cols-3 gap-2 mt-4">{Object.entries(result.decision.modality_weights).map(([key, value]) => <div key={key} className="rounded-xl bg-paper border border-line p-3"><div className="font-mono text-sm font-semibold text-teal-700">{(value * 100).toFixed(0)}%</div><div className="text-[10px] text-muted capitalize mt-1">{key}</div></div>)}</div>
-                  {resultCategory(result.decision) === 'malignant' && <div className="mt-4 p-3 rounded-xl bg-[#FBEAE8] border border-[#EFCAC6] text-xs text-[#963530] flex gap-2"><AlertTriangle size={14} className="flex-shrink-0 mt-0.5" />This is decision-support output, not a diagnosis. Seek qualified dermatology review for concerning findings.</div>}
-                  {resultCategory(result.decision) === 'concern' && <div className="mt-4 p-3 rounded-xl bg-[#FBF3E4] border border-[#E9D3A4] text-xs text-[#7B5B1D] flex gap-2"><AlertTriangle size={14} className="flex-shrink-0 mt-0.5" />Clinical concern was flagged by the application's decision-support layer. Clinician review is advised.</div>}
+                  {resultCategory(result.decision) === 'malignant' && <div className="mt-4 p-3 rounded-xl bg-[#F5E9E7] border border-[#EFCAC6] text-xs text-[#963530] flex gap-2"><AlertTriangle size={14} className="flex-shrink-0 mt-0.5" />This is decision-support output, not a diagnosis. Seek qualified dermatology review for concerning findings.</div>}
+                  {resultCategory(result.decision) === 'concern' && <div className="mt-4 p-3 rounded-xl bg-[#F4F0E5] border border-[#E9D3A4] text-xs text-[#7B5B1D] flex gap-2"><AlertTriangle size={14} className="flex-shrink-0 mt-0.5" />Clinical concern was flagged by the application's decision-support layer. Clinician review is advised.</div>}
                 </Section>
 
                 <Section title="Uncertainty" eyebrow="Model confidence boundary">
                   <div className="flex items-center justify-between gap-4"><div><div className="text-lg font-serif font-semibold text-ink">{result.uncertainty.confidence_level}</div><div className="text-xs text-muted mt-1">Composite uncertainty score</div></div><div className="font-mono text-xl font-semibold" style={{ color: result.uncertainty.requires_review ? '#8C6825' : '#3F6242' }}>{result.uncertainty.composite_uncertainty.toFixed(4)}</div></div>
-                  <div className="confidence-bar mt-4"><div className="confidence-fill" style={{ width: `${Math.min(result.uncertainty.composite_uncertainty * 100, 100)}%`, background: result.uncertainty.requires_review ? '#B08135' : '#4F7A52' }} /></div>
+                  <div className="confidence-bar mt-4"><div className="confidence-fill" style={{ width: `${Math.min(result.uncertainty.composite_uncertainty * 100, 100)}%`, background: result.uncertainty.requires_review ? '#8A7545' : '#52705A' }} /></div>
                   {result.uncertainty.requires_review && <div className="text-xs text-[#8C6825] mt-3">This case crosses the application's review threshold and should be examined by a clinician.</div>}
                 </Section>
 
