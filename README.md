@@ -1,10 +1,10 @@
-# DERMAXAI v6
-### Multimodal AI-Powered Healthcare Diagnostic Assistant
+# DERMAXAI
+### Multimodal Healthcare Assistant with Skin Specialisation
 
 > Final Year BE Project — Dr. AIT, Bengaluru | Course: 22CSP605 | 2025–26  
 > Guide: Dr. Suresha D, Assoc. Prof., CSE Programme
 
-DERMAXAI is a multimodal dermatology screening and clinical-review support system. This README focuses on one question: **which algorithm or method is used at which step of the DERMAXAI pipeline?**
+DERMAXAI is a multimodal healthcare assistant with skin specialisation, designed for AI-assisted skin-lesion screening, uncertainty-aware decision support, lesion tracking, and clinician review. This README focuses on one question: **which algorithm or method is used at which step of the DERMAXAI pipeline?**
 
 ---
 
