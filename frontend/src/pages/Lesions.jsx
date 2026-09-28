@@ -246,14 +246,6 @@ export default function Lesions() {
                       <button className="btn-ghost text-xs inline-flex items-center gap-2" onClick={remove}><Trash2 size={13} /> Stop tracking</button>
                     </div>
 
-                    <div className="mt-6 rounded-xl border border-line bg-paper p-4">
-                      <div className="text-[10px] uppercase tracking-[0.14em] text-muted">Assessment lifecycle</div>
-                      <div className="mt-3 grid grid-cols-2 sm:grid-cols-5 gap-2 text-[10px] text-center">
-                        {['Submitted','AI analysis','Tracked','Doctor review','Follow-up'].map((step, index) => <div key={step} className="rounded-lg border border-line bg-white px-2 py-2"><div className="font-mono text-teal-700">0{index + 1}</div><div className="mt-1 text-ink">{step}</div></div>)}
-                      </div>
-                      <p className="text-[10px] text-muted mt-3">Tracking records repeat assessments; doctor review remains a separate clinical workflow.</p>
-                    </div>
-
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-6">
                       <MiniMetric label="Observations" value={detail.diagnosis_count} tone="teal" />
                       <MiniMetric label="Latest class" value={latest ? (CLASS_NAMES[latest.predicted_class] || latest.predicted_class) : '—'} />
