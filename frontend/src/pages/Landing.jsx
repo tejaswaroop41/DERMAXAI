@@ -107,18 +107,18 @@ export default function Landing() {
                           <div className="text-[10px] text-muted mt-1">Illustrative result — not a measured performance claim</div>
                         </div>
                         <div className="text-right">
-                          <div className="font-mono text-sm font-semibold text-teal-700">Class probabilities</div>
-                          <div className="text-[10px] text-muted">review before acting</div>
+                          <div className="font-mono text-sm font-semibold text-teal-700">Illustrative interface</div>
+                          <div className="text-[10px] text-muted">sample layout only</div>
                         </div>
                       </div>
-                      <div className="confidence-bar mt-4"><div className="confidence-fill" style={{ width: '68%' }} /></div>
+                      <div className="mt-4 rounded-lg border border-dashed border-[#DCEAE6] px-3 py-2 text-[10px] text-muted">Live assessments display model-generated probabilities and uncertainty after analysis.</div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
                       <div className="rounded-xl border border-line p-4 bg-paper">
                         <div className="text-[10px] uppercase tracking-[0.1em] text-muted">Uncertainty</div>
-                        <div className="font-mono text-sm font-semibold mt-2">0.0831</div>
-                        <div className="text-[10px] text-teal-700 mt-1">Low</div>
+                        <div className="font-mono text-sm font-semibold mt-2">Model output</div>
+                        <div className="text-[10px] text-teal-700 mt-1">Calculated per assessment</div>
                       </div>
                       <div className="rounded-xl border border-line p-4 bg-paper">
                         <div className="text-[10px] uppercase tracking-[0.1em] text-muted">Review</div>
