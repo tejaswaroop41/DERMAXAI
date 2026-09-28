@@ -4,7 +4,7 @@ import { useAuth, homeForRole } from '../App'
 import { authApi } from '../lib/api'
 import toast from 'react-hot-toast'
 import { Microscope, Eye, EyeOff, Mail, Lock } from 'lucide-react'
-import { BRAND_NAME, BRAND_SHORT } from '../lib/brand'
+import { BRAND_SHORT } from '../lib/brand'
 
 export default function Login() {
   const { login } = useAuth()
