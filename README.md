@@ -1,10 +1,45 @@
 # DERMAXAI
 ### Multimodal Healthcare Assistant with Skin Specialisation
 
-> Final Year BE Project — Dr. AIT, Bengaluru | Course: 22CSP605 | 2025–26  
+> B.Tech CSE Major Project — Dr. AIT, Bengaluru | Course: 22CSP605 | 2025–26  
 > Guide: Dr. Suresha D, Assoc. Prof., CSE Programme
 
 DERMAXAI is a multimodal healthcare assistant with skin specialisation, designed for AI-assisted skin-lesion screening, uncertainty-aware decision support, lesion tracking, and clinician review. This README focuses on one question: **which algorithm or method is used at which step of the DERMAXAI pipeline?**
+
+---
+
+## Architecture at a Glance
+
+```text
+Patient
+   │
+   ├── Dermoscopic image ──► Image AI ──► EfficientNet-B3 + CBAM + GeM + TTA
+   │                                      │
+   │                                      └── MC Dropout + MCUE
+   │
+   ├── Symptoms ───────────► Clinical NLP / symptom risk
+   │
+   └── Patient profile ────► Demographic risk
+                                  │
+                                  ▼
+                         CMCA decision-support layer
+                                  │
+                    ┌─────────────┼─────────────┐
+                    ▼             ▼             ▼
+                Grad-CAM       ABCD        Recommendation
+                    │             │             │
+                    └─────────────┼─────────────┘
+                                  ▼
+                           Diagnosis record
+                           │             │
+                           ▼             ▼
+                    PDF report     Lesion tracking
+                                         │
+                                         ▼
+                                   Doctor review
+```
+
+**Clinical positioning:** DERMAXAI is an AI-assisted screening and clinical decision-support prototype. It does not replace professional diagnosis, examination, or histopathological confirmation.
 
 ---
 
