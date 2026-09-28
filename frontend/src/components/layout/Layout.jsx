@@ -1,6 +1,7 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../App'
 import { diagnoseApi } from '../../lib/api'
+import { BRAND_SHORT } from '../../lib/brand'
 import { useEffect, useState } from 'react'
 import {
   Activity,
@@ -72,8 +73,8 @@ export default function Layout({ children }) {
       })}
       {isAdmin && (
         <Link to="/admin" className="app-nav-link"
-          style={{ background: location.pathname === '/admin' ? '#F1EEF7' : 'transparent', color: location.pathname === '/admin' ? '#4A3D6B' : '#5B6764', fontWeight: location.pathname === '/admin' ? 600 : 500 }}>
-          <span className="app-nav-icon" style={{ background: location.pathname === '/admin' ? '#E8E3F2' : 'transparent' }}><Shield size={15} /></span>
+          style={{ background: location.pathname === '/admin' ? '#EEF4F3' : 'transparent', color: location.pathname === '/admin' ? '#254742' : '#5B6764', fontWeight: location.pathname === '/admin' ? 600 : 500 }}>
+          <span className="app-nav-icon" style={{ background: location.pathname === '/admin' ? '#DCEBE7' : 'transparent' }}><Shield size={15} /></span>
           <span className="flex-1">Administration</span><ChevronRight size={13} className="app-nav-arrow" />
         </Link>
       )}
@@ -87,7 +88,7 @@ export default function Layout({ children }) {
           <Link to={isAdmin ? '/admin' : isDoctor ? '/dashboard' : '/dashboard'} className="flex items-center gap-3">
             <div className="brand-mark"><Microscope size={16} /></div>
             <div>
-              <div className="font-serif font-semibold text-ink text-base">DERMAXAI</div>
+              <div className="font-serif font-semibold text-ink text-base">{BRAND_SHORT}</div>
               <div className="text-[9px] uppercase tracking-[0.16em] text-muted mt-0.5">Clinical intelligence</div>
             </div>
           </Link>
@@ -108,7 +109,7 @@ export default function Layout({ children }) {
       </aside>
 
       <header className="app-mobile-header fixed top-0 left-0 right-0 h-16 bg-white/95 backdrop-blur border-b border-line z-50 items-center justify-between px-4">
-        <Link to="/dashboard" className="flex items-center gap-2.5"><div className="brand-mark small"><Microscope size={14} /></div><span className="font-serif font-semibold text-ink">DERMAXAI</span></Link>
+        <Link to="/dashboard" className="flex items-center gap-2.5"><div className="brand-mark small"><Microscope size={14} /></div><span className="font-serif font-semibold text-ink">{BRAND_SHORT}</span></Link>
         <button onClick={() => setMobileOpen(true)} className="w-9 h-9 rounded-lg border border-line flex items-center justify-center text-muted" aria-label="Open menu"><Menu size={18} /></button>
       </header>
 

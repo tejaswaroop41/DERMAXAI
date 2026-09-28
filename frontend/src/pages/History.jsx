@@ -5,12 +5,12 @@ import { Link } from 'react-router-dom'
 import { Search, Download, Stethoscope, CheckCircle2, RotateCcw, XCircle, ChevronDown, Activity } from 'lucide-react'
 
 const CLASS_NAMES = { mel:'Melanoma', bcc:'Basal Cell Carcinoma', akiec:'Actinic Keratoses', bkl:'Benign Keratosis', nv:'Melanocytic Nevi', df:'Dermatofibroma', vasc:'Vascular Lesions' }
-const CLASS_COLORS = { mel:'#B4413A', bcc:'#C17A3D', akiec:'#B08135', bkl:'#4F7A52', nv:'#3D6B94', df:'#6B5B95', vasc:'#3D8B94' }
+const CLASS_COLORS = { mel:'#8B4A46', bcc:'#8B6A4E', akiec:'#8A7545', bkl:'#52705A', nv:'#557086', df:'#6F667F', vasc:'#557A7A' }
 const CLINICAL_CONCERN_CLASSES = ['akiec', 'bcc', 'mel']
 const VERDICT_STYLE = {
-  confirmed: { label: 'Confirmed', color: '#B4413A', bg: '#FBEAE8', border: '#EFCAC6', icon: CheckCircle2 },
-  revised: { label: 'Revised', color: '#B08135', bg: '#FBF3E4', border: '#E9D3A4', icon: RotateCcw },
-  dismissed: { label: 'Cleared', color: '#4F7A52', bg: '#EDF3ED', border: '#C9DBC9', icon: XCircle },
+  confirmed: { label: 'Confirmed', color: '#8B4A46', bg: '#F5E9E7', border: '#EFCAC6', icon: CheckCircle2 },
+  revised: { label: 'Revised', color: '#8A7545', bg: '#F4F0E5', border: '#E9D3A4', icon: RotateCcw },
+  dismissed: { label: 'Cleared', color: '#52705A', bg: '#EDF3ED', border: '#C9DBC9', icon: XCircle },
 }
 
 function clinicalCategory(diagnosis) {

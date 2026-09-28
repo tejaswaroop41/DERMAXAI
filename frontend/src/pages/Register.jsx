@@ -4,6 +4,7 @@ import { useAuth } from '../App'
 import { authApi } from '../lib/api'
 import toast from 'react-hot-toast'
 import { Microscope, User, Mail, Lock } from 'lucide-react'
+import { BRAND_SHORT } from '../lib/brand'
 
 export default function Register() {
   const { login } = useAuth()
@@ -19,7 +20,7 @@ export default function Register() {
     try {
       const { data } = await authApi.register(form)
       login(data.user, data.access_token)
-      toast.success('Account created! Welcome to DERMAXAI.')
+      toast.success(`Account created! Welcome to ${BRAND_SHORT}.`)
       navigate('/dashboard')
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Registration failed')
@@ -30,11 +31,12 @@ export default function Register() {
     <div className="min-h-screen flex items-center justify-center bg-paper px-4 py-12">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-4 bg-teal-500">
+          <div className="w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-4 bg-[#3D7068]">
             <Microscope size={20} className="text-white" />
           </div>
-          <h1 className="text-xl font-serif font-semibold text-ink">Create account</h1>
-          <p className="text-muted text-sm mt-1">Get started with DERMAXAI</p>
+          <h1 className="text-xl font-serif font-semibold text-ink">{BRAND_SHORT}</h1>
+          <p className="text-muted text-sm mt-1">Multimodal Healthcare Assistant with Skin Specialisation</p>
+          <p className="text-muted text-sm mt-1">Get started with {BRAND_SHORT}</p>
         </div>
 
         <form onSubmit={submit} className="glass p-7 space-y-5">
@@ -77,7 +79,7 @@ export default function Register() {
           </button>
           <p className="text-center text-sm text-muted">
             Already have an account?{' '}
-            <Link to="/login" className="text-teal-500 hover:text-teal-600 font-medium">Sign in</Link>
+            <Link to="/login" className="text-teal-700 hover:text-teal-800 font-medium">Sign in</Link>
           </p>
         </form>
       </div>

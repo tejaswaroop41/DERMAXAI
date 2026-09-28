@@ -19,7 +19,7 @@ from reportlab.platypus import (
 
 from core.config import settings
 
-TEAL  = colors.HexColor("#0EA5E9")
+TEAL  = colors.HexColor("#3D7068")
 DARK  = colors.HexColor("#0F172A")
 LIGHT = colors.HexColor("#F8FAFC")
 RED   = colors.HexColor("#EF4444")
@@ -59,7 +59,9 @@ def generate_report(decision: dict, uncertainty: dict,
 
     # ── Header ───────────────────────────────────────────
     story.append(Paragraph("DERMAXAI", title_style))
-    story.append(Paragraph("AI-Powered Dermatological Diagnostic Report", sub_style))
+    story.append(Paragraph("Multimodal Healthcare Assistant with Skin Specialisation", sub_style))
+    story.append(Paragraph("Screening Report", sub_style))
+    
     story.append(Paragraph(f"Generated: {datetime.now().strftime('%d %B %Y, %H:%M')}", sub_style))
     story.append(HRFlowable(width="100%", thickness=2, color=TEAL))
     story.append(Spacer(1, 0.4*cm))

@@ -4,6 +4,7 @@ import { useAuth, homeForRole } from '../App'
 import { authApi } from '../lib/api'
 import toast from 'react-hot-toast'
 import { Microscope, Eye, EyeOff, Mail, Lock } from 'lucide-react'
+import { BRAND_SHORT } from '../lib/brand'
 
 export default function Login() {
   const { login } = useAuth()
@@ -29,11 +30,12 @@ export default function Login() {
     <div className="min-h-screen flex items-center justify-center bg-paper px-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-4 bg-teal-500">
+          <div className="w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-4 bg-[#3D7068]">
             <Microscope size={20} className="text-white" />
           </div>
-          <h1 className="text-xl font-serif font-semibold text-ink">Welcome back</h1>
-          <p className="text-muted text-sm mt-1">Sign in to DERMAXAI</p>
+          <h1 className="text-xl font-serif font-semibold text-ink">{BRAND_SHORT}</h1>
+          <p className="text-muted text-sm mt-1">Multimodal Healthcare Assistant with Skin Specialisation</p>
+          <p className="text-muted text-sm mt-1">Sign in to {BRAND_SHORT}</p>
         </div>
         <div className="glass p-7">
           <form onSubmit={submit} className="space-y-5">
@@ -48,7 +50,7 @@ export default function Login() {
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="text-xs text-muted font-medium">Password</label>
-                <Link to="/forgot-password" className="text-xs text-teal-500 hover:text-teal-600 font-medium">Forgot password?</Link>
+                <Link to="/forgot-password" className="text-xs text-teal-700 hover:text-teal-800 font-medium">Forgot password?</Link>
               </div>
               <div className="relative">
                 <Lock size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />

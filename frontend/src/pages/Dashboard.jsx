@@ -19,7 +19,7 @@ import {
 } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 
-const CLASS_COLORS = { mel: '#B4413A', bcc: '#C17A3D', akiec: '#B08135', bkl: '#4F7A52', nv: '#3D6B94', df: '#6B5B95', vasc: '#3D8B94' }
+const CLASS_COLORS = { mel: '#8B4A46', bcc: '#8B6A4E', akiec: '#8A7545', bkl: '#52705A', nv: '#557086', df: '#6F667F', vasc: '#557A7A' }
 const CLASS_NAMES = {
   mel: 'Melanoma',
   bcc: 'Basal Cell Carcinoma',
@@ -47,9 +47,9 @@ function ClinicalBadge({ diagnosis }) {
 function StatCard({ icon: Icon, label, value, detail, tone = 'teal' }) {
   const tones = {
     teal: { icon: '#3D7068', bg: '#EEF4F3' },
-    red: { icon: '#B4413A', bg: '#FBEAE8' },
-    amber: { icon: '#A97824', bg: '#FBF3E4' },
-    green: { icon: '#4F7A52', bg: '#EDF3ED' },
+    red: { icon: '#8B4A46', bg: '#F5E9E7' },
+    amber: { icon: '#A97824', bg: '#F4F0E5' },
+    green: { icon: '#52705A', bg: '#EDF3ED' },
   }
   const current = tones[tone] || tones.teal
 

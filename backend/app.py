@@ -64,7 +64,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title=settings.APP_NAME,
-    description="Multimodal AI-Powered Healthcare Diagnostic Assistant",
+    description="Multimodal healthcare assistant with skin specialisation for AI-assisted screening, uncertainty estimation, and clinician review.",
     version=settings.APP_VERSION,
     lifespan=lifespan,
     docs_url="/docs" if settings.DEBUG else None,
