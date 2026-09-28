@@ -41,7 +41,7 @@ def _default_model_path(base_dir: Path = BASE_DIR) -> str:
 
 class Settings:
     # ── App ──────────────────────────────────────────────
-    APP_NAME    = "DERMAXAI — Multimodal Healthcare Assistant with Skin Specialisation"
+    APP_NAME    = "DERMAXAI: Multimodal Healthcare Assistant with Skin Specialisation"
     APP_VERSION = "6.0.0"
     DEBUG       = os.getenv("DEBUG", "false").lower() == "true"
 

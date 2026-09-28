@@ -34,9 +34,8 @@ export default function Register() {
           <div className="w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-4 bg-[#3D7068]">
             <Microscope size={20} className="text-white" />
           </div>
-          <h1 className="text-xl font-serif font-semibold text-ink">{BRAND_SHORT}</h1>
-          <p className="text-muted text-sm mt-1">Multimodal Healthcare Assistant with Skin Specialisation</p>
-          <p className="text-muted text-sm mt-1">Get started with {BRAND_SHORT}</p>
+          <h1 className="text-xl font-serif font-semibold text-ink">Create your account</h1>
+          <p className="text-muted text-sm mt-1">DERMAXAI — Multimodal Healthcare Assistant with Skin Specialisation</p>
         </div>
 
         <form onSubmit={submit} className="glass p-7 space-y-5">

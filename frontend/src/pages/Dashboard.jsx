@@ -254,7 +254,7 @@ function DoctorDashboard({ user }) {
       <div className="max-w-7xl mx-auto px-5 sm:px-8 py-8 lg:py-10">
         <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6 mb-8">
           <div>
-            <div className="eyebrow">Clinical workspace</div>
+            <div className="eyebrow">Decision-support workspace</div>
             <h1 className="text-3xl lg:text-4xl font-serif font-semibold text-ink mt-2 tracking-tight">
               {greeting}, Dr. {firstName}.
             </h1>

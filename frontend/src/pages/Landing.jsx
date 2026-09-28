@@ -55,7 +55,7 @@ export default function Landing() {
             <div className="grid lg:grid-cols-[1.05fr_.95fr] gap-12 lg:gap-16 items-center">
               <div className="relative z-10">
                 <div className="eyebrow mb-5">
-                  <span className="eyebrow-dot" /> AI-assisted dermatology
+                  <span className="eyebrow-dot" /> AI-assisted skin lesion screening
                 </div>
                 <h1 className="text-4xl sm:text-5xl lg:text-[4rem] font-serif font-semibold leading-[1.02] tracking-[-0.035em] max-w-2xl">
                   {BRAND_NAME}
@@ -122,8 +122,8 @@ export default function Landing() {
                       </div>
                       <div className="rounded-xl border border-line p-4 bg-paper">
                         <div className="text-[10px] uppercase tracking-[0.1em] text-muted">Review</div>
-                        <div className="text-sm font-semibold mt-2">Routine</div>
-                        <div className="text-[10px] text-muted mt-1">No escalation</div>
+                        <div className="text-sm font-semibold mt-2">Set per assessment</div>
+                        <div className="text-[10px] text-muted mt-1">Calculated from the result</div>
                       </div>
                     </div>
 
