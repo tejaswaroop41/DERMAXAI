@@ -4,6 +4,7 @@ import { useAuth } from '../App'
 import { authApi } from '../lib/api'
 import toast from 'react-hot-toast'
 import { Microscope, User, Mail, Lock } from 'lucide-react'
+import { BRAND_SHORT } from '../lib/brand'
 
 export default function Register() {
   const { login } = useAuth()
@@ -19,7 +20,7 @@ export default function Register() {
     try {
       const { data } = await authApi.register(form)
       login(data.user, data.access_token)
-      toast.success('Account created! Welcome to {BRAND_SHORT}.')
+      toast.success(`Account created! Welcome to ${BRAND_SHORT}.`)
       navigate('/dashboard')
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Registration failed')
