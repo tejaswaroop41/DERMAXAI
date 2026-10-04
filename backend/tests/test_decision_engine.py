@@ -39,6 +39,8 @@ def test_urgent_symptoms_do_not_turn_non_malignant_prediction_malignant():
     )
 
     assert result["predicted_class"] == "nv"
+    assert result["image_confidence"] == result["image_confidence"]
+    assert "fused_confidence" not in result
     assert result["is_malignant"] is False
     assert result["predicted_malignant"] is False
     assert result["urgency_escalated"] is True
@@ -125,3 +127,15 @@ def test_reported_cmca_weights_have_four_decimal_precision_and_exact_sum():
     weights = result["modality_weights"]
     assert sum(weights.values()) == 1.0
     assert all(abs(weight - round(weight, 4)) < 1e-12 for weight in weights.values())
+
+
+def test_decision_engine_uses_image_model_confidence_only():
+    engine = DecisionEngine()
+    result = engine.fuse(
+        image_result=_image_result("nv", 0.80),
+        symptom_risk=_risk(symptoms=0.8),
+        demographic_risk={"demographic_risk_score": 0.8},
+        uncertainty={"requires_review": False},
+    )
+    assert result["image_confidence"] == result["image_confidence"]
+    assert "fused_confidence" not in result
