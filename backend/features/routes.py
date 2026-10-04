@@ -61,7 +61,7 @@ def _diagnosis_payload(d: Diagnosis) -> dict:
         "lesion_id": d.lesion_id,
         "predicted_class": d.predicted_class,
         "class_name": settings.CLASS_FULL_NAMES.get(d.predicted_class, d.predicted_class),
-        "fused_confidence": d.fused_confidence,
+        "image_confidence": d.image_confidence,
         "composite_uncertainty": d.composite_uncertainty,
         "is_malignant": d.is_malignant,
         "clinical_concern": _clinical_concern_for_diagnosis(d),
