@@ -137,5 +137,5 @@ def test_decision_engine_uses_image_model_confidence_only():
         demographic_risk={"demographic_risk_score": 0.8},
         uncertainty={"requires_review": False},
     )
-    assert result["image_confidence"] == result["image_confidence"]
+    assert result["image_confidence"] == result["class_probabilities"]["nv"]
     assert "fused_confidence" not in result
