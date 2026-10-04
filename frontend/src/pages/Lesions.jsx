@@ -111,7 +111,7 @@ export default function Lesions() {
     (detail?.diagnoses || []).map((d, index) => ({
       sequence: index + 1,
       date: formatDate(d.created_at),
-      confidence: Number((d.fused_confidence || 0) * 100),
+      confidence: Number((d.image_confidence || 0) * 100),
       uncertainty: Number((d.composite_uncertainty || 0) * 100),
     }))
   ), [detail])
@@ -174,7 +174,7 @@ export default function Lesions() {
 
   const latest = detail?.diagnoses?.[detail.diagnoses.length - 1]
   const first = detail?.diagnoses?.[0]
-  const confidenceDelta = latest && first ? (latest.fused_confidence - first.fused_confidence) * 100 : null
+  const confidenceDelta = latest && first ? (latest.image_confidence - first.image_confidence) * 100 : null
 
   return (
     <Layout>
@@ -249,7 +249,7 @@ export default function Lesions() {
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-6">
                       <MiniMetric label="Observations" value={detail.diagnosis_count} tone="teal" />
                       <MiniMetric label="Latest class" value={latest ? (CLASS_NAMES[latest.predicted_class] || latest.predicted_class) : '—'} />
-                      <MiniMetric label="Latest confidence" value={latest ? `${(latest.fused_confidence * 100).toFixed(1)}%` : '—'} tone="teal" />
+                      <MiniMetric label="Latest confidence" value={latest ? `${(latest.image_confidence * 100).toFixed(1)}%` : '—'} tone="teal" />
                       <MiniMetric label="Confidence change" value={confidenceDelta == null ? '—' : `${confidenceDelta >= 0 ? '+' : ''}${confidenceDelta.toFixed(1)} pts`} tone={confidenceDelta != null && confidenceDelta < 0 ? 'amber' : 'teal'} />
                     </div>
                   </div>
@@ -308,7 +308,7 @@ export default function Lesions() {
                                 <ClinicalBadge diagnosis={d} />
                                 {d.requires_review && <span className="badge-review">Review</span>}
                               </div>
-                              <div className="text-xs text-muted mt-1">{formatDate(d.created_at)} · {(d.fused_confidence * 100).toFixed(1)}% confidence · {d.composite_uncertainty?.toFixed(3)} uncertainty</div>
+                              <div className="text-xs text-muted mt-1">{formatDate(d.created_at)} · {(d.image_confidence * 100).toFixed(1)}% confidence · {d.composite_uncertainty?.toFixed(3)} uncertainty</div>
                             </div>
                             {d.report_url && <button className="text-xs text-teal-700" onClick={() => reportApi.download(d.report_url, `DERMAXAI_Lesion_${detail.id}_Diagnosis_${d.id}.pdf`)}>PDF</button>}
                           </div>
