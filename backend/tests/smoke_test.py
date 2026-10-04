@@ -110,6 +110,11 @@ def main():
         assert r.status_code == 200, f"Doctor login failed: {r.text}"
         doctor_headers = {"Authorization": f"Bearer {r.json()['access_token']}"}
 
+        # Diagnosis submission is patient-owned; doctors review cases through the queue.
+        r = client.post("/api/diagnose", headers=doctor_headers,
+                        files={"image": ("doctor.txt", b"not an image", "text/plain")})
+        assert r.status_code == 403, f"Doctor diagnosis submission was not rejected: {r.text}"
+
         # One more failed login crosses the 10/minute login limit (admin success + 8
         # failures + doctor success = 10), proving the rate limiter is active.
         r = client.post("/api/auth/login", json={
