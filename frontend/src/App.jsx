@@ -76,7 +76,7 @@ function Protected({ children, roles }) {
   const location = useLocation()
 
   if (initializing) {
-    return <div className="min-h-screen flex items-center justify-center bg-paper text-muted">Loading…</div>
+    return <div className="min-h-screen flex items-center justify-center bg-[#f5f8f7] text-muted"><div className="loading-shell"><div className="loading-mark" /><span>Loading secure workspace…</span></div></div>
   }
   if (!user) return <Navigate to="/login" state={{ from: location.pathname }} replace />
   if (roles && !roles.includes(user.role)) {
@@ -102,7 +102,8 @@ export default function App() {
       <Toaster position="top-right" toastOptions={{
         style: {
           background: '#FFFFFF', border: '1px solid #DDE5E2',
-          color: '#1C2321', fontFamily: 'IBM Plex Sans, sans-serif', borderRadius: '12px'
+          color: '#1C2321', fontFamily: 'IBM Plex Sans, sans-serif', borderRadius: '14px',
+          boxShadow: '0 12px 30px rgba(16,32,29,.10)'
         }
       }} />
       <Suspense fallback={<PageFallback />}>
