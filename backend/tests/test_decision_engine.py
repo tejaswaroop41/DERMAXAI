@@ -39,7 +39,7 @@ def test_urgent_symptoms_do_not_turn_non_malignant_prediction_malignant():
     )
 
     assert result["predicted_class"] == "nv"
-    assert result["image_confidence"] == result["class_probabilities"]["nv"]
+    assert result["image_confidence"] == round(result["class_probabilities"]["nv"], 4)
     assert "fused_confidence" not in result
     assert result["is_malignant"] is False
     assert result["predicted_malignant"] is False
@@ -137,5 +137,5 @@ def test_decision_engine_uses_image_model_confidence_only():
         demographic_risk={"demographic_risk_score": 0.8},
         uncertainty={"requires_review": False},
     )
-    assert result["image_confidence"] == result["class_probabilities"]["nv"]
+    assert result["image_confidence"] == round(result["class_probabilities"]["nv"], 4)
     assert "fused_confidence" not in result
