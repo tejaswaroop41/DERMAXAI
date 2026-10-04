@@ -311,7 +311,7 @@ def patient_diagnosis_summary(db: Session = Depends(get_db), current_user: User 
         or 0
     )
     needs_review = db.query(func.count(Diagnosis.id)).filter(base_filter, Diagnosis.requires_review.is_(True)).scalar() or 0
-    average_confidence = db.query(func.avg(Diagnosis.fused_confidence)).filter(base_filter).scalar()
+    average_confidence = db.query(func.avg(Diagnosis.image_confidence)).filter(base_filter).scalar()
 
     distribution_rows = (
         db.query(Diagnosis.predicted_class, func.count(Diagnosis.id))
