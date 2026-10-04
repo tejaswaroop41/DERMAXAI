@@ -86,7 +86,7 @@ class RecommendationEngine:
         }
 
     def _urgency_level(self, decision: dict, requires_review: bool) -> str:
-        if decision["is_malignant"] and decision["fused_confidence"] > 0.75:
+        if decision["is_malignant"] and decision["image_confidence"] > 0.75:
             return "Urgent"
         if decision["is_malignant"] or requires_review:
             return "Prompt"
