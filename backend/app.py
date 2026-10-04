@@ -459,7 +459,6 @@ async def diagnose(
             symptoms=symptoms,
             predicted_class=decision["predicted_class"],
             image_confidence=decision["image_confidence"],
-            image_confidence=decision["image_confidence"],
             is_malignant=decision["is_malignant"],
             requires_review=decision["requires_review"],
             urgency_escalated=decision["urgency_escalated"],
