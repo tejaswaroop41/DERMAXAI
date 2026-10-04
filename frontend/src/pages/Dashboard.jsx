@@ -103,7 +103,7 @@ function PatientDashboard({ user }) {
   const avgConf = summary
     ? (summary.average_confidence * 100).toFixed(1)
     : total
-      ? (history.reduce((s, d) => s + d.fused_confidence, 0) / total * 100).toFixed(1)
+      ? (history.reduce((s, d) => s + d.image_confidence, 0) / total * 100).toFixed(1)
       : '0.0'
 
   const classDist = useMemo(() => {
@@ -191,7 +191,7 @@ function PatientDashboard({ user }) {
                           {d.requires_review && <span className="badge-review">Review</span>}
                         </div>
                         <div className="text-xs text-muted mt-1">
-                          {new Date(d.created_at).toLocaleDateString()} <span className="mx-1">·</span> {(d.fused_confidence * 100).toFixed(1)}% confidence
+                          {new Date(d.created_at).toLocaleDateString()} <span className="mx-1">·</span> {(d.image_confidence * 100).toFixed(1)}% confidence
                         </div>
                       </div>
                       {d.report_url && (
@@ -299,7 +299,7 @@ function DoctorDashboard({ user }) {
                         <ClinicalBadge diagnosis={c} />
                         {c.urgency_escalated && <span className="badge-review">Urgent</span>}
                       </div>
-                      <div className="text-xs text-muted mt-1">{c.patient_name} <span className="mx-1">·</span> {(c.fused_confidence * 100).toFixed(1)}% confidence</div>
+                      <div className="text-xs text-muted mt-1">{c.patient_name} <span className="mx-1">·</span> {(c.image_confidence * 100).toFixed(1)}% confidence</div>
                     </div>
                     <Link to="/doctor" className="text-xs font-semibold text-teal-700 hover:text-teal-800 inline-flex items-center gap-1">
                       Review <ChevronRight size={13} />
