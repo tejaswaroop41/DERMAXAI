@@ -39,7 +39,7 @@ def test_urgent_symptoms_do_not_turn_non_malignant_prediction_malignant():
     )
 
     assert result["predicted_class"] == "nv"
-    assert result["image_confidence"] == result["image_confidence"]
+    assert result["image_confidence"] == result["class_probabilities"]["nv"]
     assert "fused_confidence" not in result
     assert result["is_malignant"] is False
     assert result["predicted_malignant"] is False
