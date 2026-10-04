@@ -70,6 +70,7 @@ export default function Diagnose() {
   const onDrop = useCallback(files => {
     const f = files[0]
     if (!f) return
+    if (preview) URL.revokeObjectURL(preview)
     setFile(f)
     setPreview(URL.createObjectURL(f))
     setResult(null)
