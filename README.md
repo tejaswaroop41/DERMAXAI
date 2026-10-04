@@ -56,7 +56,7 @@ Patient
 | 7 | **GeM** pooling | `backend/core/model.py` | Convert spatial feature maps into a feature vector |
 | 8 | LayerNorm + Linear + GELU + Dropout MLP | `backend/core/model.py` | Produce 7-class logits |
 | 9 | Mel-only logit adjustment | `backend/ai/predictor.py` | Apply the configured targeted adjustment before softmax |
-| 10 | Softmax + TTA probability averaging | `backend/ai/predictor.py` | Produce class probabilities, predicted class, and image confidence |
+| 10 | Softmax + TTA probability averaging | `backend/ai/predictor.py` | Produce class probabilities, predicted class, and image-model confidence |
 | 11 | **MC Dropout** | `backend/ai/predictor.py` | Generate stochastic prediction samples |
 | 12 | **MCUE** | `backend/ai/uncertainty.py` | Estimate aleatory, epistemic, fusion, and composite uncertainty |
 | 13 | Rule-based clinical NLP + negation handling; optional BioBERT | `backend/ai/biobert_engine.py` | Convert symptom text into risk, duration, and urgency information |
@@ -645,3 +645,16 @@ DERMAXAI is a student research/prototype screening and decision-support system. 
 - MCUE values are uncertainty indicators, not guarantees of clinical safety.
 - Symptom and demographic modules provide rule-based risk contributions.
 - ABCD features are contextual outputs and are not classifier inputs.
+
+
+---
+
+## Confidence and Access Semantics
+
+**Image-model confidence** is the probability assigned to the predicted class by the image classifier after TTA averaging. It is not produced by CMCA and is not a multimodal probability.
+
+**CMCA clinical-concern score** is a separate decision-support score derived from image clinical-concern mass, symptom risk, and demographic risk. It can trigger clinical review without changing the predicted image class or image-model confidence.
+
+The live `/api/diagnose` endpoint is intentionally **patient-only**. Doctors receive cases through the clinician review queue and submit their review there.
+
+The health endpoint reports the active text-analysis capability as **rule-based NLP (BioBERT optional)** because the default runtime singleton does not load the BioBERT transformer.
