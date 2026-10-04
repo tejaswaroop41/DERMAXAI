@@ -652,7 +652,7 @@ def doctor_queue(db: Session = Depends(get_db), current_user: User = Depends(req
             "patient_name": d.user.name if d.user else "Unknown",
             "predicted_class": d.predicted_class,
             "class_name": settings.CLASS_FULL_NAMES.get(d.predicted_class, d.predicted_class),
-            "fused_confidence": d.fused_confidence,
+            "image_confidence": d.image_confidence,
             "composite_uncertainty": d.composite_uncertainty,
             "is_malignant": d.is_malignant,
             "clinical_concern": _clinical_concern_for_diagnosis(d),
