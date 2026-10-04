@@ -65,7 +65,7 @@ class RecommendationEngine:
                    "due to diagnostic uncertainty.")
 
         if is_malignant:
-            urgency = "URGENT" if decision["fused_confidence"] > 0.75 else "PROMPT"
+            urgency = "URGENT" if decision["image_confidence"] > 0.75 else "PROMPT"
             recommendations.insert(
                 0, f"{urgency}: Schedule a dermatologist consultation "
                    "for biopsy and confirmation.")
