@@ -84,7 +84,7 @@ export default function Layout({ children }) {
   return (
     <div className="flex min-h-screen bg-paper">
       <aside className="app-sidebar flex-col fixed left-0 top-0 bottom-0 bg-white border-r border-line z-40 hidden lg:flex">
-        <div className="px-5 py-5 border-b border-line">
+        <div className="px-5 py-5 border-b border-line bg-white/70">
           <Link to={isAdmin ? '/admin' : isDoctor ? '/dashboard' : '/dashboard'} className="flex items-center gap-3">
             <div className="brand-mark"><Microscope size={16} /></div>
             <div>
@@ -95,11 +95,11 @@ export default function Layout({ children }) {
         </div>
         <div className="px-5 pt-6 pb-2"><div className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted/70">Workspace</div></div>
         <nav className="flex-1 px-3 space-y-1">{renderNav()}</nav>
-        <div className="mx-4 mb-4 rounded-2xl p-3.5 bg-[#F3F7F5] border border-[#DEE9E5]">
+        <div className="mx-4 mb-4 rounded-2xl p-3.5 bg-gradient-to-br from-[#eef6f3] to-[#f7faf9] border border-[#dbe8e3] shadow-sm">
           <div className="flex items-center gap-2 mb-2"><Bell size={13} className="text-teal-700" /><span className="text-[10px] uppercase tracking-[0.12em] font-bold text-teal-800">Decision-support workspace</span></div>
           <p className="text-[11px] leading-5 text-muted">Review uncertainty signals and supporting evidence before making decisions.</p>
         </div>
-        <div className="px-4 py-4 border-t border-line">
+        <div className="px-4 py-4 border-t border-line bg-white/60">
           <div className="flex items-center gap-3 mb-3 px-1">
             <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-semibold text-white bg-teal-500 shadow-sm">{user?.name?.[0]?.toUpperCase() || 'U'}</div>
             <div className="flex-1 min-w-0"><div className="text-sm font-medium text-ink truncate">{user?.name}</div><div className="text-xs text-muted capitalize mt-0.5">{user?.role}</div></div>
