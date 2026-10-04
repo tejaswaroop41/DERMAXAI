@@ -44,3 +44,19 @@ def test_clinical_concern_does_not_change_case_access_policy():
     )
     doctor = SimpleNamespace(id=202, role="doctor")
     assert _can_view_diagnosis(diagnosis, doctor) is True
+
+
+def test_only_patients_can_submit_diagnoses():
+    from fastapi import HTTPException
+    from core.auth import require_patient
+
+    patient = SimpleNamespace(id=101, role="patient")
+    doctor = SimpleNamespace(id=202, role="doctor")
+
+    assert require_patient(patient) is patient
+    try:
+        require_patient(doctor)
+        assert False, "doctor should not pass patient-only diagnosis dependency"
+    except HTTPException as exc:
+        assert exc.status_code == 403
+        assert exc.detail == "Patient access required"

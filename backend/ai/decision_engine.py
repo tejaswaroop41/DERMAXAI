@@ -107,7 +107,6 @@ class DecisionEngine:
         return {
             "predicted_class": pred_class,
             "class_name": image_result["class_name"],
-            "fused_confidence": round(image_confidence, 4),
             "image_confidence": round(image_confidence, 4),
             "malignancy_mass": round(malignancy_mass, 4),
             "clinical_concern_mass": round(clinical_concern_mass, 4),

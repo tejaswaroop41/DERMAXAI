@@ -61,7 +61,7 @@ def _diagnosis_payload(d: Diagnosis) -> dict:
         "lesion_id": d.lesion_id,
         "predicted_class": d.predicted_class,
         "class_name": settings.CLASS_FULL_NAMES.get(d.predicted_class, d.predicted_class),
-        "fused_confidence": d.fused_confidence,
+        "image_confidence": d.image_confidence,
         "composite_uncertainty": d.composite_uncertainty,
         "is_malignant": d.is_malignant,
         "clinical_concern": _clinical_concern_for_diagnosis(d),
@@ -311,7 +311,7 @@ def patient_diagnosis_summary(db: Session = Depends(get_db), current_user: User 
         or 0
     )
     needs_review = db.query(func.count(Diagnosis.id)).filter(base_filter, Diagnosis.requires_review.is_(True)).scalar() or 0
-    average_confidence = db.query(func.avg(Diagnosis.fused_confidence)).filter(base_filter).scalar()
+    average_confidence = db.query(func.avg(Diagnosis.image_confidence)).filter(base_filter).scalar()
 
     distribution_rows = (
         db.query(Diagnosis.predicted_class, func.count(Diagnosis.id))

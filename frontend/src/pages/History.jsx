@@ -101,7 +101,7 @@ export default function History() {
             <div key={d.id} className="border-b border-line last:border-b-0">
               <div className="px-5 py-4 md:grid md:items-center md:py-3.5" style={{ gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 80px' }}>
                 <div className="flex items-start gap-3"><div className="w-2.5 h-2.5 rounded-full mt-1.5 flex-shrink-0" style={{ background: CLASS_COLORS[d.predicted_class] || '#5B6764' }} /><div><div className="text-sm font-medium text-ink">{CLASS_NAMES[d.predicted_class] || d.predicted_class}</div><div className="text-xs text-muted font-mono mt-0.5">Diagnosis #{d.id}</div></div></div>
-                <div className="mt-3 md:mt-0"><div className="text-[10px] text-muted uppercase tracking-wide md:hidden">Confidence</div><div className="text-sm font-mono text-teal-700">{(d.fused_confidence * 100).toFixed(1)}%</div></div>
+                <div className="mt-3 md:mt-0"><div className="text-[10px] text-muted uppercase tracking-wide md:hidden">Confidence</div><div className="text-sm font-mono text-teal-700">{(d.image_confidence * 100).toFixed(1)}%</div></div>
                 <div className="mt-3 md:mt-0"><div className="text-[10px] text-muted uppercase tracking-wide md:hidden">Uncertainty</div><div className="text-sm font-mono text-muted">{d.composite_uncertainty?.toFixed(3)}</div></div>
                 <div className="mt-3 md:mt-0"><div className="text-[10px] text-muted uppercase tracking-wide md:hidden">Risk</div><ClinicalBadge diagnosis={d} />{d.doctor_review?.status === 'claimed' && <div className="text-[10px] text-muted mt-1">Under review</div>}</div>
                 <div className="mt-3 md:mt-0 text-xs text-muted">{new Date(d.created_at).toLocaleDateString()}</div>

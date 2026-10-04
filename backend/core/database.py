@@ -118,7 +118,6 @@ class Diagnosis(Base):
     symptoms = Column(Text)
 
     predicted_class = Column(String)
-    fused_confidence = Column(Float)
     image_confidence = Column(Float)
     is_malignant = Column(Boolean, default=False)
     requires_review = Column(Boolean, default=False)

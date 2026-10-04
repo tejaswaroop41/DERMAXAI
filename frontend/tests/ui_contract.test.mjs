@@ -77,3 +77,15 @@ test('diagnostic UIs distinguish malignant, clinical concern, and non-malignant 
   assert.match(dashboard, /summary\?\.clinical_concern_count/)
   assert.match(history, /clinical-concern/)
 })
+
+
+test('diagnostic UI uses image-model confidence terminology', () => {
+  for (const source of [diagnose, dashboard, history, doctor, lesions]) {
+    assert.doesNotMatch(source, /fused_confidence/)
+    assert.match(source, /image_confidence/)
+  }
+})
+
+test('patient-only diagnosis route remains enforced in the frontend', () => {
+  assert.match(app, /Route path="\/diagnose" element={<Protected roles=\{\['patient'\]\}>/)
+})

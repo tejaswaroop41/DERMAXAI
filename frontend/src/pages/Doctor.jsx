@@ -104,7 +104,7 @@ function CaseCard({ item, onClaim, onReview, readOnly, claimedByOther }) {
             <div className="text-xs text-muted italic mb-2">"{item.symptoms}"</div>
           )}
           <div className="flex items-center gap-4 text-xs font-mono text-muted mb-3">
-            <span>Confidence: <span className="text-teal-500">{(item.fused_confidence * 100).toFixed(1)}%</span></span>
+            <span>Confidence: <span className="text-teal-500">{(item.image_confidence * 100).toFixed(1)}%</span></span>
             <span>Uncertainty: <span style={{ color: '#B08135' }}>{item.composite_uncertainty?.toFixed(3)}</span></span>
           </div>
 

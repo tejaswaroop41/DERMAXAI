@@ -26,7 +26,7 @@ from core.auth import (
     hash_password, verify_password, create_token,
     create_password_reset_token, decode_password_reset_token,
     hash_reset_nonce, reset_nonce_matches,
-    get_current_user, require_admin, require_doctor,
+    get_current_user, require_admin, require_doctor, require_patient,
 )
 from ai.predictor import predictor
 from ai.uncertainty import UncertaintyEngine
@@ -217,7 +217,7 @@ async def health():
         "dataset": "ISIC 2018",
         "device": str(predictor.device),
         "model_loaded": predictor.loaded,
-        "algorithms": ["TTA", "MCUE", "CMCA", "Grad-CAM", "BioBERT/NLP", "Demographic Risk Engine"],
+        "algorithms": ["TTA", "MCUE", "CMCA", "Grad-CAM", "Rule-based NLP (BioBERT optional)", "Demographic Risk Engine"],
     }
 
 
@@ -386,7 +386,7 @@ async def diagnose(
     skin_type: str = Form(default=""),
     sun_exposure: str = Form(default=""),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_patient),
 ):
     uncertainty_runtime, gradcam_runtime = _require_runtime_engines()
 
@@ -458,7 +458,6 @@ async def diagnose(
             image_path=img_path,
             symptoms=symptoms,
             predicted_class=decision["predicted_class"],
-            fused_confidence=decision["fused_confidence"],
             image_confidence=decision["image_confidence"],
             is_malignant=decision["is_malignant"],
             requires_review=decision["requires_review"],
@@ -561,7 +560,7 @@ def get_history(db: Session = Depends(get_db), current_user: User = Depends(get_
             "id": d.id,
             "predicted_class": d.predicted_class,
             "class_name": settings.CLASS_FULL_NAMES.get(d.predicted_class, d.predicted_class),
-            "fused_confidence": d.fused_confidence,
+            "image_confidence": d.image_confidence,
             "composite_uncertainty": d.composite_uncertainty,
             "is_malignant": d.is_malignant,
             "clinical_concern": _clinical_concern_for_diagnosis(d),
@@ -652,7 +651,7 @@ def doctor_queue(db: Session = Depends(get_db), current_user: User = Depends(req
             "patient_name": d.user.name if d.user else "Unknown",
             "predicted_class": d.predicted_class,
             "class_name": settings.CLASS_FULL_NAMES.get(d.predicted_class, d.predicted_class),
-            "fused_confidence": d.fused_confidence,
+            "image_confidence": d.image_confidence,
             "composite_uncertainty": d.composite_uncertainty,
             "is_malignant": d.is_malignant,
             "clinical_concern": _clinical_concern_for_diagnosis(d),
