@@ -96,7 +96,7 @@ def generate_report(decision: dict, uncertainty: dict,
 
     result_data = [
         ["Predicted Class", f"{decision['class_name']} ({decision['predicted_class'].upper()})"],
-        ["Diagnostic Confidence", f"{decision['fused_confidence']*100:.1f}%"],
+        ["Image-model Confidence", f"{decision['image_confidence']*100:.1f}%"],
         ["Malignant Probability Mass", f"{decision.get('malignancy_mass', 0.0)*100:.1f}%"],
         ["Clinical-Concern Probability Mass", f"{decision.get('clinical_concern_mass', 0.0)*100:.1f}%"],
         ["Normalized Predictive Entropy",
