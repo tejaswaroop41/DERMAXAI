@@ -49,8 +49,6 @@ export default function Landing() {
 
       <main>
         <section className="relative overflow-hidden bg-[linear-gradient(180deg,#F4F8F7_0%,#FCFBFA_72%)]">
-          
-
           <div className="max-w-6xl mx-auto px-6 lg:px-8 py-14 sm:py-18 lg:py-20">
             <div className="grid lg:grid-cols-[1.05fr_.95fr] gap-10 lg:gap-14 items-center">
               <div className="relative z-10">
@@ -86,7 +84,9 @@ export default function Landing() {
                   <div className="rounded-xl overflow-hidden border border-[#DCEAE6] bg-[#EEF3F1] min-h-64 relative">
                     <div className="scan-surface" />
                     <div className="absolute inset-x-0 top-4 flex justify-center">
-                      <span className="rounded-full border border-white/60 bg-white/65 px-2.5 py-1 text-[9px] font-semibold text-slate-600 backdrop-blur-sm">EXAMPLE MODEL VIEW</span>
+                      <span className="rounded-full border border-white/60 bg-white/65 px-2.5 py-1 text-[9px] font-semibold text-slate-600 backdrop-blur-sm">
+                        EXAMPLE MODEL VIEW
+                      </span>
                     </div>
                     <div className="absolute left-3 bottom-3 text-[10px] text-slate-600 bg-white/90 border border-white/80 rounded-md px-2 py-1">
                       Dermoscopic image
@@ -96,12 +96,13 @@ export default function Landing() {
                   <div className="space-y-3">
                     <div className="rounded-xl border border-[#DCEAE6] p-4 bg-[#F5F9F7]">
                       <div className="text-[10px] uppercase tracking-[0.12em] text-teal-700/80">Model output</div>
-                      <div className="flex items-end justify-between gap-3 mt-2">
-                        <div>
-                          <div className="font-serif text-xl font-semibold">Example result</div>
-                          <div className="text-[10px] text-muted mt-1">Illustrative interface only</div>
-                        </div>
-                      <div className="mt-4 rounded-lg border border-dashed border-[#DCEAE6] px-3 py-2 text-[10px] text-muted">Live assessments show model probabilities and uncertainty.</div>
+                      <div className="mt-2">
+                        <div className="font-serif text-xl font-semibold">Example result</div>
+                        <div className="text-[10px] text-muted mt-1">Illustrative interface only</div>
+                      </div>
+                      <div className="mt-4 rounded-lg border border-dashed border-[#DCEAE6] px-3 py-2 text-[10px] text-muted">
+                        Live assessments show model probabilities and uncertainty.
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
@@ -119,7 +120,9 @@ export default function Landing() {
                       <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.1em] text-muted">
                         <ShieldCheck size={13} className="text-teal-600" /> Explainability
                       </div>
-                      <p className="text-xs text-muted leading-5 mt-2">Probabilities and Grad-CAM evidence support review of the result.</p>
+                      <p className="text-xs text-muted leading-5 mt-2">
+                        Probabilities and Grad-CAM evidence support review of the result.
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -149,7 +152,7 @@ export default function Landing() {
           </div>
         </section>
 
-        <section className="max-w-6xl mx-auto px-6 lg:px-8 py-14 lg:py-16">
+        <section className="max-w-6xl mx-auto px-6 lg:px-8 py-12 lg:py-14">
           <div className="glass p-6 sm:p-8 flex flex-col md:flex-row md:items-center md:justify-between gap-6 bg-[#F3F7F5] border-[#DCEAE6]">
             <div>
               <div className="eyebrow">Ready to begin?</div>
