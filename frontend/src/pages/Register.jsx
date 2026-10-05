@@ -65,13 +65,6 @@ export default function Register() {
       toast.error(message)
     } finally { setLoading(false) }
   }
-
-  const checks = [
-    ['8+ characters', form.password.length >= 8],
-    ['Uppercase letter', /[A-Z]/.test(form.password)],
-    ['Number', /\d/.test(form.password)],
-  ]
-
   return (
     <div className="min-h-screen bg-[#eff6f3] relative overflow-hidden py-6 px-4 sm:px-6">
       <div className="absolute inset-0 hero-grid" />
