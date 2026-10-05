@@ -119,7 +119,10 @@ export default function Register() {
               <button type="submit" disabled={loading} className="btn-primary w-full py-3">{loading ? 'Creating account…' : 'Create patient account'}</button>
             </div>
 
-            <div className="mt-6 pt-5 border-t border-line text-center"><p className="text-sm text-muted">Already have an account? <Link to="/login" className="font-semibold text-teal-700 hover:text-teal-800">Sign in</Link></p></div>
+            <div className="mt-6 pt-5 border-t border-line text-center">
+              <p className="text-[11px] text-muted mb-2">Doctor accounts must be provisioned by an administrator.</p>
+              <p className="text-sm text-muted">Already have an account? <Link to="/login" className="font-semibold text-teal-700 hover:text-teal-800">Sign in</Link></p>
+            </div>
           </form>
         </div>
       </div>
