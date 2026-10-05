@@ -21,6 +21,8 @@ test('registration UI is patient-only', () => {
   assert.match(register, /Doctor accounts must be provisioned by an administrator/)
   assert.match(register, /minLength=\{8\}/)
   assert.match(register, /maxLength=\{128\}/)
+  assert.match(register, /Array\.isArray\(detail\)/)
+  assert.match(register, /Password needs 8\+ characters/)
 })
 
 
