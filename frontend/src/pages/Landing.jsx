@@ -101,7 +101,6 @@ export default function Landing() {
                           <div className="font-serif text-xl font-semibold">Example result</div>
                           <div className="text-[10px] text-muted mt-1">Illustrative interface only</div>
                         </div>
-                                              </div>
                       <div className="mt-4 rounded-lg border border-dashed border-[#DCEAE6] px-3 py-2 text-[10px] text-muted">Live assessments show model probabilities and uncertainty.</div>
                     </div>
 
