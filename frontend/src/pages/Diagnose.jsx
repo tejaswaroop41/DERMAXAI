@@ -4,20 +4,7 @@ import { Link } from 'react-router-dom'
 import Layout from '../components/layout/Layout'
 import { diagnoseApi, lesionApi, reportApi } from '../lib/api'
 import toast from 'react-hot-toast'
-import {
-  Activity,
-  AlertTriangle,
-  CheckCircle2,
-  ChevronDown,
-  Download,
-  ImagePlus,
-  Info,
-  Microscope,
-  RotateCcw,
-  ShieldCheck,
-  Sparkles,
-  Upload,
-} from 'lucide-react'
+import { Activity, AlertTriangle, ChevronDown, Download, ImagePlus, Info, RotateCcw, ShieldCheck, Sparkles } from 'lucide-react'
 
 const CLASS_NAMES = { mel:'Melanoma', bcc:'Basal Cell Carcinoma', akiec:'Actinic Keratoses', bkl:'Benign Keratosis', nv:'Melanocytic Nevi', df:'Dermatofibroma', vasc:'Vascular Lesions' }
 const CLASS_COLORS = { mel:'#8B4A46', bcc:'#8B6A4E', akiec:'#8A7545', bkl:'#52705A', nv:'#557086', df:'#6F667F', vasc:'#557A7A' }
@@ -38,7 +25,7 @@ function CategoryBadge({ decision }) {
 function Section({ title, eyebrow, children, action }) {
   return <section className="glass p-5 sm:p-6">
     <div className="flex items-start justify-between gap-4 mb-5">
-      <div><div className="text-[10px] uppercase tracking-[0.14em] text-muted">{eyebrow}</div><h2 className="section-card-title mt-1">{title}</h2></div>
+      <div><h2 className="section-card-title mt-1">{title}</h2></div>
       {action}
     </div>
     {children}
@@ -144,9 +131,7 @@ export default function Diagnose() {
       <div className="page-pad max-w-7xl mx-auto">
         <div className="page-heading">
           <div>
-            <div className="eyebrow"><Microscope size={13} /> Diagnostic workspace</div>
             <h1 className="page-title">New diagnosis</h1>
-            <p className="page-subtitle">Upload a dermoscopic image, add clinical context and inspect the model's explanation before deciding what to do next.</p>
           </div>
           <Link to="/lesions" className="btn-ghost inline-flex items-center gap-2 text-xs"><Activity size={14} /> Lesion tracking</Link>
         </div>
@@ -155,7 +140,7 @@ export default function Diagnose() {
           <div className="space-y-5">
             <Section title="Image" eyebrow="Primary input">
               <div {...getRootProps()} className="relative rounded-2xl border-2 border-dashed overflow-hidden cursor-pointer transition-colors"
-                style={{ minHeight: preview ? 'auto' : 300, borderColor: isDragActive ? '#3D7068' : file ? '#B8C5C2' : '#DDE5E2', background: isDragActive ? '#EEF5F3' : '#FAFBFA' }}>
+                style={{ minHeight: preview ? 'auto' : 300, borderColor: isDragActive ? '#0F766E' : file ? '#B9C8C5' : '#E2E8E7', background: isDragActive ? '#F0F7F6' : '#FAFBFA' }}>
                 <input {...getInputProps()} />
                 {preview ? (
                   <div className="relative bg-[#F2F5F3]">
@@ -167,7 +152,7 @@ export default function Diagnose() {
                   </div>
                 ) : (
                   <div className="min-h-[300px] flex flex-col items-center justify-center text-center px-8">
-                    <div className="w-14 h-14 rounded-2xl flex items-center justify-center bg-white border border-[#DCEAE6] text-teal-700 shadow-sm"><ImagePlus size={22} /></div>
+                    <div className="w-14 h-14 rounded-2xl flex items-center justify-center bg-white border border-[#D5E8E5] text-teal-700 shadow-sm"><ImagePlus size={22} /></div>
                     <div className="text-sm font-semibold text-ink mt-4">Drop a dermoscopic image here</div>
                     <div className="text-xs text-muted mt-1.5">or click to browse · JPG, PNG, BMP · up to 10 MB</div>
                   </div>
@@ -209,9 +194,8 @@ export default function Diagnose() {
             {!result ? (
               <div className="glass p-8 min-h-[520px] flex items-center justify-center">
                 <div className="max-w-sm text-center">
-                  <div className="w-16 h-16 rounded-2xl mx-auto flex items-center justify-center bg-[#EEF5F3] border border-[#DCEAE6] text-teal-700"><ShieldCheck size={28} /></div>
+                  <div className="w-16 h-16 rounded-2xl mx-auto flex items-center justify-center bg-[#F0F7F6] border border-[#D5E8E5] text-teal-700"><ShieldCheck size={28} /></div>
                   <h2 className="font-serif text-2xl font-semibold text-ink mt-5">Your assessment will appear here</h2>
-                  <p className="text-sm text-muted leading-6 mt-2">The result panel keeps the prediction, uncertainty, probabilities and explanation in one reviewable surface.</p>
                   <div className="mt-6 grid grid-cols-3 gap-2 text-xs text-muted"><div className="rounded-lg border border-line p-3">Prediction</div><div className="rounded-lg border border-line p-3">Uncertainty</div><div className="rounded-lg border border-line p-3">Grad-CAM</div></div>
                 </div>
               </div>
@@ -220,7 +204,7 @@ export default function Diagnose() {
                 <Section title={result.decision.class_name} eyebrow={resultCategory(result.decision) === 'malignant' ? 'Malignant finding' : resultCategory(result.decision) === 'concern' ? 'Clinical concern' : 'AI assessment'} action={result.decision.requires_review && <span className="badge-review">Review required</span>}>
                   <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-5">
                     <div><div className="flex items-center gap-2 mb-2"><CategoryBadge decision={result.decision} /></div><div className="text-xs text-muted font-mono">{result.decision.predicted_class.toUpperCase()}</div></div>
-                    <div className="text-left sm:text-right"><div className="font-mono text-4xl font-semibold" style={{ color: CLASS_COLORS[result.decision.predicted_class] || '#3D7068' }}>{(result.decision.image_confidence * 100).toFixed(1)}%</div><div className="text-xs text-muted">image-model confidence</div></div>
+                    <div className="text-left sm:text-right"><div className="font-mono text-4xl font-semibold" style={{ color: CLASS_COLORS[result.decision.predicted_class] || '#0F766E' }}>{(result.decision.image_confidence * 100).toFixed(1)}%</div><div className="text-xs text-muted">image-model confidence</div></div>
                   </div>
                   <div className="mt-5"><div className="flex justify-between text-xs text-muted mb-1.5"><span>Confidence</span><span className="font-mono">{(result.decision.image_confidence * 100).toFixed(1)}%</span></div><div className="confidence-bar h-2"><div className="confidence-fill h-2" style={{ width: `${result.decision.image_confidence * 100}%` }} /></div></div>
                   <div className="grid grid-cols-3 gap-2 mt-4">{Object.entries(result.decision.modality_weights).map(([key, value]) => <div key={key} className="rounded-xl bg-paper border border-line p-3"><div className="font-mono text-sm font-semibold text-teal-700">{(value * 100).toFixed(0)}%</div><div className="text-[10px] text-muted capitalize mt-1">{key}</div></div>)}</div>
@@ -235,7 +219,7 @@ export default function Diagnose() {
                 </Section>
 
                 <Section title="Class probabilities" eyebrow="Full model distribution">
-                  <div className="space-y-3">{probs.map(([cls, prob]) => <div key={cls}><div className="flex justify-between text-xs mb-1"><span className="text-muted">{CLASS_NAMES[cls] || cls}</span><span className="font-mono" style={{ color: CLASS_COLORS[cls] || '#5B6764' }}>{(prob * 100).toFixed(2)}%</span></div><div className="confidence-bar"><div className="confidence-fill" style={{ width: `${prob * 100}%`, background: CLASS_COLORS[cls] || '#3D7068' }} /></div></div>)}</div>
+                  <div className="space-y-3">{probs.map(([cls, prob]) => <div key={cls}><div className="flex justify-between text-xs mb-1"><span className="text-muted">{CLASS_NAMES[cls] || cls}</span><span className="font-mono" style={{ color: CLASS_COLORS[cls] || '#5A6968' }}>{(prob * 100).toFixed(2)}%</span></div><div className="confidence-bar"><div className="confidence-fill" style={{ width: `${prob * 100}%`, background: CLASS_COLORS[cls] || '#0F766E' }} /></div></div>)}</div>
                 </Section>
 
                 {gradcam && <Section title="Grad-CAM explanation" eyebrow="Visual evidence"><img src={gradcam} alt="Grad-CAM explanation" className="w-full rounded-xl border border-line" /><p className="text-xs text-muted mt-3">Highlighted regions show where the model's gradient-based explanation concentrated. This is supporting evidence, not a clinical finding.</p></Section>}
