@@ -65,15 +65,17 @@
   .eyebrow { display: none; }
 
   /* Status */
-  .status-pill, .badge-malignant, .badge-review, .badge-benign {
+  .status-pill, .badge-malignant, .badge-review, .badge-benign, .badge-info, .badge-urgent {
     display: inline-flex; align-items: center; gap: 0.35rem; border-radius: 6px;
     padding: 0.2rem 0.5rem; font-size: 11px; line-height: 1.3; font-weight: 600; white-space: nowrap;
   }
   .status-pill { color: #0B524D; background: #F0F7F6; border: 1px solid #D5E8E5; }
   .status-pill span { width: 6px; height: 6px; border-radius: 999px; background: #0F766E; }
-  .badge-malignant { color: #913C37; background: #FBEDEB; border: 1px solid #F0D2CE; }
-  .badge-review { color: #7A5A1D; background: #FBF5E8; border: 1px solid #EEDDB4; }
-  .badge-benign { color: #3F6446; background: #EFF5F0; border: 1px solid #D5E4D7; }
+  .badge-malignant { color: #B3261E; background: #FDE8E6; border: 1px solid #F4BDB8; }
+  .badge-review { color: #9A5B00; background: #FFF1DB; border: 1px solid #F6D49B; }
+  .badge-benign { color: #137333; background: #E6F4EA; border: 1px solid #B7DFC2; }
+  .badge-info { color: #1A56B0; background: #E6F0FD; border: 1px solid #B9D3F6; }
+  .badge-urgent { color: #fff; background: #B3261E; border: 1px solid #B3261E; }
   .confidence-bar { height: 6px; overflow: hidden; border-radius: 999px; background: #E6EEEC; }
   .confidence-fill { height: 100%; border-radius: 999px; background: #0F766E; transition: width .4s ease; }
 
@@ -95,6 +97,12 @@
     background-size: 44px 44px; -webkit-mask-image: linear-gradient(to bottom, #000, transparent 70%); mask-image: linear-gradient(to bottom, #000, transparent 70%); }
   .feature-icon { width: 38px; height: 38px; border-radius: 9px; display: flex; align-items: center; justify-content: center; background: #F0F7F6; color: #0B524D; border: 1px solid #D5E8E5; }
   .scan-surface { position: absolute; inset: 0; background: radial-gradient(circle at 50% 50%, #5b4636 0 12%, #8b6c52 24%, #c7ad93 52%, #e7dccf 100%); }
+
+  /* Label / value rows */
+  .metric-row { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; padding: 0.55rem 0; border-bottom: 1px solid #EDF2F1; font-size: 0.875rem; }
+  .metric-row:last-child { border-bottom: 0; }
+  .metric-row span { color: #5A6968; }
+  .metric-row strong { color: #0F1B1A; font-weight: 600; text-align: right; }
 
   /* Loading */
   .loading-shell { display: flex; align-items: center; gap: 0.7rem; color: #5A6968; font-size: 0.85rem; }
