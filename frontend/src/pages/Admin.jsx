@@ -15,14 +15,12 @@ function Metric({ icon: Icon, label, value, note, tone = 'teal' }) {
   }
   const [color, bg] = styles[tone]
   return (
-    <div className="card-stat">
-      <div className="flex items-center justify-between gap-3">
-        <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: bg, color }}><Icon size={16} /></div>
-        <span className="text-[10px] uppercase tracking-[0.12em] text-muted">System</span>
+    <div className="card-stat flex items-center gap-4" title={note}>
+      <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: bg, color }}><Icon size={17} /></div>
+      <div className="min-w-0">
+        <div className="text-2xl font-semibold text-ink leading-none">{value ?? 0}</div>
+        <div className="mt-1.5 text-xs font-medium text-muted">{label}</div>
       </div>
-      <div className="text-2xl font-serif font-semibold text-ink mt-4">{value ?? 0}</div>
-      <div className="text-xs font-medium text-muted mt-1">{label}</div>
-      {note && <div className="text-[10px] text-muted/80 mt-1">{note}</div>}
     </div>
   )
 }
@@ -84,7 +82,6 @@ export default function Admin() {
           <div>
             <h1 className="page-title">System control centre</h1>
           </div>
-          <div className="status-pill"><span /> Local system</div>
         </div>
 
         <div className="flex gap-2 mb-6 overflow-x-auto pb-1">

@@ -91,7 +91,7 @@ function CaseCard({ item, onClaim, onReview, readOnly, claimedByOther }) {
           <div className="flex items-center gap-2 mb-1 flex-wrap">
             <span className="text-sm font-semibold text-ink">{item.class_name}</span>
             <ClinicalBadge diagnosis={item} />
-            {item.urgency_escalated && <span className="badge-review">Urgent</span>}
+            {item.urgency_escalated && <span className="badge-urgent">Urgent</span>}
             {claimedByOther && item.review?.doctor_name && (
               <span className="text-xs text-muted">— claimed by {item.review.doctor_name}</span>
             )}

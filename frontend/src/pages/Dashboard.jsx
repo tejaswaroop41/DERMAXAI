@@ -159,7 +159,7 @@ function PatientDashboard({ user }) {
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="text-sm font-semibold text-ink truncate">{CLASS_NAMES[d.predicted_class] || d.predicted_class}</span>
                           <ClinicalBadge diagnosis={d} />
-                          {d.requires_review && <span className="badge-review">Review</span>}
+                          {d.requires_review && <span className="badge-info">Review</span>}
                         </div>
                         <div className="text-xs text-muted mt-1">
                           {new Date(d.created_at).toLocaleDateString()} <span className="mx-1">·</span> {(d.image_confidence * 100).toFixed(1)}% confidence
@@ -256,7 +256,7 @@ function DoctorDashboard({ user }) {
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="text-sm font-semibold text-ink truncate">{c.class_name}</span>
                         <ClinicalBadge diagnosis={c} />
-                        {c.urgency_escalated && <span className="badge-review">Urgent</span>}
+                        {c.urgency_escalated && <span className="badge-urgent">Urgent</span>}
                       </div>
                       <div className="text-xs text-muted mt-1">{c.patient_name} <span className="mx-1">·</span> {(c.image_confidence * 100).toFixed(1)}% confidence</div>
                     </div>
