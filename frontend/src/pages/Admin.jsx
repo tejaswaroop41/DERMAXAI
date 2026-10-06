@@ -110,7 +110,7 @@ export default function Admin() {
                 </div>
                 <div className="grid lg:grid-cols-[1.2fr_.8fr] gap-5">
                   <div className="glass p-6">
-                    <div className="flex items-start justify-between gap-4 mb-5"><div><h2 className="section-card-title">Diagnosis mix</h2><p className="text-xs text-muted mt-1">Predicted class distribution across stored cases.</p></div><BarChart3 size={18} className="text-teal-600" /></div>
+                    <div className="flex items-start justify-between gap-4 mb-5"><div><h2 className="section-card-title">Diagnosis mix</h2></div><BarChart3 size={18} className="text-teal-600" /></div>
                     {classData.length ? (
                       <div className="h-72"><ResponsiveContainer width="100%" height="100%"><BarChart data={classData} margin={{ left: 0, right: 10, bottom: 30 }}><XAxis dataKey="key" tick={{ fill: '#7A8581', fontSize: 10 }} axisLine={false} tickLine={false} /><YAxis allowDecimals={false} tick={{ fill: '#7A8581', fontSize: 10 }} axisLine={false} tickLine={false} /><Tooltip contentStyle={{ background: '#fff', border: '1px solid #E2E8E7', borderRadius: 10, fontSize: 12 }} /><Bar dataKey="count" radius={[5,5,0,0]}>{classData.map(item => <Cell key={item.key} fill={COLORS[item.key] || '#0F766E'} />)}</Bar></BarChart></ResponsiveContainer></div>
                     ) : <div className="rounded-xl border border-dashed border-line bg-paper p-12 text-center text-sm text-muted">No diagnosis data yet.</div>}

@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom'
 import Layout from '../components/layout/Layout'
 import { diagnoseApi, lesionApi, reportApi } from '../lib/api'
 import toast from 'react-hot-toast'
-import { Activity, AlertTriangle, ChevronDown, Download, ImagePlus, Info, RotateCcw, ShieldCheck, Sparkles } from 'lucide-react'
+import { Activity, AlertTriangle, ChevronDown, Download, ImagePlus, RotateCcw, ShieldCheck, Sparkles } from 'lucide-react'
 
 const CLASS_NAMES = { mel:'Melanoma', bcc:'Basal Cell Carcinoma', akiec:'Actinic Keratoses', bkl:'Benign Keratosis', nv:'Melanocytic Nevi', df:'Dermatofibroma', vasc:'Vascular Lesions' }
 const CLASS_COLORS = { mel:'#8B4A46', bcc:'#8B6A4E', akiec:'#8A7545', bkl:'#52705A', nv:'#557086', df:'#6F667F', vasc:'#557A7A' }
@@ -169,7 +169,6 @@ export default function Diagnose() {
                   <div><label className="field-label">Fitzpatrick skin type</label><select className="input-glass" value={skinType} onChange={e => setSkinType(e.target.value)}><option value="">Select</option>{['Type I','Type II','Type III','Type IV','Type V','Type VI'].map(s => <option key={s}>{s}</option>)}</select></div>
                   <div><label className="field-label">Sun exposure</label><select className="input-glass" value={sunExposure} onChange={e => setSunExposure(e.target.value)}><option value="">Select</option><option>Low</option><option>Moderate</option><option>High</option></select></div>
                 </div>
-                <div className="rounded-xl border border-line bg-paper p-3 flex gap-3 items-start"><Info size={15} className="text-teal-700 mt-0.5 flex-shrink-0" /><p className="text-xs text-muted leading-5">Context affects supporting risk signals. The image model remains the source of lesion class prediction.</p></div>
               </div>}
             </Section>
 
