@@ -3,7 +3,7 @@ import Layout from '../components/layout/Layout'
 import { useAuth } from '../App'
 import { patientApi } from '../lib/api'
 import toast from 'react-hot-toast'
-import { CheckCircle2, Save, ShieldCheck, UserRound } from 'lucide-react'
+import { Save, ShieldCheck, UserRound } from 'lucide-react'
 
 export default function Profile() {
   const { user } = useAuth()
@@ -68,7 +68,6 @@ export default function Profile() {
                 <div><label className="field-label">Sun exposure level</label><select className="input-glass" value={form.sun_exposure || ''} onChange={e => setForm(p => ({ ...p, sun_exposure: e.target.value }))}><option value="">Select level</option>{['Low','Moderate','High'].map(s => <option key={s}>{s}</option>)}</select></div>
                 <div><label className="field-label">Medical history</label><textarea className="input-glass resize-none" rows={5} placeholder="Relevant medical history, family history, conditions, medications…" value={form.medical_history || ''} onChange={e => setForm(p => ({ ...p, medical_history: e.target.value }))} /></div>
                 <div className="pt-2 flex items-center justify-between gap-3">
-                  <p className="text-xs text-muted inline-flex items-center gap-1.5"><CheckCircle2 size={13} className="text-teal-700" /> Changes are saved to your patient profile.</p>
                   <button onClick={save} disabled={saving} className="btn-primary py-2.5 px-5"><Save size={14} /> {saving ? 'Saving…' : 'Save changes'}</button>
                 </div>
               </div>
