@@ -3,7 +3,7 @@ import Layout from '../components/layout/Layout'
 import { useAuth } from '../App'
 import { diagnoseApi, doctorApi, reportApi } from '../lib/api'
 import { Link } from 'react-router-dom'
-import { AlertTriangle, ArrowUpRight, Bell, CheckCircle2, ChevronRight, ClipboardCheck, Clock3, Microscope, ShieldCheck, Stethoscope, TrendingUp } from 'lucide-react'
+import { AlertTriangle, Bell, CheckCircle2, ChevronRight, ClipboardCheck, Clock3, Microscope, ShieldCheck, Stethoscope, TrendingUp } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 
 const CLASS_COLORS = { mel: '#8B4A46', bcc: '#8B6A4E', akiec: '#8A7545', bkl: '#52705A', nv: '#557086', df: '#6F667F', vasc: '#557A7A' }
@@ -31,7 +31,7 @@ function ClinicalBadge({ diagnosis }) {
   return <span className="badge-benign">Non-malignant</span>
 }
 
-function StatCard({ icon: Icon, label, value, detail, tone = 'teal' }) {
+function StatCard({ icon: Icon, label, value, tone = 'teal' }) {
   const tones = {
     teal: { icon: '#0F766E', bg: '#F0F7F6' },
     red: { icon: '#8B4A46', bg: '#F5E9E7' },
@@ -41,25 +41,23 @@ function StatCard({ icon: Icon, label, value, detail, tone = 'teal' }) {
   const current = tones[tone] || tones.teal
 
   return (
-    <div className="card-stat group">
-      <div className="flex items-start justify-between gap-4">
-        <div className="w-10 h-10 rounded-xl flex items-center justify-center border" style={{ background: current.bg, borderColor: `${current.icon}25` }}>
-          <Icon size={17} style={{ color: current.icon }} />
-        </div>
-        <ArrowUpRight size={15} className="text-line group-hover:text-teal-600 transition-colors" />
+    <div className="card-stat flex items-center gap-4">
+      <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: current.bg }}>
+        <Icon size={17} style={{ color: current.icon }} />
       </div>
-      <div className="mt-5 text-3xl font-serif font-semibold text-ink">{value}</div>
-      <div className="mt-1 text-sm font-medium text-ink">{label}</div>
-      <div className="mt-1 text-xs text-muted">{detail}</div>
+      <div className="min-w-0">
+        <div className="text-2xl font-semibold text-ink leading-none">{value}</div>
+        <div className="mt-1.5 text-xs font-medium text-muted">{label}</div>
+      </div>
     </div>
   )
 }
 
 function SectionHeader({ eyebrow, title, action, to }) {
   return (
-    <div className="flex items-end justify-between gap-4 mb-5">
+    <div className="flex items-center justify-between gap-4 mb-4">
       <div>
-                <h2 className="section-title text-2xl mt-1">{title}</h2>
+                <h2 className="section-card-title">{title}</h2>
       </div>
       {action && to && (
         <Link to={to} className="hidden sm:inline-flex items-center gap-1 text-xs font-medium text-teal-700 hover:text-teal-800">
@@ -107,17 +105,14 @@ function PatientDashboard({ user }) {
   return (
     <div className="min-h-screen bg-paper">
       <div className="max-w-7xl mx-auto px-5 sm:px-8 py-8 lg:py-10">
-        <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6 mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
           <div>
-            <h1 className="text-3xl lg:text-4xl font-serif font-semibold text-ink mt-2 tracking-tight">
+            <h1 className="text-2xl font-semibold text-ink">
               {greeting}, {firstName}.
             </h1>
-            <p className="text-muted text-sm mt-2 max-w-xl leading-6">
-              Your diagnostic activity, review status and recent assessments in one place.
-            </p>
           </div>
-          <Link to="/diagnose" className="btn-primary inline-flex items-center justify-center gap-2 py-3 px-5 text-sm shadow-soft">
-            <Microscope size={15} /> New diagnosis <ArrowUpRight size={14} />
+          <Link to="/diagnose" className="btn-primary inline-flex items-center justify-center gap-2 py-3 px-5 text-sm ">
+            <Microscope size={15} /> New diagnosis
           </Link>
         </div>
 
@@ -135,11 +130,11 @@ function PatientDashboard({ user }) {
         )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4 mb-10">
-          <StatCard icon={Microscope} label="Total diagnoses" value={total} detail="All recorded assessments" />
-          <StatCard icon={AlertTriangle} label="Malignant flags" value={malignant} detail={total ? `${((malignant / total) * 100).toFixed(0)}% of your assessments` : 'No malignant flags'} tone="red" />
-          <StatCard icon={ShieldCheck} label="Clinical concern" value={clinicalConcern} detail="Malignant or review-concerning cases" tone="amber" />
-          <StatCard icon={Clock3} label="Needs review" value={review} detail="Cases marked for attention" tone="amber" />
-          <StatCard icon={TrendingUp} label="Average confidence" value={`${avgConf}%`} detail="Image-class confidence" tone="green" />
+          <StatCard icon={Microscope} label="Total diagnoses" value={total} />
+          <StatCard icon={AlertTriangle} label="Malignant flags" value={malignant} tone="red" />
+          <StatCard icon={ShieldCheck} label="Clinical concern" value={clinicalConcern} tone="amber" />
+          <StatCard icon={Clock3} label="Needs review" value={review} tone="amber" />
+          <StatCard icon={TrendingUp} label="Average confidence" value={`${avgConf}%`} tone="green" />
         </div>
 
         <div className="grid lg:grid-cols-[1.55fr_.95fr] gap-6">
@@ -150,16 +145,7 @@ function PatientDashboard({ user }) {
                 {[1, 2, 3, 4].map(i => <div key={i} className="h-16 rounded-xl bg-line/40 animate-pulse" />)}
               </div>
             ) : recent.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-line bg-paper/80 px-6 py-14 text-center">
-                <div className="w-11 h-11 rounded-xl mx-auto flex items-center justify-center bg-white border border-line">
-                  <Microscope size={18} className="text-teal-600" />
-                </div>
-                <h3 className="text-sm font-semibold text-ink mt-4">No diagnoses yet</h3>
-                <p className="text-xs text-muted mt-1">Your first assessment will appear here.</p>
-                <Link to="/diagnose" className="btn-primary text-xs py-2.5 px-4 mt-4 inline-flex items-center gap-2">
-                  Start diagnosis <ArrowUpRight size={13} />
-                </Link>
-              </div>
+              <div className="rounded-lg border border-dashed border-line px-6 py-12 text-center text-sm text-muted">No diagnoses yet.</div>
             ) : (
               <div className="space-y-2">
                 {recent.map(d => {
@@ -195,7 +181,7 @@ function PatientDashboard({ user }) {
           <section className="glass p-5 sm:p-6">
             <SectionHeader eyebrow="Model output" title="Class distribution" />
             {classDist.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-line bg-paper p-8 text-center text-xs text-muted">Complete a diagnosis to populate this view.</div>
+              <div className="rounded-lg border border-dashed border-line px-6 py-12 text-center text-sm text-muted">No data yet.</div>
             ) : (
               <ResponsiveContainer width="100%" height={230}>
                 <BarChart data={classDist} layout="vertical" margin={{ left: 0, right: 8, top: 4, bottom: 4 }}>
@@ -208,9 +194,6 @@ function PatientDashboard({ user }) {
                 </BarChart>
               </ResponsiveContainer>
             )}
-            <div className="mt-3 pt-4 border-t border-line flex items-center justify-between gap-4">
-              <Link to="/diagnose" className="text-xs font-semibold text-teal-700 hover:text-teal-800 inline-flex items-center gap-1">New scan <ArrowUpRight size={12} /></Link>
-            </div>
           </section>
         </div>
       </div>
@@ -236,23 +219,22 @@ function DoctorDashboard({ user }) {
   return (
     <div className="min-h-screen bg-paper">
       <div className="max-w-7xl mx-auto px-5 sm:px-8 py-8 lg:py-10">
-        <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6 mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
           <div>
-            <h1 className="text-3xl lg:text-4xl font-serif font-semibold text-ink mt-2 tracking-tight">
+            <h1 className="text-2xl font-semibold text-ink">
               {greeting}, Dr. {firstName}.
             </h1>
-            <p className="text-muted text-sm mt-2 max-w-xl leading-6">Prioritise escalated cases, review the shared queue and keep patient follow-up moving.</p>
           </div>
           <Link to="/doctor" className="btn-primary inline-flex items-center justify-center gap-2 py-3 px-5 text-sm">
-            <ClipboardCheck size={15} /> Open review queue <ArrowUpRight size={14} />
+            <ClipboardCheck size={15} /> Open review queue
           </Link>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-10">
-          <StatCard icon={ClipboardCheck} label="Unclaimed cases" value={unclaimedCount} detail="Waiting in shared queue" tone="amber" />
-          <StatCard icon={AlertTriangle} label="Urgent" value={urgentCount} detail="Escalated by the AI workflow" tone="red" />
-          <StatCard icon={Stethoscope} label="Claimed by you" value={myCount} detail="In progress or completed" />
-          <StatCard icon={CheckCircle2} label="Reviewed by you" value={completedByMe} detail="Completed clinical verdicts" tone="green" />
+          <StatCard icon={ClipboardCheck} label="Unclaimed cases" value={unclaimedCount} tone="amber" />
+          <StatCard icon={AlertTriangle} label="Urgent" value={urgentCount} tone="red" />
+          <StatCard icon={Stethoscope} label="Claimed by you" value={myCount} />
+          <StatCard icon={CheckCircle2} label="Reviewed by you" value={completedByMe} tone="green" />
         </div>
 
         <section className="glass p-5 sm:p-6">
@@ -260,13 +242,7 @@ function DoctorDashboard({ user }) {
           {loading ? (
             <div className="space-y-3">{[1, 2, 3].map(i => <div key={i} className="h-16 rounded-xl bg-line/40 animate-pulse" />)}</div>
           ) : unclaimedCount === 0 ? (
-            <div className="rounded-xl border border-dashed border-line bg-paper/80 px-6 py-14 text-center">
-              <div className="w-11 h-11 rounded-xl mx-auto flex items-center justify-center bg-white border border-line">
-                <ClipboardCheck size={18} className="text-teal-600" />
-              </div>
-              <h3 className="text-sm font-semibold text-ink mt-4">Queue is clear</h3>
-              <p className="text-xs text-muted mt-1">There are no unclaimed cases waiting for review.</p>
-            </div>
+            <div className="rounded-lg border border-dashed border-line px-6 py-12 text-center text-sm text-muted">No cases awaiting review.</div>
           ) : (
             <div className="space-y-2">
               {queue.unclaimed.slice(0, 6).map(c => {
