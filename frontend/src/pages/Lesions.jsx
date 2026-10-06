@@ -290,7 +290,7 @@ export default function Lesions() {
                               <div className="flex items-center gap-2 flex-wrap">
                                 <span className="font-medium text-sm text-ink">{CLASS_NAMES[d.predicted_class] || d.predicted_class}</span>
                                 <ClinicalBadge diagnosis={d} />
-                                {d.requires_review && <span className="badge-review">Review</span>}
+                                {d.requires_review && <span className="badge-info">Review</span>}
                               </div>
                               <div className="text-xs text-muted mt-1">{formatDate(d.created_at)} · {(d.image_confidence * 100).toFixed(1)}% confidence · {d.composite_uncertainty?.toFixed(3)} uncertainty</div>
                             </div>
