@@ -1,22 +1,9 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { Activity, ClipboardCheck, History, LayoutDashboard, LogOut, Menu, Microscope, Shield, User, X } from 'lucide-react'
 import { useAuth } from '../../App'
 import { diagnoseApi } from '../../lib/api'
 import { BRAND_SHORT } from '../../lib/brand'
-import { useEffect, useState } from 'react'
-import {
-  Activity,
-  ClipboardCheck,
-  History,
-  LayoutDashboard,
-  LogOut,
-  Menu,
-  Microscope,
-  Shield,
-  User,
-  X,
-  Bell,
-  ChevronRight,
-} from 'lucide-react'
 
 const PATIENT_NAV = [
   { path: '/dashboard', icon: LayoutDashboard, label: 'Overview' },
@@ -26,6 +13,41 @@ const PATIENT_NAV = [
   { path: '/profile', icon: User, label: 'Profile' },
 ]
 
+const DOCTOR_NAV = [
+  { path: '/dashboard', icon: LayoutDashboard, label: 'Overview' },
+  { path: '/doctor', icon: ClipboardCheck, label: 'Review queue' },
+]
+
+const ADMIN_NAV = [{ path: '/admin', icon: Shield, label: 'Administration' }]
+
+function Brand({ small = false }) {
+  return (
+    <span className="flex items-center gap-2.5">
+      <span className={`brand-mark ${small ? 'small' : ''}`}><Microscope size={small ? 14 : 16} /></span>
+      <span className="font-semibold tracking-tight text-ink">{BRAND_SHORT}</span>
+    </span>
+  )
+}
+
+function UserBlock({ user, onLogout }) {
+  return (
+    <div>
+      <div className="flex items-center gap-3 mb-2 px-1">
+        <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold text-white bg-teal-500">
+          {user?.name?.[0]?.toUpperCase() || 'U'}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="text-sm font-medium text-ink truncate">{user?.name}</div>
+          <div className="text-xs text-muted capitalize">{user?.role}</div>
+        </div>
+      </div>
+      <button onClick={onLogout} className="flex items-center gap-2 w-full px-2.5 py-2 rounded-lg text-sm text-muted hover:text-red-700 hover:bg-red-50 transition-colors">
+        <LogOut size={14} /> Sign out
+      </button>
+    </div>
+  )
+}
+
 export default function Layout({ children }) {
   const { user, logout } = useAuth()
   const location = useLocation()
@@ -33,15 +55,16 @@ export default function Layout({ children }) {
   const [unread, setUnread] = useState(0)
   const [mobileOpen, setMobileOpen] = useState(false)
 
+  const isPatient = user?.role === 'patient'
+  const isDoctor = user?.role === 'doctor'
+  const isAdmin = user?.role === 'admin'
+  const nav = isPatient ? PATIENT_NAV : isDoctor ? DOCTOR_NAV : isAdmin ? ADMIN_NAV : []
+
   const handleLogout = () => {
     setMobileOpen(false)
     logout()
     navigate('/')
   }
-
-  const isPatient = user?.role === 'patient'
-  const isDoctor = user?.role === 'doctor'
-  const isAdmin = user?.role === 'admin'
 
   useEffect(() => {
     setMobileOpen(false)
@@ -50,86 +73,57 @@ export default function Layout({ children }) {
     }
   }, [location.pathname, isPatient])
 
-  const nav = isPatient ? PATIENT_NAV : isDoctor ? [
-    { path: '/dashboard', icon: LayoutDashboard, label: 'Overview' },
-    { path: '/doctor', icon: ClipboardCheck, label: 'Review queue' },
-  ] : []
-
-  const renderNav = () => (
-    <>
-      {nav.map(({ path, icon: Icon, label }) => {
-        const active = location.pathname === path
-        return (
-          <Link key={path} to={path} className="app-nav-link"
-            style={{ background: active ? '#EEF4F3' : 'transparent', color: active ? '#254742' : '#5B6764', fontWeight: active ? 600 : 500 }}>
-            <span className="app-nav-icon" style={{ background: active ? '#DCEBE7' : 'transparent' }}>
-              <Icon size={15} strokeWidth={active ? 2.2 : 1.8} />
-            </span>
-            <span className="flex-1">{label}</span>
-            {path === '/history' && unread > 0 && <span className="nav-count">{unread}</span>}
-            <ChevronRight size={13} className="app-nav-arrow" />
-          </Link>
-        )
-      })}
-      {isAdmin && (
-        <Link to="/admin" className="app-nav-link"
-          style={{ background: location.pathname === '/admin' ? '#EEF4F3' : 'transparent', color: location.pathname === '/admin' ? '#254742' : '#5B6764', fontWeight: location.pathname === '/admin' ? 600 : 500 }}>
-          <span className="app-nav-icon" style={{ background: location.pathname === '/admin' ? '#DCEBE7' : 'transparent' }}><Shield size={15} /></span>
-          <span className="flex-1">Administration</span><ChevronRight size={13} className="app-nav-arrow" />
-        </Link>
-      )}
-    </>
-  )
+  const renderNav = () => nav.map(({ path, icon: Icon, label }) => {
+    const active = location.pathname === path
+    return (
+      <Link key={path} to={path} className="app-nav-link"
+        style={{ background: active ? '#F0F7F6' : 'transparent', color: active ? '#0B524D' : '#5A6968', fontWeight: active ? 600 : 500 }}>
+        <span className="app-nav-icon" style={{ background: active ? '#D5E8E5' : 'transparent' }}>
+          <Icon size={15} strokeWidth={active ? 2.2 : 1.8} />
+        </span>
+        <span className="flex-1">{label}</span>
+        {path === '/history' && unread > 0 && <span className="nav-count">{unread}</span>}
+      </Link>
+    )
+  })
 
   return (
     <div className="flex min-h-screen bg-paper">
-      <aside className="app-sidebar flex-col fixed left-0 top-0 bottom-0 bg-white border-r border-line z-40 hidden lg:flex">
-        <div className="px-5 py-5 border-b border-line bg-white/70">
-          <Link to={isAdmin ? '/admin' : isDoctor ? '/dashboard' : '/dashboard'} className="flex items-center gap-3">
-            <div className="brand-mark"><Microscope size={16} /></div>
-            <div>
-              <div className="font-serif font-semibold text-ink text-base">{BRAND_SHORT}</div>
-              <div className="text-[9px] uppercase tracking-[0.16em] text-muted mt-0.5">Decision support</div>
-            </div>
-          </Link>
+      <aside className="app-sidebar flex-col fixed left-0 top-0 bottom-0 z-40 hidden lg:flex">
+        <div className="px-5 h-16 flex items-center border-b border-line">
+          <Link to="/dashboard"><Brand /></Link>
         </div>
-        <div className="px-5 pt-6 pb-2"><div className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted/70">Workspace</div></div>
-        <nav className="flex-1 px-3 space-y-1">{renderNav()}</nav>
-        <div className="mx-4 mb-4 rounded-2xl p-3.5 bg-gradient-to-br from-[#eef6f3] to-[#f7faf9] border border-[#dbe8e3] shadow-sm">
-          <div className="flex items-center gap-2 mb-2"><Bell size={13} className="text-teal-700" /><span className="text-[10px] uppercase tracking-[0.12em] font-bold text-teal-800">Decision-support workspace</span></div>
-          <p className="text-[11px] leading-5 text-muted">Review uncertainty signals and supporting evidence before making decisions.</p>
-        </div>
-        <div className="px-4 py-4 border-t border-line bg-white/60">
-          <div className="flex items-center gap-3 mb-3 px-1">
-            <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-semibold text-white bg-teal-500 shadow-sm">{user?.name?.[0]?.toUpperCase() || 'U'}</div>
-            <div className="flex-1 min-w-0"><div className="text-sm font-medium text-ink truncate">{user?.name}</div><div className="text-xs text-muted capitalize mt-0.5">{user?.role}</div></div>
-          </div>
-          <button onClick={handleLogout} className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm text-muted hover:text-red-700 hover:bg-red-50 transition-colors"><LogOut size={14} /> Sign out</button>
+        <nav className="flex-1 px-3 py-4 space-y-0.5">{renderNav()}</nav>
+        <div className="p-4 border-t border-line">
+          <UserBlock user={user} onLogout={handleLogout} />
         </div>
       </aside>
 
-      <header className="app-mobile-header fixed top-0 left-0 right-0 h-16 bg-white/95 backdrop-blur border-b border-line z-50 items-center justify-between px-4">
-        <Link to="/dashboard" className="flex items-center gap-2.5"><div className="brand-mark small"><Microscope size={14} /></div><span className="font-serif font-semibold text-ink">{BRAND_SHORT}</span></Link>
-        <button onClick={() => setMobileOpen(true)} className="w-9 h-9 rounded-lg border border-line flex items-center justify-center text-muted" aria-label="Open menu"><Menu size={18} /></button>
+      <header className="app-mobile-header fixed top-0 left-0 right-0 h-14 bg-white border-b border-line z-50 items-center justify-between px-4">
+        <Link to="/dashboard"><Brand small /></Link>
+        <button onClick={() => setMobileOpen(true)} className="w-9 h-9 rounded-lg border border-line flex items-center justify-center text-muted" aria-label="Open menu">
+          <Menu size={18} />
+        </button>
       </header>
 
       {mobileOpen && (
-        <div className="fixed inset-0 z-[60] bg-black/20 backdrop-blur-[2px] lg:hidden" onClick={() => setMobileOpen(false)}>
-          <aside className="absolute right-0 top-0 bottom-0 w-[300px] bg-white shadow-2xl p-4" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-1 pb-4 border-b border-line">
-              <div className="flex items-center gap-2.5"><div className="brand-mark small"><Microscope size={14} /></div><span className="font-serif font-semibold text-ink">DERMAXAI</span></div>
-              <button onClick={() => setMobileOpen(false)} className="w-8 h-8 rounded-lg border border-line flex items-center justify-center text-muted" aria-label="Close menu"><X size={17} /></button>
+        <div className="fixed inset-0 z-[60] bg-black/25 lg:hidden" onClick={() => setMobileOpen(false)}>
+          <aside className="absolute right-0 top-0 bottom-0 w-[288px] bg-white shadow-xl p-4 flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between pb-4 border-b border-line">
+              <Brand small />
+              <button onClick={() => setMobileOpen(false)} className="w-8 h-8 rounded-lg border border-line flex items-center justify-center text-muted" aria-label="Close menu">
+                <X size={17} />
+              </button>
             </div>
-            <div className="py-5 space-y-1">{renderNav()}</div>
-            <div className="absolute left-4 right-4 bottom-4 pt-4 border-t border-line">
-              <div className="flex items-center gap-3 mb-3"><div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-semibold text-white bg-teal-500">{user?.name?.[0]?.toUpperCase() || 'U'}</div><div><div className="text-sm font-medium text-ink">{user?.name}</div><div className="text-xs text-muted capitalize">{user?.role}</div></div></div>
-              <button onClick={handleLogout} className="flex items-center gap-2 w-full px-3 py-2.5 rounded-lg text-sm text-muted hover:text-red-700 hover:bg-red-50"><LogOut size={14} /> Sign out</button>
+            <div className="py-4 space-y-0.5 flex-1">{renderNav()}</div>
+            <div className="pt-4 border-t border-line">
+              <UserBlock user={user} onLogout={handleLogout} />
             </div>
           </aside>
         </div>
       )}
 
-      <main className="app-main flex-1 min-h-screen max-lg:pt-16">{children}</main>
+      <main className="app-main flex-1 min-h-screen max-lg:pt-14">{children}</main>
     </div>
   )
 }
