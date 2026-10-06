@@ -195,7 +195,6 @@ export default function Lesions() {
           <div className="glass p-12 text-center">
             <div className="feature-icon mx-auto"><ClipboardPlus size={18} /></div>
             <h2 className="font-serif text-2xl font-semibold mt-4">Start longitudinal monitoring</h2>
-            <p className="text-sm text-muted max-w-md mx-auto mt-2">Create a tracker for a lesion you want to monitor. You can attach diagnoses from your history to build a timeline.</p>
             <button className="btn-primary mt-5" onClick={() => setShowCreate(true)}>Create first tracker</button>
           </div>
         ) : (
@@ -265,7 +264,6 @@ export default function Lesions() {
                     ) : (
                       <div className="rounded-xl border border-dashed border-line bg-paper p-10 text-center">
                         <p className="text-sm text-ink">Attach at least two diagnoses to see a trend.</p>
-                        <p className="text-xs text-muted mt-1">The timeline will grow as repeat assessments are linked.</p>
                       </div>
                     )}
                   </div>
@@ -274,7 +272,6 @@ export default function Lesions() {
                     <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-5">
                       <div>
                         <h3 className="section-card-title">Add an observation</h3>
-                        <p className="text-xs text-muted mt-1">Attach an existing diagnosis that belongs to this lesion.</p>
                       </div>
                       <div className="flex gap-2 w-full md:w-auto">
                         <select className="input-glass text-sm min-w-0 md:min-w-72" value={selectedDiagnosis} onChange={e => setSelectedDiagnosis(e.target.value)}>
