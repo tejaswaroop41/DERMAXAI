@@ -139,8 +139,8 @@ function CaseCard({ item, onClaim, onReview, readOnly, claimedByOther }) {
                     className="flex-1 flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg text-xs font-medium transition-colors"
                     style={{
                       background: verdict === v.value ? v.color + '14' : 'transparent',
-                      border: `1px solid ${verdict === v.value ? v.color + '45' : '#E4E7E4'}`,
-                      color: verdict === v.value ? v.color : '#5B6764',
+                      border: `1px solid ${verdict === v.value ? v.color + '45' : '#E2E8E7'}`,
+                      color: verdict === v.value ? v.color : '#5A6968',
                     }}>
                     <v.icon size={13} /> {v.label}
                   </button>
@@ -219,7 +219,6 @@ export default function Doctor() {
       <div className="p-8">
         <div className="mb-8">
           <h1 className="text-2xl font-serif font-semibold text-ink">Review Queue</h1>
-          <p className="text-muted text-sm mt-1">AI-flagged and routine cases available for clinical review</p>
         </div>
 
         {!loading && queue.unclaimed.filter(c => c.requires_review).length > 0 && (
@@ -242,8 +241,8 @@ export default function Doctor() {
             className="px-3 py-2 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5"
             style={{
               background: malignantOnly ? '#FBEAE8' : 'transparent',
-              border: `1px solid ${malignantOnly ? '#EFCAC6' : '#E4E7E4'}`,
-              color: malignantOnly ? '#963530' : '#5B6764',
+              border: `1px solid ${malignantOnly ? '#EFCAC6' : '#E2E8E7'}`,
+              color: malignantOnly ? '#963530' : '#5A6968',
             }}>
             <AlertTriangle size={12} /> Malignant only
           </button>
@@ -253,9 +252,9 @@ export default function Doctor() {
               <button key={t.key} onClick={() => setTab(t.key)}
                 className="px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
                 style={{
-                  background: tab === t.key ? '#EEF4F3' : 'transparent',
-                  border: `1px solid ${tab === t.key ? '#B8C5C2' : '#E4E7E4'}`,
-                  color: tab === t.key ? '#254742' : '#5B6764',
+                  background: tab === t.key ? '#F0F7F6' : 'transparent',
+                  border: `1px solid ${tab === t.key ? '#B9C8C5' : '#E2E8E7'}`,
+                  color: tab === t.key ? '#0B524D' : '#5A6968',
                 }}>
                 {t.label}
                 {t.rawCount !== null && t.rawCount > 0 && (

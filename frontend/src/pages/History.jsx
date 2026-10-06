@@ -71,15 +71,13 @@ export default function History() {
       <div className="page-pad max-w-7xl mx-auto">
         <div className="page-heading">
           <div>
-            <div className="eyebrow"><Activity size={13} /> Your clinical record</div>
             <h1 className="page-title">Diagnosis history</h1>
-            <p className="page-subtitle">Review previous assessments, doctor feedback and generated reports in one place.</p>
           </div>
           <Link to="/lesions" className="btn-ghost inline-flex items-center gap-2 text-sm"><Activity size={14} /> Track lesions</Link>
         </div>
 
         <div className="glass p-4 mb-6 flex flex-col sm:flex-row sm:items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-[#EEF5F3] border border-[#DCEAE6] text-teal-700 flex items-center justify-center"><Activity size={16} /></div>
+          <div className="w-9 h-9 rounded-lg bg-[#F0F7F6] border border-[#D5E8E5] text-teal-700 flex items-center justify-center"><Activity size={16} /></div>
           <div className="flex-1"><div className="text-sm font-semibold text-ink">Monitor repeat observations</div><div className="text-xs text-muted mt-0.5">Create a lesion tracker to compare confidence and uncertainty across future scans.</div></div>
           <Link to="/lesions" className="text-xs font-semibold text-teal-700">Open tracking →</Link>
         </div>
@@ -92,7 +90,7 @@ export default function History() {
             ['clinical-concern', 'clinical concern'],
             ['benign', 'non-malignant'],
             ['review', 'review'],
-          ].map(([value, label]) => <button key={value} onClick={() => setFilter(value)} className="px-3 py-1.5 rounded-lg text-xs font-medium capitalize border whitespace-nowrap" style={{ background: filter === value ? '#EEF4F3' : 'transparent', borderColor: filter === value ? '#B8C5C2' : '#E4E7E4', color: filter === value ? '#254742' : '#5B6764' }}>{label}</button>)}</div>
+          ].map(([value, label]) => <button key={value} onClick={() => setFilter(value)} className="px-3 py-1.5 rounded-lg text-xs font-medium capitalize border whitespace-nowrap" style={{ background: filter === value ? '#F0F7F6' : 'transparent', borderColor: filter === value ? '#B9C8C5' : '#E2E8E7', color: filter === value ? '#0B524D' : '#5A6968' }}>{label}</button>)}</div>
         </div>
 
         <div className="glass overflow-hidden">
@@ -100,7 +98,7 @@ export default function History() {
           {loading ? <div className="p-10 text-center text-sm text-muted">Loading history…</div> : filtered.length === 0 ? <div className="p-12 text-center text-sm text-muted">No diagnoses found.</div> : filtered.map(d => (
             <div key={d.id} className="border-b border-line last:border-b-0">
               <div className="px-5 py-4 md:grid md:items-center md:py-3.5" style={{ gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 80px' }}>
-                <div className="flex items-start gap-3"><div className="w-2.5 h-2.5 rounded-full mt-1.5 flex-shrink-0" style={{ background: CLASS_COLORS[d.predicted_class] || '#5B6764' }} /><div><div className="text-sm font-medium text-ink">{CLASS_NAMES[d.predicted_class] || d.predicted_class}</div><div className="text-xs text-muted font-mono mt-0.5">Diagnosis #{d.id}</div></div></div>
+                <div className="flex items-start gap-3"><div className="w-2.5 h-2.5 rounded-full mt-1.5 flex-shrink-0" style={{ background: CLASS_COLORS[d.predicted_class] || '#5A6968' }} /><div><div className="text-sm font-medium text-ink">{CLASS_NAMES[d.predicted_class] || d.predicted_class}</div><div className="text-xs text-muted font-mono mt-0.5">Diagnosis #{d.id}</div></div></div>
                 <div className="mt-3 md:mt-0"><div className="text-[10px] text-muted uppercase tracking-wide md:hidden">Confidence</div><div className="text-sm font-mono text-teal-700">{(d.image_confidence * 100).toFixed(1)}%</div></div>
                 <div className="mt-3 md:mt-0"><div className="text-[10px] text-muted uppercase tracking-wide md:hidden">Uncertainty</div><div className="text-sm font-mono text-muted">{d.composite_uncertainty?.toFixed(3)}</div></div>
                 <div className="mt-3 md:mt-0"><div className="text-[10px] text-muted uppercase tracking-wide md:hidden">Risk</div><ClinicalBadge diagnosis={d} />{d.doctor_review?.status === 'claimed' && <div className="text-[10px] text-muted mt-1">Under review</div>}</div>

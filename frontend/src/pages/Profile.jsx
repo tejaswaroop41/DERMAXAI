@@ -37,9 +37,7 @@ export default function Profile() {
       <div className="page-pad max-w-5xl mx-auto">
         <div className="page-heading">
           <div>
-            <div className="eyebrow"><UserRound size={13} /> Patient profile</div>
             <h1 className="page-title">Your profile</h1>
-            <p className="page-subtitle">Keep your clinical context current so future assessments can use the information you choose to provide.</p>
           </div>
           <span className="status-pill"><span /> Protected workspace</span>
         </div>
@@ -51,20 +49,16 @@ export default function Profile() {
             </div>
             <h2 className="text-xl font-serif font-semibold text-ink mt-5">{user?.name}</h2>
             <p className="text-sm text-muted mt-1 break-all">{user?.email}</p>
-            <span className="inline-flex items-center gap-1.5 mt-4 px-2.5 py-1 rounded-full bg-[#eef6f3] border border-[#d8e9e4] text-teal-800 text-xs font-semibold capitalize">
+            <span className="inline-flex items-center gap-1.5 mt-4 px-2.5 py-1 rounded-full bg-[#F0F7F6] border border-[#D5E8E5] text-teal-800 text-xs font-semibold capitalize">
               <ShieldCheck size={12} /> {user?.role}
             </span>
-            <div className="mt-7 pt-5 border-t border-line">
-              <div className="text-[10px] uppercase tracking-[.14em] font-bold text-muted">Why this matters</div>
-              <p className="text-xs text-muted leading-5 mt-2">These details support the application’s contextual risk signals. You can leave optional fields blank.</p>
-            </div>
           </section>
 
           {loading ? (
             <div className="glass p-10 text-center text-muted text-sm">Loading profile…</div>
           ) : (
             <section className="glass p-6 sm:p-7">
-              <div className="flex items-center gap-2 mb-6"><div className="w-8 h-8 rounded-lg bg-[#eef6f3] border border-[#d8e9e4] flex items-center justify-center text-teal-700"><UserRound size={14} /></div><div><h2 className="section-card-title">Clinical context</h2><p className="text-xs text-muted mt-1">Optional information used by the decision-support workflow.</p></div></div>
+              <div className="flex items-center gap-2 mb-6"><div className="w-8 h-8 rounded-lg bg-[#F0F7F6] border border-[#D5E8E5] flex items-center justify-center text-teal-700"><UserRound size={14} /></div><div><h2 className="section-card-title">Clinical context</h2><p className="text-xs text-muted mt-1">Optional information used by the decision-support workflow.</p></div></div>
               <div className="space-y-5">
                 <div className="grid sm:grid-cols-2 gap-4">
                   <div><label className="field-label">Age</label><input type="number" min="1" max="120" className="input-glass" placeholder="Your age" value={form.age ?? ''} onChange={e => setForm(p => ({ ...p, age: e.target.value }))} /></div>

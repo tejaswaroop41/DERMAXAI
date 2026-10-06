@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import { ArrowLeft, CheckCircle2, Eye, EyeOff, Lock, Microscope, ShieldCheck } from 'lucide-react'
+import { ArrowLeft, CheckCircle2, Eye, EyeOff, Lock, Microscope } from 'lucide-react'
 import { authApi } from '../lib/api'
 
 export default function ResetPassword() {
@@ -31,21 +31,19 @@ export default function ResetPassword() {
   ]
 
   return (
-    <div className="min-h-screen bg-[#eff6f3] relative overflow-hidden flex items-center justify-center px-4 py-10">
-      <div className="absolute inset-0 hero-grid" />
+    <div className="min-h-screen bg-paper flex items-center justify-center px-4 py-10">
       <div className="relative w-full max-w-md">
-        <Link to="/" className="flex items-center justify-center gap-3 mb-8">
+        <Link to="/" className="flex items-center justify-center gap-2.5 mb-8">
           <div className="brand-mark"><Microscope size={17} /></div>
-          <div className="text-left"><div className="font-serif font-semibold text-lg text-ink">DERMAXAI</div><div className="text-[9px] uppercase tracking-[0.16em] text-muted">Clinical decision support</div></div>
+          <span className="font-semibold tracking-tight text-lg text-ink">DERMAXAI</span>
         </Link>
-        <div className="glass p-7 sm:p-9">
-          <div className="eyebrow"><ShieldCheck size={12} /> Secure reset</div>
-          <h1 className="text-3xl font-serif font-semibold text-ink mt-2">Set a new password</h1>
-          <p className="text-sm text-muted mt-2 mb-7">Choose a new password for your DERMAXAI account.</p>
+        <div className="glass p-7 sm:p-8">
+          <h1 className="text-2xl font-semibold text-ink">Set a new password</h1>
+          <p className="text-sm text-muted mt-1.5 mb-6">Choose a new password for your account.</p>
 
           {done ? (
             <div className="text-center py-4">
-              <div className="w-14 h-14 rounded-2xl mx-auto flex items-center justify-center bg-[#eef7f4] border border-[#d7e8e3] text-teal-700"><CheckCircle2 size={24} /></div>
+              <div className="w-14 h-14 rounded-xl mx-auto flex items-center justify-center bg-teal-50 border border-teal-100 text-teal-700"><CheckCircle2 size={24} /></div>
               <h2 className="font-serif text-xl font-semibold text-ink mt-4">Password updated</h2>
               <p className="text-sm text-muted leading-6 mt-2">Your password has been reset successfully. You can now sign in.</p>
               <button onClick={() => navigate('/login')} className="btn-primary mt-6 w-full">Go to sign in</button>
@@ -67,7 +65,7 @@ export default function ResetPassword() {
               </div>
 
               <div className="grid grid-cols-3 gap-2">
-                {checks.map(([label, valid]) => <div key={label} className={`rounded-lg border px-2 py-2 text-[10px] font-medium text-center ${valid ? 'border-[#cfe2db] bg-[#eff7f4] text-teal-800' : 'border-line bg-paper text-muted'}`}><CheckCircle2 size={11} className="mx-auto mb-1" />{label}</div>)}
+                {checks.map(([label, valid]) => <div key={label} className={`rounded-lg border px-2 py-2 text-[10px] font-medium text-center ${valid ? 'border-[#D5E8E5] bg-[#F0F7F6] text-teal-800' : 'border-line bg-paper text-muted'}`}><CheckCircle2 size={11} className="mx-auto mb-1" />{label}</div>)}
               </div>
 
               <button type="submit" disabled={loading || !token} className="btn-primary w-full py-3">{loading ? 'Resetting…' : 'Reset password'}</button>

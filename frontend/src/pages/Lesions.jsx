@@ -2,17 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import Layout from '../components/layout/Layout'
 import { diagnoseApi, lesionApi, reportApi } from '../lib/api'
 import toast from 'react-hot-toast'
-import {
-  Activity,
-  ArrowRight,
-  CalendarDays,
-  ClipboardPlus,
-  MapPin,
-  Plus,
-  ShieldCheck,
-  Trash2,
-  TrendingUp,
-} from 'lucide-react'
+import { ArrowRight, CalendarDays, ClipboardPlus, MapPin, Plus, Trash2, TrendingUp } from 'lucide-react'
 import {
   CartesianGrid,
   Line,
@@ -181,9 +171,7 @@ export default function Lesions() {
       <div className="page-pad max-w-7xl mx-auto">
         <div className="page-heading">
           <div>
-            <div className="eyebrow"><Activity size={13} /> Longitudinal monitoring</div>
             <h1 className="page-title">Lesion tracking</h1>
-            <p className="page-subtitle">Group repeat diagnoses by lesion and review how confidence and uncertainty change over time.</p>
           </div>
           <button className="btn-primary inline-flex items-center gap-2" onClick={() => setShowCreate(v => !v)}>
             <Plus size={15} /> Track a lesion
@@ -235,7 +223,6 @@ export default function Lesions() {
                   <div className="glass p-6">
                     <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-5">
                       <div>
-                        <div className="eyebrow"><ShieldCheck size={13} /> Tracked lesion</div>
                         <h2 className="text-3xl font-serif font-semibold text-ink mt-2">{detail.name}</h2>
                         <div className="flex flex-wrap gap-4 text-xs text-muted mt-3">
                           <span className="inline-flex items-center gap-1"><MapPin size={12} /> {detail.body_site || 'Site not recorded'}</span>
@@ -269,8 +256,8 @@ export default function Lesions() {
                             <CartesianGrid strokeDasharray="3 3" stroke="#E7ECEA" vertical={false} />
                             <XAxis dataKey="date" tick={{ fill: '#7A8581', fontSize: 10 }} axisLine={false} tickLine={false} />
                             <YAxis tick={{ fill: '#7A8581', fontSize: 10 }} axisLine={false} tickLine={false} unit="%" domain={[0, 100]} />
-                            <Tooltip contentStyle={{ background: '#FFFFFF', border: '1px solid #DDE5E2', borderRadius: 10, fontSize: 12 }} />
-                            <Line type="monotone" dataKey="confidence" name="Confidence" stroke="#3D7068" strokeWidth={2.5} dot={{ r: 3, fill: '#3D7068' }} activeDot={{ r: 5 }} />
+                            <Tooltip contentStyle={{ background: '#FFFFFF', border: '1px solid #E2E8E7', borderRadius: 10, fontSize: 12 }} />
+                            <Line type="monotone" dataKey="confidence" name="Confidence" stroke="#0F766E" strokeWidth={2.5} dot={{ r: 3, fill: '#0F766E' }} activeDot={{ r: 5 }} />
                             <Line type="monotone" dataKey="uncertainty" name="Uncertainty" stroke="#B08135" strokeWidth={2} dot={{ r: 3, fill: '#B08135' }} />
                           </LineChart>
                         </ResponsiveContainer>

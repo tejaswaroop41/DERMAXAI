@@ -3,20 +3,7 @@ import Layout from '../components/layout/Layout'
 import { useAuth } from '../App'
 import { diagnoseApi, doctorApi, reportApi } from '../lib/api'
 import { Link } from 'react-router-dom'
-import {
-  Activity,
-  AlertTriangle,
-  ArrowUpRight,
-  Bell,
-  CheckCircle2,
-  ChevronRight,
-  ClipboardCheck,
-  Clock3,
-  Microscope,
-  ShieldCheck,
-  Stethoscope,
-  TrendingUp,
-} from 'lucide-react'
+import { AlertTriangle, ArrowUpRight, Bell, CheckCircle2, ChevronRight, ClipboardCheck, Clock3, Microscope, ShieldCheck, Stethoscope, TrendingUp } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 
 const CLASS_COLORS = { mel: '#8B4A46', bcc: '#8B6A4E', akiec: '#8A7545', bkl: '#52705A', nv: '#557086', df: '#6F667F', vasc: '#557A7A' }
@@ -46,7 +33,7 @@ function ClinicalBadge({ diagnosis }) {
 
 function StatCard({ icon: Icon, label, value, detail, tone = 'teal' }) {
   const tones = {
-    teal: { icon: '#3D7068', bg: '#EEF4F3' },
+    teal: { icon: '#0F766E', bg: '#F0F7F6' },
     red: { icon: '#8B4A46', bg: '#F5E9E7' },
     amber: { icon: '#A97824', bg: '#F4F0E5' },
     green: { icon: '#52705A', bg: '#EDF3ED' },
@@ -72,8 +59,7 @@ function SectionHeader({ eyebrow, title, action, to }) {
   return (
     <div className="flex items-end justify-between gap-4 mb-5">
       <div>
-        {eyebrow && <div className="eyebrow">{eyebrow}</div>}
-        <h2 className="section-title text-2xl mt-1">{title}</h2>
+                <h2 className="section-title text-2xl mt-1">{title}</h2>
       </div>
       {action && to && (
         <Link to={to} className="hidden sm:inline-flex items-center gap-1 text-xs font-medium text-teal-700 hover:text-teal-800">
@@ -123,7 +109,6 @@ function PatientDashboard({ user }) {
       <div className="max-w-7xl mx-auto px-5 sm:px-8 py-8 lg:py-10">
         <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6 mb-8">
           <div>
-            <div className="eyebrow">Patient workspace</div>
             <h1 className="text-3xl lg:text-4xl font-serif font-semibold text-ink mt-2 tracking-tight">
               {greeting}, {firstName}.
             </h1>
@@ -137,8 +122,8 @@ function PatientDashboard({ user }) {
         </div>
 
         {unread > 0 && (
-          <Link to="/history" className="mb-6 flex items-center gap-3 rounded-xl border p-4 hover:border-[#B8C5C2] transition-colors" style={{ background: '#EEF4F3', borderColor: '#D7E4E1' }}>
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: '#3D7068' }}>
+          <Link to="/history" className="mb-6 flex items-center gap-3 rounded-xl border p-4 hover:border-[#B9C8C5] transition-colors" style={{ background: '#F0F7F6', borderColor: '#D7E4E1' }}>
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: '#0F766E' }}>
               <Bell size={16} className="text-white" />
             </div>
             <div className="min-w-0 flex-1">
@@ -178,9 +163,9 @@ function PatientDashboard({ user }) {
             ) : (
               <div className="space-y-2">
                 {recent.map(d => {
-                  const classColor = CLASS_COLORS[d.predicted_class] || '#5B6764'
+                  const classColor = CLASS_COLORS[d.predicted_class] || '#5A6968'
                   return (
-                    <div key={d.id} className="group flex items-center gap-3 sm:gap-4 p-3 rounded-xl border border-line hover:border-[#B8C5C2] hover:bg-paper transition-all">
+                    <div key={d.id} className="group flex items-center gap-3 sm:gap-4 p-3 rounded-xl border border-line hover:border-[#B9C8C5] hover:bg-paper transition-all">
                       <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: `${classColor}12`, border: `1px solid ${classColor}25` }}>
                         <span className="w-2.5 h-2.5 rounded-full" style={{ background: classColor }} />
                       </div>
@@ -195,7 +180,7 @@ function PatientDashboard({ user }) {
                         </div>
                       </div>
                       {d.report_url && (
-                        <button type="button" onClick={() => reportApi.download(d.report_url, `DERMAXAI_Report_${d.id}.pdf`)} className="text-xs font-medium text-teal-700 hover:text-teal-800 px-2 py-1 rounded-md hover:bg-[#EEF4F3] transition-colors">
+                        <button type="button" onClick={() => reportApi.download(d.report_url, `DERMAXAI_Report_${d.id}.pdf`)} className="text-xs font-medium text-teal-700 hover:text-teal-800 px-2 py-1 rounded-md hover:bg-[#F0F7F6] transition-colors">
                           PDF
                         </button>
                       )}
@@ -215,16 +200,15 @@ function PatientDashboard({ user }) {
               <ResponsiveContainer width="100%" height={230}>
                 <BarChart data={classDist} layout="vertical" margin={{ left: 0, right: 8, top: 4, bottom: 4 }}>
                   <XAxis type="number" allowDecimals={false} tick={{ fill: '#89928F', fontSize: 10 }} axisLine={false} tickLine={false} />
-                  <YAxis type="category" dataKey="name" tick={{ fill: '#5B6764', fontSize: 10 }} axisLine={false} tickLine={false} width={48} />
-                  <Tooltip contentStyle={{ background: '#FFFFFF', border: '1px solid #E4E7E4', borderRadius: '10px', fontSize: '12px', boxShadow: '0 8px 24px rgba(28,35,33,.08)' }} cursor={{ fill: '#F5F7F6' }} />
+                  <YAxis type="category" dataKey="name" tick={{ fill: '#5A6968', fontSize: 10 }} axisLine={false} tickLine={false} width={48} />
+                  <Tooltip contentStyle={{ background: '#FFFFFF', border: '1px solid #E2E8E7', borderRadius: '10px', fontSize: '12px', boxShadow: '0 8px 24px rgba(28,35,33,.08)' }} cursor={{ fill: '#F5F7F6' }} />
                   <Bar dataKey="count" radius={[0, 5, 5, 0]}>
-                    {classDist.map(entry => <Cell key={entry.cls} fill={CLASS_COLORS[entry.cls] || '#5B6764'} />)}
+                    {classDist.map(entry => <Cell key={entry.cls} fill={CLASS_COLORS[entry.cls] || '#5A6968'} />)}
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
             )}
             <div className="mt-3 pt-4 border-t border-line flex items-center justify-between gap-4">
-              <div className="text-xs text-muted flex items-center gap-2"><ShieldCheck size={14} className="text-teal-700" /> Explainable decision support</div>
               <Link to="/diagnose" className="text-xs font-semibold text-teal-700 hover:text-teal-800 inline-flex items-center gap-1">New scan <ArrowUpRight size={12} /></Link>
             </div>
           </section>
@@ -254,7 +238,6 @@ function DoctorDashboard({ user }) {
       <div className="max-w-7xl mx-auto px-5 sm:px-8 py-8 lg:py-10">
         <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6 mb-8">
           <div>
-            <div className="eyebrow">Decision-support workspace</div>
             <h1 className="text-3xl lg:text-4xl font-serif font-semibold text-ink mt-2 tracking-tight">
               {greeting}, Dr. {firstName}.
             </h1>
@@ -287,9 +270,9 @@ function DoctorDashboard({ user }) {
           ) : (
             <div className="space-y-2">
               {queue.unclaimed.slice(0, 6).map(c => {
-                const classColor = CLASS_COLORS[c.predicted_class] || '#5B6764'
+                const classColor = CLASS_COLORS[c.predicted_class] || '#5A6968'
                 return (
-                  <div key={c.id} className="flex items-center gap-3 sm:gap-4 p-3 rounded-xl border border-line hover:border-[#B8C5C2] hover:bg-paper transition-all">
+                  <div key={c.id} className="flex items-center gap-3 sm:gap-4 p-3 rounded-xl border border-line hover:border-[#B9C8C5] hover:bg-paper transition-all">
                     <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: `${classColor}12`, border: `1px solid ${classColor}25` }}>
                       <span className="w-2.5 h-2.5 rounded-full" style={{ background: classColor }} />
                     </div>
@@ -311,20 +294,6 @@ function DoctorDashboard({ user }) {
           )}
         </section>
 
-        <div className="mt-6 grid md:grid-cols-3 gap-4">
-          <div className="glass-light p-5">
-            <div className="flex items-center gap-2 text-xs font-semibold text-ink"><Activity size={14} className="text-teal-700" /> AI triage</div>
-            <p className="text-xs text-muted leading-5 mt-2">Urgency flags help surface cases that may need faster clinical attention.</p>
-          </div>
-          <div className="glass-light p-5">
-            <div className="flex items-center gap-2 text-xs font-semibold text-ink"><ShieldCheck size={14} className="text-teal-700" /> Human oversight</div>
-            <p className="text-xs text-muted leading-5 mt-2">Clinical review remains the final decision layer for escalated assessments.</p>
-          </div>
-          <div className="glass-light p-5">
-            <div className="flex items-center gap-2 text-xs font-semibold text-ink"><TrendingUp size={14} className="text-teal-700" /> Review throughput</div>
-            <p className="text-xs text-muted leading-5 mt-2">Track your claimed and completed workload from the review queue.</p>
-          </div>
-        </div>
       </div>
     </div>
   )
