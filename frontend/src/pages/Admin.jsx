@@ -3,16 +3,7 @@ import Layout from '../components/layout/Layout'
 import { adminApi } from '../lib/api'
 import { useAuth } from '../App'
 import toast from 'react-hot-toast'
-import {
-  Activity,
-  AlertTriangle,
-  BarChart3,
-  CheckCircle2,
-  Clock3,
-  Shield,
-  Users,
-  UserCog,
-} from 'lucide-react'
+import { Activity, AlertTriangle, BarChart3, CheckCircle2, Clock3, Users, UserCog } from 'lucide-react'
 import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 
 const COLORS = { mel: '#8B4A46', bcc: '#8B6A4E', akiec: '#8A7545', bkl: '#52705A', nv: '#557086', df: '#6F667F', vasc: '#557A7A' }
@@ -20,7 +11,7 @@ const NAMES = { mel: 'Melanoma', bcc: 'Basal Cell Carcinoma', akiec: 'Actinic Ke
 
 function Metric({ icon: Icon, label, value, note, tone = 'teal' }) {
   const styles = {
-    teal: ['#3D7068', '#EEF5F3'], red: ['#8B4A46', '#F5E9E7'], amber: ['#8A7545', '#F4F0E5'], purple: ['#6F667F', '#EEEDF1']
+    teal: ['#0F766E', '#F0F7F6'], red: ['#8B4A46', '#F5E9E7'], amber: ['#8A7545', '#F4F0E5'], purple: ['#6F667F', '#EEEDF1']
   }
   const [color, bg] = styles[tone]
   return (
@@ -91,9 +82,7 @@ export default function Admin() {
       <div className="page-pad max-w-7xl mx-auto">
         <div className="page-heading">
           <div>
-            <div className="eyebrow"><Shield size={13} /> Administration</div>
             <h1 className="page-title">System control centre</h1>
-            <p className="page-subtitle">Monitor users, diagnostic activity and review behaviour without exposing unsupported accuracy claims.</p>
           </div>
           <div className="status-pill"><span /> Local system</div>
         </div>
@@ -103,7 +92,7 @@ export default function Admin() {
             ['overview', 'Overview', Activity], ['performance', 'Model & review', BarChart3], ['users', 'Users', Users],
           ].map(([key, label, Icon]) => (
             <button key={key} onClick={() => setTab(key)} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap border transition-colors"
-              style={{ background: tab === key ? '#F1F5F3' : 'transparent', borderColor: tab === key ? '#B8C9C4' : '#E4E7E4', color: tab === key ? '#254742' : '#5B6764' }}>
+              style={{ background: tab === key ? '#F1F5F3' : 'transparent', borderColor: tab === key ? '#B8C9C4' : '#E2E8E7', color: tab === key ? '#0B524D' : '#5A6968' }}>
               <Icon size={14} /> {label}
             </button>
           ))}
@@ -123,7 +112,7 @@ export default function Admin() {
                   <div className="glass p-6">
                     <div className="flex items-start justify-between gap-4 mb-5"><div><h2 className="section-card-title">Diagnosis mix</h2><p className="text-xs text-muted mt-1">Predicted class distribution across stored cases.</p></div><BarChart3 size={18} className="text-teal-600" /></div>
                     {classData.length ? (
-                      <div className="h-72"><ResponsiveContainer width="100%" height="100%"><BarChart data={classData} margin={{ left: 0, right: 10, bottom: 30 }}><XAxis dataKey="key" tick={{ fill: '#7A8581', fontSize: 10 }} axisLine={false} tickLine={false} /><YAxis allowDecimals={false} tick={{ fill: '#7A8581', fontSize: 10 }} axisLine={false} tickLine={false} /><Tooltip contentStyle={{ background: '#fff', border: '1px solid #DDE5E2', borderRadius: 10, fontSize: 12 }} /><Bar dataKey="count" radius={[5,5,0,0]}>{classData.map(item => <Cell key={item.key} fill={COLORS[item.key] || '#3D7068'} />)}</Bar></BarChart></ResponsiveContainer></div>
+                      <div className="h-72"><ResponsiveContainer width="100%" height="100%"><BarChart data={classData} margin={{ left: 0, right: 10, bottom: 30 }}><XAxis dataKey="key" tick={{ fill: '#7A8581', fontSize: 10 }} axisLine={false} tickLine={false} /><YAxis allowDecimals={false} tick={{ fill: '#7A8581', fontSize: 10 }} axisLine={false} tickLine={false} /><Tooltip contentStyle={{ background: '#fff', border: '1px solid #E2E8E7', borderRadius: 10, fontSize: 12 }} /><Bar dataKey="count" radius={[5,5,0,0]}>{classData.map(item => <Cell key={item.key} fill={COLORS[item.key] || '#0F766E'} />)}</Bar></BarChart></ResponsiveContainer></div>
                     ) : <div className="rounded-xl border border-dashed border-line bg-paper p-12 text-center text-sm text-muted">No diagnosis data yet.</div>}
                   </div>
                   <div className="glass p-6">
