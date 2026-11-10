@@ -28,19 +28,21 @@ def get_tta_transforms(n=8):
     """
     Fixed-view Test-Time Augmentation transforms.
     Uses full-image geometric variants rather than spatial crops.
-    The configured value is the number of deterministic views averaged
-    for the primary prediction.
+    Every view is deterministic: the same image always yields the same views.
+    The configured value is the number of views averaged for the
+    primary prediction.
     """
     base = [A.Resize(IMG_SIZE, IMG_SIZE)]
+    tail = [A.Normalize(**NORM), ToTensorV2()]
     tfms = [
-        A.Compose(base + [A.Normalize(**NORM), ToTensorV2()]),
-        A.Compose(base + [A.HorizontalFlip(p=1), A.Normalize(**NORM), ToTensorV2()]),
-        A.Compose(base + [A.VerticalFlip(p=1), A.Normalize(**NORM), ToTensorV2()]),
-        A.Compose(base + [A.Rotate(limit=90, p=1), A.Normalize(**NORM), ToTensorV2()]),
-        A.Compose(base + [A.Rotate(limit=180, p=1), A.Normalize(**NORM), ToTensorV2()]),
-        A.Compose(base + [A.Rotate(limit=270, p=1), A.Normalize(**NORM), ToTensorV2()]),
-        A.Compose(base + [A.Transpose(p=1), A.Normalize(**NORM), ToTensorV2()]),
-        A.Compose(base + [A.Rotate(limit=45, p=1), A.Normalize(**NORM), ToTensorV2()]),
+        A.Compose(base + tail),
+        A.Compose(base + [A.HorizontalFlip(p=1)] + tail),
+        A.Compose(base + [A.VerticalFlip(p=1)] + tail),
+        A.Compose(base + [A.Rotate(limit=(90, 90), p=1)] + tail),
+        A.Compose(base + [A.Rotate(limit=(180, 180), p=1)] + tail),
+        A.Compose(base + [A.Rotate(limit=(270, 270), p=1)] + tail),
+        A.Compose(base + [A.Transpose(p=1)] + tail),
+        A.Compose(base + [A.Rotate(limit=(45, 45), p=1)] + tail),
     ]
     return tfms[:n]
 
