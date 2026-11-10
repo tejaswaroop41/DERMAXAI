@@ -1,6 +1,8 @@
 import os
 import sys
 
+import numpy as np
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from core.config import settings
@@ -15,3 +17,11 @@ def test_tta_uses_configured_number_of_views():
 
 def test_tta_view_count_does_not_change_with_legacy_alias():
     assert settings.TTA_CROPS == settings.TTA_VIEWS
+
+
+def test_tta_views_are_deterministic():
+    img = (np.random.default_rng(0).random((300, 300, 3)) * 255).astype("uint8")
+    for tfm in get_tta_transforms(settings.TTA_VIEWS):
+        a = tfm(image=img)["image"]
+        b = tfm(image=img)["image"]
+        assert np.array_equal(a, b)
