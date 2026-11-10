@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { ArrowRight, Microscope, ShieldCheck, Stethoscope } from 'lucide-react'
-import { BRAND_SHORT } from '../lib/brand'
+import { BRAND_NAME, BRAND_SHORT, BRAND_TAGLINE } from '../lib/brand'
 
 const features = [
   { icon: Microscope, title: 'Image analysis', body: 'Classify dermoscopic images with calibrated confidence and uncertainty estimates.' },
@@ -29,6 +29,7 @@ export default function Landing() {
           <div className="hero-grid" />
           <div className="relative max-w-6xl mx-auto px-6 py-20 lg:py-28 grid lg:grid-cols-[1.1fr_.9fr] gap-12 items-center">
             <div>
+              <p className="text-xs sm:text-sm font-semibold uppercase tracking-wider text-teal-700 mb-4">{BRAND_TAGLINE}</p>
               <h1 className="text-4xl sm:text-5xl font-semibold leading-[1.1] tracking-tight max-w-xl">
                 Skin lesion screening with clinical oversight.
               </h1>
@@ -42,10 +43,10 @@ export default function Landing() {
             </div>
 
             <div className="glass p-5 shadow-raised">
-              <div className="relative rounded-lg overflow-hidden border border-line aspect-[4/3]">
+              <div role="img" aria-label="Illustration of a dermoscopic skin lesion image" className="relative rounded-lg overflow-hidden border border-line aspect-[4/3]">
                 <div className="scan-surface" />
               </div>
-              <div className="mt-4 grid grid-cols-3 gap-3 text-center">
+              <div className="mt-4 grid grid-cols-3 gap-3 text-center" aria-label="Analysis capabilities">
                 {['Prediction', 'Uncertainty', 'Grad-CAM'].map(label => (
                   <div key={label} className="rounded-lg border border-line bg-paper py-2.5 text-xs font-medium text-muted">{label}</div>
                 ))}
@@ -69,7 +70,7 @@ export default function Landing() {
 
       <footer className="border-t border-line">
         <div className="max-w-6xl mx-auto px-6 py-6 flex flex-col sm:flex-row gap-2 sm:items-center justify-between text-xs text-muted">
-          <span className="font-medium text-ink">{BRAND_SHORT}</span>
+          <span className="font-medium text-ink">{BRAND_NAME}</span>
           <span>Clinical decision support. Results must be reviewed by a qualified professional.</span>
         </div>
       </footer>
